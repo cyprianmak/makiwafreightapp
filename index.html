@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MakiwaFreight App (Plug & Play)</title>
+  <style>
+    :root{
+      --bg:#0b1220; /* deep navy */
+      --panel:#121a2b;
+      --panel-2:#1b2742;
+      --text:#d7e7ff; /* light blue */
+      --muted:#8fb7ff;
+      --accent:#4da3ff;
+      --accent-2:#73c1ff;
+      --good:#22c55e;
+      --warn:#f59e0b;
+      --bad:#ef4444;
+      --border:#2a3b5f;
+      --chip:#0e1a33;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+      background:linear-gradient(180deg,var(--bg),#0d1426 40%, #0a1120);
+      color:var(--text);
+    }
+    a{color:var(--accent)}
+    .container{max-width:1100px;margin:0 auto;padding:24px}
+    header{
+      position:sticky;top:0;z-index:10;
+      background:rgba(11,18,32,0.8);backdrop-filter:blur(8px);
+      border-bottom:1px solid var(--border);
+    }
+    .nav{display:flex;gap:12px;align-items:center;justify-content:space-between}
+    .brand{display:flex;gap:12px;align-items:center}
+    .logo{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:grid;place-items:center;font-weight:800;color:#08203a}
+    .brand h1{font-size:18px;margin:0;color:var(--text)}
+    .auth-area{display:flex;gap:8px;align-items:center}
+    button, .btn{
+      border:1px solid var(--border); background:linear-gradient(180deg,var(--panel),var(--panel-2));
+      color:var(--text); padding:10px 14px; border-radius:12px; cursor:pointer; font-weight:600;
+      transition:all .15s ease; text-decoration:none; display:inline-flex; align-items:center; gap:8px
+    }
+    button:hover, .btn:hover{transform:translateY(-1px); border-color:var(--accent)}
+    .btn.ghost{background:transparent}
+    .btn.primary{background:linear-gradient(180deg,var(--accent),var(--accent-2)); color:#0a1a2e; border-color:transparent}
+    .grid{display:grid; gap:16px}
+    .two{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .three{grid-template-columns:repeat(3,minmax(0,1fr))}
+    @media (max-width:900px){.two,.three{grid-template-columns:1fr}}
+    .card{
+      border:1px solid var(--border); border-radius:16px; padding:16px; background:linear-gradient(180deg,var(--panel),var(--panel-2));
+      box-shadow:0 10px 30px rgba(0,0,0,0.25)
+    }
+    .card h3{margin:0 0 8px}
+    .muted{color:var(--muted)}
+    .kpi{display:flex; gap:14px; align-items:center}
+    .chip{background:var(--chip); border:1px solid var(--border); border-radius:999px; padding:6px 10px; font-size:12px}
+    .danger{color:var(--bad)}
+    .success{color:var(--good)}
+    .warn{color:var(--warn)}
+    .hidden{display:none !important}
+    input, select, textarea{
+      width:100%; padding:10px 12px; border-radius:12px; border:1px solid var(--border);
+      background:#0c1530; color:var(--text);
+    }
+    label{font-size:12px; color:var(--muted)}
+    form .grid{margin-top:8px}
+    table{width:100%; border-collapse:separate; border-spacing:0 8px}
+    th,td{padding:10px 12px; border-top:1px solid var(--border); border-bottom:1px solid var(--border)}
+    th{font-weight:700; text-align:left; color:var(--muted); background:#0f1940}
+    tr td:first-child, tr th:first-child{border-left:1px solid var(--border); border-top-left-radius:12px; border-bottom-left-radius:12px}
+    tr td:last-child, tr th:last-child{border-right:1px solid var(--border); border-top-right-radius:12px; border-bottom-right-radius:12px}
+    .toolbar{display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:space-between}
+    .banner{border:1px dashed var(--border); padding:10px 14px; border-radius:12px; background:#0d1836; color:var(--muted)}
+    .footer{opacity:.75; font-size:12px; text-align:center; padding:24px}
+    .sr-only{position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container nav">
+      <div class="brand">
+        <div class="logo">MF</div>
+        <h1>MakiwaFreight</h1>
+        <span id="roleChip" class="chip hidden"></span>
+      </div>
+      <div class="auth-area">
+        <span id="authUser" class="muted"></span>
+        <a id="btnLoginNav" href="#login" class="btn">Login</a>
+        <button id="btnLogout" class="btn ghost hidden">Logout</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- Index / Landing Page -->
+    <section id="page-index" class="grid two">
+      <div class="card">
+        <h2>Welcome to MakiwaFreight</h2>
+        <p class="muted">A simple marketplace where shippers meet transporters.</p>
+        <div id="indexBanner" class="banner hidden"></div>
+        <div class="grid two" style="margin-top:12px">
+          <a class="btn primary" href="#login">Login</a>
+          <a class="btn" href="#register-options">Register</a>
+        </div>
+        <div style="margin-top:12px" class="muted">
+          <strong>Admin access:</strong> <span class="chip">cyprianmak@gmail.com / Muchandida@1</span>
+        </div>
+      </div>
+      <div class="grid three">
+        <div class="card"><h3>For Shippers</h3><p>Post loads, manage offers, and message carriers.</p></div>
+        <div class="card"><h3>For Transporters</h3><p>Browse the live load board and message shippers.</p></div>
+        <div class="card"><h3>Secure & Simple</h3><p>Role-based access with client-side storage for demo use.</p></div>
+      </div>
+    </section>
+
+    <!-- Register options -->
+    <section id="page-register-options" class="card hidden">
+      <h2>Register</h2>
+      <div class="grid two">
+        <a class="btn" href="#register-shipper">Register as Shipper</a>
+        <a class="btn" href="#register-transporter">Register as Transporter</a>
+      </div>
+    </section>
+
+    <!-- Login -->
+    <section id="page-login" class="card hidden">
+      <h2>Login</h2>
+      <form id="formLogin">
+        <div class="grid two">
+          <div>
+            <label>Email</label>
+            <input required type="email" name="email" placeholder="you@example.com" />
+          </div>
+          <div>
+            <label>Password</label>
+            <input required type="password" name="password" placeholder="••••••••" />
+          </div>
+        </div>
+        <div class="toolbar" style="margin-top:12px">
+          <button class="btn primary" type="submit">Sign in</button>
+          <a class="btn" href="#register-options">Need an account?</a>
+        </div>
+      </form>
+    </section>
+
+    <!-- Shipper Registration -->
+    <section id="page-register-shipper" class="card hidden">
+      <h2>Create Shipper Account</h2>
+      <form id="formRegShipper" autocomplete="off">
+        <div class="grid two">
+          <div><label>Full Name</label><input required name="name" /></div>
+          <div><label>Company</label><input name="company" /></div>
+          <div><label>Email</label><input required type="email" name="email" /></div>
+          <div><label>Phone</label><input required name="phone" /></div>
+          <div><label>Password</label><input required type="password" name="password" /></div>
+          <div><label>Address</label><input name="address" /></div>
+        </div>
+        <div class="toolbar" style="margin-top:12px">
+          <button class="btn primary" type="submit">Register</button>
+          <a class="btn" href="#login">Back to Login</a>
+        </div>
+      </form>
+    </section>
+
+    <!-- Transporter Registration -->
+    <section id="page-register-transporter" class="card hidden">
+      <h2>Create Transporter Account</h2>
+      <form id="formRegTransporter" autocomplete="off">
+        <div class="grid two">
+          <div><label>Full Name</label><input required name="name" /></div>
+          <div><label>Company / Fleet</label><input name="company" /></div>
+          <div><label>Email</label><input required type="email" name="email" /></div>
+          <div><label>Phone</label><input required name="phone" /></div>
+          <div><label>Vehicle Info</label><input name="vehicle_info" placeholder="e.g. 2 x 34T Side Tipper" /></div>
+          <div><label>Password</label><input required type="password" name="password" /></div>
+          <div class="two" style="grid-column:1/-1"><label>Address</label><input name="address" /></div>
+        </div>
+        <div class="toolbar" style="margin-top:12px">
+          <button class="btn primary" type="submit">Register</button>
+          <a class="btn" href="#login">Back to Login</a>
+        </div>
+      </form>
+    </section>
+
+    <!-- Shipper Dashboard -->
+    <section id="page-shipper-dashboard" class="hidden">
+      <div class="toolbar">
+        <h2>Shipper Dashboard</h2>
+        <div>
+          <a class="btn" href="#shipper-post">Post Load</a>
+          <a class="btn" href="#shipper-profile">Profile</a>
+          <a class="btn" href="#messages">Messages</a>
+        </div>
+      </div>
+      <div id="dashBannerShipper" class="banner hidden"></div>
+      <div class="card">
+        <div class="toolbar">
+          <h3>Your Posted Loads</h3>
+          <span class="chip" id="shipperPostAccessChip"></span>
+        </div>
+        <table id="tableMyLoads"><thead><tr>
+          <th>Ref</th><th>Origin</th><th>Destination</th><th>Date</th><th>Cargo</th><th>Weight</th><th>Notes</th><th>Actions</th>
+        </tr></thead><tbody></tbody></table>
+      </div>
+    </section>
+
+    <!-- Shipper Post Load -->
+    <section id="page-shipper-post" class="card hidden">
+      <h2>Post a Load</h2>
+      <div id="postAccessNotice" class="banner hidden"></div>
+      <form id="formPostLoad">
+        <div class="grid two">
+          <div><label>Origin</label><input required name="origin" /></div>
+          <div><label>Destination</label><input required name="destination" /></div>
+          <div><label>Pickup Date</label><input required type="date" name="date" /></div>
+          <div><label>Cargo Type</label><input required name="cargo_type" /></div>
+          <div><label>Weight (Tons)</label><input required name="weight" type="number" min="0" step="0.01" /></div>
+          <div class="two" style="grid-column:1/-1"><label>Notes</label><textarea name="notes"></textarea></div>
+        </div>
+        <div class="toolbar" style="margin-top:12px">
+          <button class="btn primary" type="submit">Publish</button>
+          <a class="btn" href="#shipper-dashboard">Back</a>
+        </div>
+      </form>
+    </section>
+
+    <!-- Shipper Profile -->
+    <section id="page-shipper-profile" class="card hidden">
+      <h2>Shipper Profile</h2>
+      <form id="formProfileShipper"></form>
+      <div class="toolbar" style="margin-top:12px">
+        <button class="btn primary" id="saveProfileShipper">Save Changes</button>
+        <a class="btn" href="#shipper-dashboard">Back</a>
+      </div>
+    </section>
+
+    <!-- Transporter Dashboard (Load Board) -->
+    <section id="page-transporter-dashboard" class="hidden">
+      <div class="toolbar">
+        <h2>Transporter Dashboard</h2>
+        <div>
+          <a class="btn" href="#transporter-profile">Profile</a>
+          <a class="btn" href="#messages">Messages</a>
+        </div>
+      </div>
+      <div id="dashBannerTransporter" class="banner hidden"></div>
+      <div class="card">
+        <div class="toolbar">
+          <h3>Load Market Board</h3>
+          <span class="chip" id="marketAccessChip"></span>
+          <div style="display:flex;gap:8px">
+            <input id="filterOrigin" placeholder="Filter by origin" />
+            <input id="filterDest" placeholder="Filter by destination" />
+            <button id="btnFilterLoads" class="btn">Filter</button>
+          </div>
+        </div>
+        <table id="tableLoads"><thead><tr>
+          <th>Ref</th><th>Origin</th><th>Destination</th><th>Date</th><th>Cargo</th><th>Weight</th><th>Notes</th><th>Posted By</th>
+        </tr></thead><tbody></tbody></table>
+      </div>
+    </section>
+
+    <!-- Transporter Profile -->
+    <section id="page-transporter-profile" class="card hidden">
+      <h2>Transporter Profile</h2>
+      <form id="formProfileTransporter"></form>
+      <div class="toolbar" style="margin-top:12px">
+        <button class="btn primary" id="saveProfileTransporter">Save Changes</button>
+        <a class="btn" href="#transporter-dashboard">Back</a>
+      </div>
+    </section>
+
+    <!-- Messages (Common) -->
+    <section id="page-messages" class="card hidden">
+      <h2>Messages</h2>
+      <div class="grid two">
+        <form id="formSendMsg" class="card">
+          <h3>Send a Message</h3>
+          <div class="grid two">
+            <div><label>To (email)</label><input required name="to" placeholder="receiver@example.com" /></div>
+            <div><label>Message</label><input required name="body" placeholder="Type your message..." /></div>
+          </div>
+          <div class="toolbar" style="margin-top:12px">
+            <button class="btn primary" type="submit">Send</button>
+            <a class="btn" href="#">Back</a>
+          </div>
+        </form>
+        <div class="card">
+          <h3>Inbox</h3>
+          <table id="tableInbox"><thead><tr>
+            <th>From</th><th>Message</th><th>When</th><th>Action</th>
+          </tr></thead><tbody></tbody></table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Admin Control Page -->
+    <section id="page-control" class="hidden">
+      <div class="toolbar">
+        <h2>Admin Control</h2>
+        <div>
+          <a class="btn" href="#messages">Messages</a>
+        </div>
+      </div>
+
+      <div class="grid two">
+        <div class="card">
+          <h3>Broadcasts</h3>
+          <label>Index Banner</label>
+          <input id="adminIndexBanner" placeholder="Short notice shown on Index" />
+          <label style="margin-top:8px">Dashboard Banner</label>
+          <input id="adminDashBanner" placeholder="Shown on all dashboards" />
+          <div class="toolbar" style="margin-top:12px">
+            <button id="btnSaveBanners" class="btn primary">Save</button>
+            <button id="btnClearBanners" class="btn">Clear</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Access Controls</h3>
+          <div class="grid two">
+            <div>
+              <label>Post Load access (by user email)</label>
+              <input id="aclPostEmail" placeholder="user@example.com" />
+              <div class="toolbar" style="margin-top:8px">
+                <button id="btnGrantPost" class="btn">Grant</button>
+                <button id="btnRevokePost" class="btn">Revoke</button>
+              </div>
+            </div>
+            <div>
+              <label>Load Market access (by user email)</label>
+              <input id="aclMarketEmail" placeholder="user@example.com" />
+              <div class="toolbar" style="margin-top:8px">
+                <button id="btnGrantMarket" class="btn">Grant</button>
+                <button id="btnRevokeMarket" class="btn">Revoke</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Users</h3>
+          <table id="tableUsers"><thead><tr>
+            <th>Name</th><th>Email</th><th>Role</th><th>Actions</th>
+          </tr></thead><tbody></tbody></table>
+        </div>
+
+        <div class="card">
+          <h3>Loads</h3>
+          <table id="tableAllLoads"><thead><tr>
+            <th>Ref</th><th>Origin</th><th>Destination</th><th>Date</th><th>Cargo</th><th>Weight</th><th>By</th><th>Actions</th>
+          </tr></thead><tbody></tbody></table>
+        </div>
+
+        <div class="card">
+          <h3>Reset Password</h3>
+          <div class="grid two">
+            <div><label>User Email</label><input id="resetEmail" placeholder="user@example.com" /></div>
+            <div><label>New Password</label><input id="resetPass" placeholder="new password" /></div>
+          </div>
+          <div class="toolbar" style="margin-top:12px">
+            <button id="btnResetPass" class="btn">Assign</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="footer">Demo build – data stored locally in your browser. Replace with real API in production.</div>
+  </main>
+
+  <script>
+    // --- Simple client-side data store using localStorage ---
+    const DB_KEY = 'makiwa.freight.v1';
+    const now = () => new Date().toISOString();
+
+    function loadDB(){
+      const raw = localStorage.getItem(DB_KEY);
+      let db = raw ? JSON.parse(raw) : null;
+      if(!db){
+        db = {
+          users: [],
+          loads: [],
+          messages: [],
+          banners: { index:"", dashboard:"" },
+          acl: { post:{}, market:{} }, // email => true/false
+          currentUserId: null,
+          seed: true
+        };
+      }
+      // Ensure admin exists
+      const adminEmail = 'cyprianmak@gmail.com';
+      let admin = db.users.find(u=>u.email===adminEmail);
+      if(!admin){
+        admin = {
+          id: crypto.randomUUID(),
+          name: 'Admin',
+          email: adminEmail,
+          phone: '',
+          password: 'Muchandida@1',
+          role: 'admin',
+          company: 'MakiwaFreight',
+          vehicle_info: '',
+          address: '',
+          created_at: now(), updated_at: now()
+        };
+        db.users.push(admin);
+        db.acl.post[admin.email] = true;
+        db.acl.market[admin.email] = true;
+      }
+      return db;
+    }
+    function saveDB(db){ localStorage.setItem(DB_KEY, JSON.stringify(db)); }
+
+    let DB = loadDB();
+
+    // --- Router ---
+    const pages = {
+      index: 'page-index',
+      'register-options': 'page-register-options',
+      login: 'page-login',
+      'register-shipper': 'page-register-shipper',
+      'register-transporter': 'page-register-transporter',
+      'shipper-dashboard': 'page-shipper-dashboard',
+      'shipper-post': 'page-shipper-post',
+      'shipper-profile': 'page-shipper-profile',
+      'transporter-dashboard': 'page-transporter-dashboard',
+      'transporter-profile': 'page-transporter-profile',
+      messages: 'page-messages',
+      control: 'page-control'
+    };
+
+    function show(hash){
+      const key = (hash||'#').replace('#','') || 'index';
+      for(const k in pages){
+        document.getElementById(pages[k]).classList.add('hidden');
+      }
+      document.getElementById(pages[key]).classList.remove('hidden');
+      render();
+    }
+    window.addEventListener('hashchange', ()=>show(location.hash));
+
+    // --- Auth helpers ---
+    function currentUser(){ return DB.users.find(u=>u.id===DB.currentUserId) || null; }
+    function login(email, password){
+      const u = DB.users.find(u=>u.email===email && u.password===password);
+      if(u){ DB.currentUserId = u.id; saveDB(DB); return u; }
+      return null;
+    }
+    function logout(){ DB.currentUserId = null; saveDB(DB); location.hash = '#login'; render(); }
+
+    // --- Registration ---
+    function registerUser(data){
+      if(DB.users.find(u=>u.email===data.email)) throw new Error('Email already in use');
+      const id = crypto.randomUUID();
+      const u = { id, created_at: now(), updated_at: now(), ...data };
+      DB.users.push(u);
+      // Default ACLs: grant post to shippers, market to transporters
+      if(u.role==='shipper') DB.acl.post[u.email] = true;
+      if(u.role==='transporter') DB.acl.market[u.email] = true;
+      saveDB(DB);
+      return u;
+    }
+
+    // --- Loads ---
+    function postLoad(user, payload){
+      const ref = Math.random().toString(36).slice(2,8).toUpperCase();
+      const item = { id: crypto.randomUUID(), ref, shipper_id: user.id, ...payload, created_at: now(), updated_at: now(), status:'active' };
+      DB.loads.unshift(item); saveDB(DB);
+      return item;
+    }
+
+    function canPost(email){ return !!DB.acl.post[email]; }
+    function canMarket(email){ return !!DB.acl.market[email]; }
+
+    // --- Messages ---
+    function sendMessage(fromUser, toEmail, body){
+      const to = DB.users.find(u=>u.email===toEmail);
+      if(!to) throw new Error('Receiver not found');
+      const msg = { id: crypto.randomUUID(), sender_id: fromUser.id, receiver_id: to.id, body, created_at: now() };
+      DB.messages.unshift(msg); saveDB(DB); return msg;
+    }
+    function inbox(user){ return DB.messages.filter(m=>m.receiver_id===user.id); }
+
+    // --- Admin actions ---
+    function isAdmin(u){ return u && u.role==='admin'; }
+
+    // Delete user: also cascade loads/messages owned by user
+    function adminDeleteUser(email){
+      const u = DB.users.find(x=>x.email===email);
+      if(!u) throw new Error('User not found');
+      DB.users = DB.users.filter(x=>x.id!==u.id);
+      DB.loads = DB.loads.filter(l=>l.shipper_id!==u.id);
+      DB.messages = DB.messages.filter(m=>m.sender_id!==u.id && m.receiver_id!==u.id);
+      delete DB.acl.post[email]; delete DB.acl.market[email];
+      if(DB.currentUserId===u.id) DB.currentUserId=null;
+      saveDB(DB);
+    }
+    function adminResetPassword(email, newPass){
+      const u = DB.users.find(x=>x.email===email);
+      if(!u) throw new Error('User not found');
+      u.password = newPass; u.updated_at = now(); saveDB(DB);
+    }
+    function adminDeleteLoad(id){ DB.loads = DB.loads.filter(l=>l.id!==id); saveDB(DB); }
+    function adminEditLoad(id, patch){
+      const l = DB.loads.find(x=>x.id===id); if(!l) throw new Error('Load not found');
+      Object.assign(l, patch); l.updated_at = now(); saveDB(DB);
+    }
+
+    // --- Rendering helpers ---
+    function el(id){ return document.getElementById(id); }
+    function setText(id, txt){ const e = el(id); if(!e) return; e.textContent = txt; }
+    function setHidden(id, hid){ const e = el(id); if(!e) return; e.classList[hid?'add':'remove']('hidden'); }
+
+    function renderHeader(){
+      const u = currentUser();
+      setHidden('btnLogout', !u);
+      setHidden('btnLoginNav', !!u);
+      setText('authUser', u? `${u.name} · ${u.role}` : '');
+      const chip = el('roleChip');
+      if(u){ chip.textContent = u.role.toUpperCase(); chip.classList.remove('hidden'); }
+      else chip.classList.add('hidden');
+    }
+
+    function renderBanners(){
+      const { index, dashboard } = DB.banners;
+      const i = el('indexBanner'); i.textContent = index||''; setHidden('indexBanner', !index);
+      const u = currentUser();
+      const d1 = el('dashBannerShipper'); const d2 = el('dashBannerTransporter');
+      if(d1) { d1.textContent = dashboard||''; setHidden('dashBannerShipper', !dashboard); }
+      if(d2) { d2.textContent = dashboard||''; setHidden('dashBannerTransporter', !dashboard); }
+
+      // preload admin form fields
+      if(isAdmin(u)){
+        el('adminIndexBanner').value = index||'';
+        el('adminDashBanner').value = dashboard||'';
+      }
+    }
+
+    function renderShipper(){
+      const u = currentUser(); if(!u) return;
+      // Post access chip
+      const allow = canPost(u.email);
+      setText('shipperPostAccessChip', allow? 'Post access: ENABLED' : 'Post access: DISABLED');
+      // My loads table
+      const rows = DB.loads.filter(l=>l.shipper_id===u.id);
+      const tb = el('tableMyLoads').querySelector('tbody'); tb.innerHTML = '';
+      for(const l of rows){
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${l.ref}</td><td>${l.origin}</td><td>${l.destination}</td><td>${l.date}</td><td>${l.cargo_type}</td><td>${l.weight}</td><td>${l.notes||''}</td>
+        <td>
+          <button class="btn" data-edit="${l.id}">Edit</button>
+          <button class="btn danger" data-del="${l.id}">Delete</button>
+        </td>`;
+        tb.appendChild(tr);
+      }
+      // action handlers
+      tb.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{ adminDeleteLoad(b.dataset.del); render(); });
+      tb.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>{
+        const l = DB.loads.find(x=>x.id===b.dataset.edit); if(!l) return;
+        const origin = prompt('Origin', l.origin); if(origin===null) return;
+        const destination = prompt('Destination', l.destination); if(destination===null) return;
+        const date = prompt('Date (YYYY-MM-DD)', l.date); if(date===null) return;
+        const cargo_type = prompt('Cargo', l.cargo_type); if(cargo_type===null) return;
+        const weight = prompt('Weight', l.weight); if(weight===null) return;
+        const notes = prompt('Notes', l.notes||''); if(notes===null) return;
+        adminEditLoad(l.id, {origin,destination,date,cargo_type,weight,notes}); render();
+      });
+
+      // Post page access notice
+      const notice = el('postAccessNotice');
+      if(notice){ notice.textContent = allow? '' : 'Admin has disabled your Post Load access.'; setHidden('postAccessNotice', allow); }
+    }
+
+    function renderTransporter(){
+      const u = currentUser(); if(!u) return;
+      const allow = canMarket(u.email);
+      setText('marketAccessChip', allow? 'Market access: ENABLED' : 'Market access: DISABLED');
+      const tb = el('tableLoads').querySelector('tbody'); tb.innerHTML = '';
+      let rows = DB.loads;
+      const fo = el('filterOrigin').value.trim().toLowerCase();
+      const fd = el('filterDest').value.trim().toLowerCase();
+      if(fo) rows = rows.filter(l=>l.origin.toLowerCase().includes(fo));
+      if(fd) rows = rows.filter(l=>l.destination.toLowerCase().includes(fd));
+      for(const l of rows){
+        const shipper = DB.users.find(x=>x.id===l.shipper_id);
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${l.ref}</td><td>${l.origin}</td><td>${l.destination}</td><td>${l.date}</td><td>${l.cargo_type}</td><td>${l.weight}</td><td>${l.notes||''}</td><td>${shipper?shipper.email:''}</td>`;
+        tb.appendChild(tr);
+      }
+    }
+
+    function renderProfiles(){
+      const u = currentUser(); if(!u) return;
+      function fields(user, role){
+        const base = `
+          <div class="grid two">
+            <div><label>Full Name</label><input name="name" value="${user.name||''}" /></div>
+            <div><label>Company</label><input name="company" value="${user.company||''}" /></div>
+            <div><label>Email</label><input name="email" value="${user.email||''}" /></div>
+            <div><label>Phone</label><input name="phone" value="${user.phone||''}" /></div>
+            ${role==='transporter'?`<div class="two" style="grid-column:1/-1"><label>Vehicle Info</label><input name="vehicle_info" value="${user.vehicle_info||''}" /></div>`:''}
+            <div class="two" style="grid-column:1/-1"><label>Address</label><input name="address" value="${user.address||''}" /></div>
+            <div><label>Password</label><input name="password" type="password" value="${user.password||''}" /></div>
+            <div><label>Role</label><input disabled value="${user.role}" /></div>
+          </div>`;
+        return base;
+      }
+      if(u.role==='shipper') el('formProfileShipper').innerHTML = fields(u,'shipper');
+      if(u.role==='transporter') el('formProfileTransporter').innerHTML = fields(u,'transporter');
+    }
+
+    function renderMessages(){
+      const u = currentUser(); if(!u) return;
+      const tb = el('tableInbox').querySelector('tbody'); tb.innerHTML='';
+      for(const m of inbox(u)){
+        const from = DB.users.find(x=>x.id===m.sender_id);
+        const tr = document.createElement('tr');
+        const d = new Date(m.created_at).toLocaleString();
+        tr.innerHTML = `<td>${from?from.email:''}</td><td>${m.body}</td><td>${d}</td><td><button class="btn" data-delmsg="${m.id}">Delete</button></td>`;
+        tb.appendChild(tr);
+      }
+      tb.querySelectorAll('[data-delmsg]').forEach(b=>b.onclick=()=>{ DB.messages = DB.messages.filter(x=>x.id!==b.dataset.delmsg); saveDB(DB); render(); });
+    }
+
+    function renderAdmin(){
+      const u = currentUser(); if(!isAdmin(u)) return;
+      // users
+      const tbU = el('tableUsers').querySelector('tbody'); tbU.innerHTML='';
+      for(const usr of DB.users){
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${usr.name}</td><td>${usr.email}</td><td>${usr.role}</td>
+          <td>
+            <button class="btn" data-grant-post="${usr.email}">Grant Post</button>
+            <button class="btn" data-revoke-post="${usr.email}">Revoke Post</button>
+            <button class="btn" data-grant-market="${usr.email}">Grant Market</button>
+            <button class="btn" data-revoke-market="${usr.email}">Revoke Market</button>
+            <button class="btn danger" data-deluser="${usr.email}">Delete</button>
+          </td>`;
+        tbU.appendChild(tr);
+      }
+      tbU.querySelectorAll('[data-deluser]').forEach(b=>b.onclick=()=>{ if(confirm('Delete user?')){ try{adminDeleteUser(b.dataset.deluser);}catch(e){alert(e.message)} render(); } });
+      tbU.querySelectorAll('[data-grant-post]').forEach(b=>b.onclick=()=>{ DB.acl.post[b.dataset.grantPost]=true; saveDB(DB); render(); });
+      tbU.querySelectorAll('[data-revoke-post]').forEach(b=>b.onclick=()=>{ delete DB.acl.post[b.dataset.revokePost]; saveDB(DB); render(); });
+      tbU.querySelectorAll('[data-grant-market]').forEach(b=>b.onclick=()=>{ DB.acl.market[b.dataset.grantMarket]=true; saveDB(DB); render(); });
+      tbU.querySelectorAll('[data-revoke-market]').forEach(b=>b.onclick=()=>{ delete DB.acl.market[b.dataset.revokeMarket]; saveDB(DB); render(); });
+
+      // loads
+      const tbL = el('tableAllLoads').querySelector('tbody'); tbL.innerHTML='';
+      for(const l of DB.loads){
+        const by = DB.users.find(x=>x.id===l.shipper_id);
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${l.ref}</td><td>${l.origin}</td><td>${l.destination}</td><td>${l.date}</td><td>${l.cargo_type}</td><td>${l.weight}</td><td>${by?by.email:''}</td>
+          <td>
+            <button class="btn" data-editl="${l.id}">Edit</button>
+            <button class="btn danger" data-dell="${l.id}">Delete</button>
+          </td>`;
+        tbL.appendChild(tr);
+      }
+      tbL.querySelectorAll('[data-dell]').forEach(b=>b.onclick=()=>{ adminDeleteLoad(b.dataset.dell); render(); });
+      tbL.querySelectorAll('[data-editl]').forEach(b=>b.onclick=()=>{
+        const l = DB.loads.find(x=>x.id===b.dataset.editl); if(!l) return;
+        const origin = prompt('Origin', l.origin); if(origin===null) return;
+        const destination = prompt('Destination', l.destination); if(destination===null) return;
+        const date = prompt('Date (YYYY-MM-DD)', l.date); if(date===null) return;
+        const cargo_type = prompt('Cargo', l.cargo_type); if(cargo_type===null) return;
+        const weight = prompt('Weight', l.weight); if(weight===null) return;
+        const notes = prompt('Notes', l.notes||''); if(notes===null) return;
+        adminEditLoad(l.id,{origin,destination,date,cargo_type,weight,notes}); render();
+      });
+    }
+
+    function render(){
+      renderHeader();
+      renderBanners();
+      const u = currentUser();
+      // Auth guard: if on restricted page and not logged in -> login
+      const restricted = ['shipper-dashboard','shipper-post','shipper-profile','transporter-dashboard','transporter-profile','messages','control'];
+      const page = (location.hash||'#').replace('#','')||'index';
+      if(!u && restricted.includes(page)){ location.hash = '#login'; return; }
+      if(u){
+        // role routing
+        if(page==='index'){
+          if(u.role==='shipper') location.hash = '#shipper-dashboard';
+          else if(u.role==='transporter') location.hash = '#transporter-dashboard';
+          else if(isAdmin(u)) location.hash = '#control';
+        }
+        if(page.startsWith('shipper')) renderShipper();
+        if(page.startsWith('transporter')) renderTransporter();
+        if(page==='messages') renderMessages();
+        if(page==='shipper-profile' || page==='transporter-profile') renderProfiles();
+        if(page==='control'){ if(!isAdmin(u)) { location.hash = '#login'; return; } renderAdmin(); }
+      }
+    }
+
+    // --- Event bindings ---
+    document.getElementById('btnLogout').onclick = logout;
+
+    document.getElementById('formLogin').onsubmit = (e)=>{
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const u = login(fd.get('email').trim(), fd.get('password'));
+      if(!u){ alert('Invalid credentials'); return; }
+      if(u.role==='shipper') location.hash='#shipper-dashboard';
+      else if(u.role==='transporter') location.hash='#transporter-dashboard';
+      else if(isAdmin(u)) location.hash='#control';
+    };
+
+    document.getElementById('formRegShipper').onsubmit = (e)=>{
+      e.preventDefault(); const fd = new FormData(e.target);
+      try{
+        registerUser({
+          name: fd.get('name'), company: fd.get('company'), email: fd.get('email').trim(), phone: fd.get('phone'), password: fd.get('password'), address: fd.get('address'), role:'shipper'
+        }); alert('Shipper registered. Please login.'); location.hash = '#login';
+      }catch(err){ alert(err.message); }
+    };
+
+    document.getElementById('formRegTransporter').onsubmit = (e)=>{
+      e.preventDefault(); const fd = new FormData(e.target);
+      try{
+        registerUser({
+          name: fd.get('name'), company: fd.get('company'), email: fd.get('email').trim(), phone: fd.get('phone'), password: fd.get('password'), address: fd.get('address'), vehicle_info: fd.get('vehicle_info'), role:'transporter'
+        }); alert('Transporter registered. Please login.'); location.hash = '#login';
+      }catch(err){ alert(err.message); }
+    };
+
+    document.getElementById('formPostLoad').onsubmit = (e)=>{
+      e.preventDefault(); const fd = new FormData(e.target); const u = currentUser();
+      if(!canPost(u.email)){ alert('Your Post Load access is disabled by Admin.'); return; }
+      postLoad(u, { origin:fd.get('origin'), destination:fd.get('destination'), date:fd.get('date'), cargo_type:fd.get('cargo_type'), weight:fd.get('weight'), notes:fd.get('notes') });
+      alert('Load published'); e.target.reset(); location.hash = '#shipper-dashboard';
+    };
+
+    document.getElementById('saveProfileShipper').onclick = ()=>{
+      const u = currentUser(); if(!u) return; const f = document.getElementById('formProfileShipper');
+      const data = Object.fromEntries(new FormData(f).entries()); Object.assign(u, data, { updated_at: now() }); saveDB(DB); alert('Saved'); render();
+    };
+    document.getElementById('saveProfileTransporter').onclick = ()=>{
+      const u = currentUser(); if(!u) return; const f = document.getElementById('formProfileTransporter');
+      const data = Object.fromEntries(new FormData(f).entries()); Object.assign(u, data, { updated_at: now() }); saveDB(DB); alert('Saved'); render();
+    };
+
+    document.getElementById('btnFilterLoads').onclick = (e)=>{ e.preventDefault(); renderTransporter(); };
+
+    document.getElementById('formSendMsg').onsubmit = (e)=>{
+      e.preventDefault(); const fd = new FormData(e.target); const u = currentUser();
+      try{ sendMessage(u, fd.get('to').trim(), fd.get('body').trim()); e.target.reset(); renderMessages(); }
+      catch(err){ alert(err.message); }
+    };
+
+    // Admin controls
+    el('btnSaveBanners').onclick = ()=>{ DB.banners.index = el('adminIndexBanner').value; DB.banners.dashboard = el('adminDashBanner').value; saveDB(DB); render(); };
+    el('btnClearBanners').onclick = ()=>{ DB.banners.index=''; DB.banners.dashboard=''; saveDB(DB); render(); };
+
+    el('btnGrantPost').onclick = ()=>{ const email = el('aclPostEmail').value.trim(); if(email){ DB.acl.post[email]=true; saveDB(DB); render(); }};
+    el('btnRevokePost').onclick = ()=>{ const email = el('aclPostEmail').value.trim(); if(email){ delete DB.acl.post[email]; saveDB(DB); render(); }};
+    el('btnGrantMarket').onclick = ()=>{ const email = el('aclMarketEmail').value.trim(); if(email){ DB.acl.market[email]=true; saveDB(DB); render(); }};
+    el('btnRevokeMarket').onclick = ()=>{ const email = el('aclMarketEmail').value.trim(); if(email){ delete DB.acl.market[email]; saveDB(DB); render(); }};
+
+    el('btnResetPass').onclick = ()=>{ const email=el('resetEmail').value.trim(); const p=el('resetPass').value; try{adminResetPassword(email,p); alert('Password updated'); }catch(e){ alert(e.message); } };
+
+    // Top nav buttons
+    document.getElementById('btnLoginNav').onclick = ()=>{ location.hash = '#login'; };
+
+    // Initial render
+    show(location.hash);
+  </script>
+</body>
+</html>
