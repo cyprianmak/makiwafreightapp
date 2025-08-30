@@ -1,8 +1,8 @@
 from fastapi import FastAPI, HTTPException, Depends, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, EmailStr
-from typing import List, Optional
+from pydantic import BaseModel, EmailStr, Field
+from typing import List, Optional, Dict, Any
 import datetime
 import secrets
 import hashlib
@@ -25,10 +25,10 @@ security = HTTPBearer()
 
 # In-memory database (for demo purposes)
 # In production, you'd use a real database
-users_db = {}
-loads_db = {}
-messages_db = {}
-access_control_db = {
+users_db: Dict[str, Dict[str, Any]] = {}
+loads_db: Dict[str, Dict[str, Any]] = {}
+messages_db: Dict[str, Dict[str, Any]] = {}
+access_control_db: Dict[str, Any] = {
     "post": {},
     "market": {},
     "pages": {},
@@ -72,18 +72,18 @@ class User(BaseModel):
     updated_at: str
 
 class UserCreate(BaseModel):
-    name: str
+    name: str = Field(..., min_length=1)
     email: EmailStr
-    password: str
-    phone: str
-    role: str
+    password: str = Field(..., min_length=1)
+    phone: str = Field(..., min_length=1)
+    role: str = Field(..., pattern="^(shipper|transporter|admin)$")
     company: Optional[str] = None
     address: Optional[str] = None
     vehicle_info: Optional[str] = None
 
 class UserLogin(BaseModel):
     email: EmailStr
-    password: str
+    password: str = Field(..., min_length=1)
 
 class Token(BaseModel):
     access_token: str
@@ -93,11 +93,11 @@ class Token(BaseModel):
 class Load(BaseModel):
     id: str
     ref: str
-    origin: str
-    destination: str
+    origin: str = Field(..., min_length=1)
+    destination: str = Field(..., min_length=1)
     date: str
-    cargo_type: str
-    weight: float
+    cargo_type: str = Field(..., min_length=1)
+    weight: float = Field(..., gt=0)
     notes: Optional[str] = None
     shipper_id: str
     shipper_email: str
@@ -107,11 +107,11 @@ class Load(BaseModel):
     status: str = "active"
 
 class LoadCreate(BaseModel):
-    origin: str
-    destination: str
+    origin: str = Field(..., min_length=1)
+    destination: str = Field(..., min_length=1)
     date: str
-    cargo_type: str
-    weight: float
+    cargo_type: str = Field(..., min_length=1)
+    weight: float = Field(..., gt=0)
     notes: Optional[str] = None
 
 class Message(BaseModel):
@@ -120,24 +120,24 @@ class Message(BaseModel):
     sender_email: str
     receiver_id: str
     receiver_email: str
-    body: str
+    body: str = Field(..., min_length=1)
     created_at: str
 
 class MessageCreate(BaseModel):
     to: EmailStr
-    body: str
+    body: str = Field(..., min_length=1)
 
 class Banners(BaseModel):
     index: str
     dashboard: str
 
 class AccessControl(BaseModel):
-    post: dict
-    market: dict
-    pages: dict
+    post: Dict[str, bool]
+    market: Dict[str, bool]
+    pages: Dict[str, Dict[str, bool]]
 
 # Helper functions
-def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
+def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> Dict[str, Any]:
     token = credentials.credentials
     for email, user in users_db.items():
         if user.get("token") == token:
@@ -148,16 +148,16 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
         headers={"WWW-Authenticate": "Bearer"},
     )
 
-def generate_load_ref():
+def generate_load_ref() -> str:
     return ''.join(secrets.choice('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789') for _ in range(6))
 
-def calculate_expiry_date():
+def calculate_expiry_date() -> str:
     expiry_date = datetime.datetime.now() + datetime.timedelta(days=7)
     return expiry_date.isoformat()
 
 # Auth endpoints
 @app.post("/auth/login", response_model=Token)
-async def login(user_data: UserLogin):
+async def login(user_data: UserLogin) -> Token:
     email = user_data.email.lower()
     user = users_db.get(email)
     
@@ -179,7 +179,7 @@ async def login(user_data: UserLogin):
     }
 
 @app.post("/users", response_model=User)
-async def create_user(user_data: UserCreate):
+async def create_user(user_data: UserCreate) -> User:
     email = user_data.email.lower()
     
     if email in users_db:
@@ -220,13 +220,17 @@ async def create_user(user_data: UserCreate):
     return user_response
 
 @app.get("/users/me", response_model=User)
-async def get_current_user_info(current_user: dict = Depends(get_current_user)):
+async def get_current_user_info(current_user: Dict[str, Any] = Depends(get_current_user)) -> User:
     user_response = current_user.copy()
     user_response.pop("password", None)
     return user_response
 
 @app.put("/users/{user_id}", response_model=User)
-async def update_user(user_id: str, user_data: dict, current_user: dict = Depends(get_current_user)):
+async def update_user(
+    user_id: str, 
+    user_data: Dict[str, Any], 
+    current_user: Dict[str, Any] = Depends(get_current_user)
+) -> User:
     # Find user by email (since we use email as key)
     user_email = None
     for email, user in users_db.items():
@@ -256,7 +260,10 @@ async def update_user(user_id: str, user_data: dict, current_user: dict = Depend
 
 # Load endpoints
 @app.post("/loads", response_model=Load)
-async def create_load(load_data: LoadCreate, current_user: dict = Depends(get_current_user)):
+async def create_load(
+    load_data: LoadCreate, 
+    current_user: Dict[str, Any] = Depends(get_current_user)
+) -> Load:
     # Check if user has permission to post
     if not access_control_db["post"].get(current_user["email"]):
         raise HTTPException(status_code=403, detail="You don't have permission to post loads")
@@ -289,8 +296,8 @@ async def get_loads(
     origin: Optional[str] = None,
     destination: Optional[str] = None,
     shipper_id: Optional[str] = None,
-    current_user: dict = Depends(get_current_user)
-):
+    current_user: Dict[str, Any] = Depends(get_current_user)
+) -> List[Load]:
     loads = []
     
     for load_id, load in loads_db.items():
@@ -311,7 +318,11 @@ async def get_loads(
     return loads
 
 @app.put("/loads/{load_id}", response_model=Load)
-async def update_load(load_id: str, load_data: dict, current_user: dict = Depends(get_current_user)):
+async def update_load(
+    load_id: str, 
+    load_data: Dict[str, Any], 
+    current_user: Dict[str, Any] = Depends(get_current_user)
+) -> Load:
     if load_id not in loads_db:
         raise HTTPException(status_code=404, detail="Load not found")
     
@@ -325,7 +336,10 @@ async def update_load(load_id: str, load_data: dict, current_user: dict = Depend
     return loads_db[load_id]
 
 @app.delete("/loads/{load_id}")
-async def delete_load(load_id: str, current_user: dict = Depends(get_current_user)):
+async def delete_load(
+    load_id: str, 
+    current_user: Dict[str, Any] = Depends(get_current_user)
+) -> Dict[str, str]:
     if load_id not in loads_db:
         raise HTTPException(status_code=404, detail="Load not found")
     
@@ -334,7 +348,10 @@ async def delete_load(load_id: str, current_user: dict = Depends(get_current_use
 
 # Message endpoints
 @app.post("/messages", response_model=Message)
-async def create_message(message_data: MessageCreate, current_user: dict = Depends(get_current_user)):
+async def create_message(
+    message_data: MessageCreate, 
+    current_user: Dict[str, Any] = Depends(get_current_user)
+) -> Message:
     receiver_email = message_data.to.lower()
     
     if receiver_email not in users_db:
@@ -357,7 +374,9 @@ async def create_message(message_data: MessageCreate, current_user: dict = Depen
     return message
 
 @app.get("/messages", response_model=List[Message])
-async def get_messages(current_user: dict = Depends(get_current_user)):
+async def get_messages(
+    current_user: Dict[str, Any] = Depends(get_current_user)
+) -> List[Message]:
     messages = []
     
     for message_id, message in messages_db.items():
@@ -367,7 +386,10 @@ async def get_messages(current_user: dict = Depends(get_current_user)):
     return messages
 
 @app.delete("/messages/{message_id}")
-async def delete_message(message_id: str, current_user: dict = Depends(get_current_user)):
+async def delete_message(
+    message_id: str, 
+    current_user: Dict[str, Any] = Depends(get_current_user)
+) -> Dict[str, str]:
     if message_id not in messages_db:
         raise HTTPException(status_code=404, detail="Message not found")
     
@@ -379,7 +401,9 @@ async def delete_message(message_id: str, current_user: dict = Depends(get_curre
 
 # Admin endpoints
 @app.get("/admin/users", response_model=List[User])
-async def get_all_users(current_user: dict = Depends(get_current_user)):
+async def get_all_users(
+    current_user: Dict[str, Any] = Depends(get_current_user)
+) -> List[User]:
     if current_user["role"] != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
     
@@ -392,7 +416,10 @@ async def get_all_users(current_user: dict = Depends(get_current_user)):
     return users
 
 @app.delete("/admin/users/{email}")
-async def delete_user(email: str, current_user: dict = Depends(get_current_user)):
+async def delete_user(
+    email: str, 
+    current_user: Dict[str, Any] = Depends(get_current_user)
+) -> Dict[str, str]:
     if current_user["role"] != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
     
@@ -426,7 +453,11 @@ async def delete_user(email: str, current_user: dict = Depends(get_current_user)
     return {"message": "User deleted successfully"}
 
 @app.post("/admin/reset-password")
-async def reset_password(email: str, password: str, current_user: dict = Depends(get_current_user)):
+async def reset_password(
+    email: str, 
+    password: str, 
+    current_user: Dict[str, Any] = Depends(get_current_user)
+) -> Dict[str, str]:
     if current_user["role"] != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
     
@@ -439,14 +470,19 @@ async def reset_password(email: str, password: str, current_user: dict = Depends
     return {"message": "Password reset successfully"}
 
 @app.get("/admin/banners", response_model=Banners)
-async def get_banners(current_user: dict = Depends(get_current_user)):
+async def get_banners(
+    current_user: Dict[str, Any] = Depends(get_current_user)
+) -> Banners:
     if current_user["role"] != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
     
     return access_control_db["banners"]
 
 @app.put("/admin/banners", response_model=Banners)
-async def update_banners(banners: Banners, current_user: dict = Depends(get_current_user)):
+async def update_banners(
+    banners: Banners, 
+    current_user: Dict[str, Any] = Depends(get_current_user)
+) -> Banners:
     if current_user["role"] != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
     
@@ -458,14 +494,19 @@ async def update_banners(banners: Banners, current_user: dict = Depends(get_curr
     return access_control_db["banners"]
 
 @app.get("/admin/access-control", response_model=AccessControl)
-async def get_access_control(current_user: dict = Depends(get_current_user)):
+async def get_access_control(
+    current_user: Dict[str, Any] = Depends(get_current_user)
+) -> AccessControl:
     if current_user["role"] != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
     
     return access_control_db
 
 @app.put("/admin/access-control", response_model=AccessControl)
-async def update_access_control(acl: AccessControl, current_user: dict = Depends(get_current_user)):
+async def update_access_control(
+    acl: AccessControl, 
+    current_user: Dict[str, Any] = Depends(get_current_user)
+) -> AccessControl:
     if current_user["role"] != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
     
@@ -477,7 +518,7 @@ async def update_access_control(acl: AccessControl, current_user: dict = Depends
 
 # Health check endpoint
 @app.get("/health")
-async def health_check():
+async def health_check() -> Dict[str, str]:
     return {"status": "healthy"}
 
 if __name__ == "__main__":
