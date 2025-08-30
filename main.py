@@ -92,8 +92,24 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated
 
+# Root endpoint
+@app.route('/', methods=['GET'])
+def root():
+    return jsonify({
+        'message': 'Welcome to MakiwaFreight API',
+        'version': '1.0.0',
+        'status': 'running',
+        'endpoints': {
+            'auth': '/api/auth/login',
+            'users': '/api/users',
+            'loads': '/api/loads',
+            'messages': '/api/messages',
+            'health': '/api/health'
+        }
+    })
+
 # Auth endpoints
-@app.route('/auth/login', methods=['POST'])
+@app.route('/api/auth/login', methods=['POST'])
 def login():
     auth = request.json
     if not auth or not auth.get('email') or not auth.get('password'):
@@ -128,7 +144,7 @@ def login():
         'user': user_response
     })
 
-@app.route('/users', methods=['POST'])
+@app.route('/api/users', methods=['POST'])
 def create_user():
     data = request.json
     
@@ -174,14 +190,14 @@ def create_user():
     
     return jsonify(user_response), 201
 
-@app.route('/users/me', methods=['GET'])
+@app.route('/api/users/me', methods=['GET'])
 @token_required
 def get_current_user_info(current_user):
     user_response = current_user.copy()
     user_response.pop('password', None)
     return jsonify(user_response)
 
-@app.route('/users/<user_id>', methods=['PUT'])
+@app.route('/api/users/<user_id>', methods=['PUT'])
 @token_required
 def update_user(user_id, current_user):
     data = request.json
@@ -214,7 +230,7 @@ def update_user(user_id, current_user):
     return jsonify(user_response)
 
 # Load endpoints
-@app.route('/loads', methods=['POST'])
+@app.route('/api/loads', methods=['POST'])
 @token_required
 def create_load(current_user):
     data = request.json
@@ -249,7 +265,7 @@ def create_load(current_user):
     loads_db[load_id] = load
     return jsonify(load), 201
 
-@app.route('/loads', methods=['GET'])
+@app.route('/api/loads', methods=['GET'])
 @token_required
 def get_loads(current_user):
     origin = request.args.get('origin')
@@ -275,7 +291,7 @@ def get_loads(current_user):
     
     return jsonify(loads)
 
-@app.route('/loads/<load_id>', methods=['PUT'])
+@app.route('/api/loads/<load_id>', methods=['PUT'])
 @token_required
 def update_load(load_id, current_user):
     data = request.json
@@ -292,7 +308,7 @@ def update_load(load_id, current_user):
     loads_db[load_id]["updated_at"] = datetime.datetime.now().isoformat()
     return jsonify(loads_db[load_id])
 
-@app.route('/loads/<load_id>', methods=['DELETE'])
+@app.route('/api/loads/<load_id>', methods=['DELETE'])
 @token_required
 def delete_load(load_id, current_user):
     if load_id not in loads_db:
@@ -302,7 +318,7 @@ def delete_load(load_id, current_user):
     return jsonify({'message': 'Load deleted successfully'})
 
 # Message endpoints
-@app.route('/messages', methods=['POST'])
+@app.route('/api/messages', methods=['POST'])
 @token_required
 def create_message(current_user):
     data = request.json
@@ -331,7 +347,7 @@ def create_message(current_user):
     messages_db[message_id] = message
     return jsonify(message), 201
 
-@app.route('/messages', methods=['GET'])
+@app.route('/api/messages', methods=['GET'])
 @token_required
 def get_messages(current_user):
     messages = []
@@ -342,7 +358,7 @@ def get_messages(current_user):
     
     return jsonify(messages)
 
-@app.route('/messages/<message_id>', methods=['DELETE'])
+@app.route('/api/messages/<message_id>', methods=['DELETE'])
 @token_required
 def delete_message(message_id, current_user):
     if message_id not in messages_db:
@@ -355,7 +371,7 @@ def delete_message(message_id, current_user):
     return jsonify({'message': 'Message deleted successfully'})
 
 # Admin endpoints
-@app.route('/admin/users', methods=['GET'])
+@app.route('/api/admin/users', methods=['GET'])
 @token_required
 def get_all_users(current_user):
     if current_user["role"] != "admin":
@@ -369,7 +385,7 @@ def get_all_users(current_user):
     
     return jsonify(users)
 
-@app.route('/admin/users/<email>', methods=['DELETE'])
+@app.route('/api/admin/users/<email>', methods=['DELETE'])
 @token_required
 def delete_user(email, current_user):
     if current_user["role"] != "admin":
@@ -404,7 +420,7 @@ def delete_user(email, current_user):
     
     return jsonify({'message': 'User deleted successfully'})
 
-@app.route('/admin/reset-password', methods=['POST'])
+@app.route('/api/admin/reset-password', methods=['POST'])
 @token_required
 def reset_password(current_user):
     data = request.json
@@ -425,7 +441,7 @@ def reset_password(current_user):
     
     return jsonify({'message': 'Password reset successfully'})
 
-@app.route('/admin/banners', methods=['GET'])
+@app.route('/api/admin/banners', methods=['GET'])
 @token_required
 def get_banners(current_user):
     if current_user["role"] != "admin":
@@ -433,7 +449,7 @@ def get_banners(current_user):
     
     return jsonify(access_control_db["banners"])
 
-@app.route('/admin/banners', methods=['PUT'])
+@app.route('/api/admin/banners', methods=['PUT'])
 @token_required
 def update_banners(current_user):
     if current_user["role"] != "admin":
@@ -451,7 +467,7 @@ def update_banners(current_user):
     
     return jsonify(access_control_db["banners"])
 
-@app.route('/admin/access-control', methods=['GET'])
+@app.route('/api/admin/access-control', methods=['GET'])
 @token_required
 def get_access_control(current_user):
     if current_user["role"] != "admin":
@@ -459,7 +475,7 @@ def get_access_control(current_user):
     
     return jsonify(access_control_db)
 
-@app.route('/admin/access-control', methods=['PUT'])
+@app.route('/api/admin/access-control', methods=['PUT'])
 @token_required
 def update_access_control(current_user):
     if current_user["role"] != "admin":
@@ -477,7 +493,7 @@ def update_access_control(current_user):
     return jsonify(access_control_db)
 
 # Health check endpoint
-@app.route('/health', methods=['GET'])
+@app.route('/api/health', methods=['GET'])
 def health_check():
     return jsonify({'status': 'healthy'})
 
