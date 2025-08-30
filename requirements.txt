@@ -1,0 +1,4 @@
+poetry export -f requirements.txt --output requirements.txt --without-hashes
+git add requirements.txt
+git commit -m "Add requirements.txt for Render deployment"
+git push origin main
