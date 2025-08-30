@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: makiwa-freight
+    env: static
+    buildCommand: echo "No build needed"
+    staticPublishPath: .
+    pullRequestPreviewsEnabled: true
+    envVars:
+      - key: ENVIRONMENT
+        value: production
