@@ -1,501 +1,455 @@
-from flask import Flask, request, jsonify, make_response
-from flask_cors import CORS
-import jwt
-import datetime
-import secrets
-import hashlib
-import uuid
+from flask import Flask, render_template, jsonify, request
 import os
-from functools import wraps
+from datetime import datetime, timedelta
+import uuid
 
-# Initialize Flask app
 app = Flask(__name__)
-CORS(app)
 
-# Configuration
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-here')
-
-# In-memory database (for demo purposes)
-# In production, you'd use a real database
-users_db = {}
-loads_db = {}
-messages_db = {}
-access_control_db = {
-    "post": {},
-    "market": {},
-    "pages": {},
-    "banners": {"index": "", "dashboard": ""}
+# In-memory data storage (for demo purposes)
+users = {}
+loads = {}
+messages = {}
+access_control = {
+    'post': {},
+    'market': {},
+    'pages': {}
+}
+banners = {
+    'index': '',
+    'dashboard': ''
 }
 
-# Admin credentials
-ADMIN_EMAIL = "cyprianmak@gmail.com"
-ADMIN_PASS = "Muchandida@1"
-
-# Create admin user if not exists
-if ADMIN_EMAIL not in users_db:
-    users_db[ADMIN_EMAIL] = {
-        "id": str(uuid.uuid4()),
-        "name": "Admin",
-        "email": ADMIN_EMAIL,
-        "password": hashlib.sha256(ADMIN_PASS.encode()).hexdigest(),
-        "role": "admin",
-        "company": "MakiwaFreight",
-        "phone": "",
-        "address": "",
-        "vehicle_info": "",
-        "created_at": datetime.datetime.now().isoformat(),
-        "updated_at": datetime.datetime.now().isoformat()
-    }
-    access_control_db["post"][ADMIN_EMAIL] = True
-    access_control_db["market"][ADMIN_EMAIL] = True
-    access_control_db["pages"][ADMIN_EMAIL] = {}
-
 # Helper functions
-def generate_load_ref():
-    return ''.join(secrets.choice('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789') for _ in range(6))
+def generate_token():
+    return str(uuid.uuid4())
 
-def calculate_expiry_date():
-    expiry_date = datetime.datetime.now() + datetime.timedelta(days=7)
-    return expiry_date.isoformat()
+def check_auth(request):
+    token = request.headers.get('Authorization')
+    if not token or not token.startswith('Bearer '):
+        return None
+    token = token.split(' ')[1]
+    for user_id, user in users.items():
+        if user.get('token') == token:
+            return user
+    return None
 
-def token_required(f):
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        token = None
-        if 'Authorization' in request.headers:
-            auth_header = request.headers['Authorization']
-            try:
-                token = auth_header.split(" ")[1]
-            except IndexError:
-                return jsonify({'message': 'Bearer token malformed'}), 401
-        
-        if not token:
-            return jsonify({'message': 'Token is missing!'}), 401
-        
-        try:
-            data = jwt.decode(token, app.config['SECRET_KEY'], algorithms=["HS256"])
-            current_user = users_db.get(data['email'])
-            if not current_user:
-                return jsonify({'message': 'Token is invalid!'}), 401
-        except Exception as e:
-            return jsonify({'message': 'Token is invalid!'}), 401
-        
-        return f(current_user, *args, **kwargs)
-    return decorated
-
-def admin_required(f):
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        current_user = kwargs.get('current_user')
-        if not current_user or current_user.get('role') != 'admin':
-            return jsonify({'message': 'Admin access required!'}), 403
-        return f(*args, **kwargs)
-    return decorated
-
-# Root endpoint
-@app.route('/', methods=['GET'])
-def root():
-    return jsonify({
-        'message': 'Welcome to MakiwaFreight API',
-        'version': '1.0.0',
-        'status': 'running',
-        'endpoints': {
-            'auth': '/api/auth/login',
-            'users': '/api/users',
-            'loads': '/api/loads',
-            'messages': '/api/messages',
-            'health': '/api/health'
+# Initialize admin user
+def initialize_data():
+    admin_email = 'cyprianmak@gmail.com'
+    admin_password = 'Muchandida@1'
+    admin_exists = False
+    for u in users.values():
+        if u['email'] == admin_email:
+            admin_exists = True
+            break
+    
+    if not admin_exists:
+        admin_id = str(uuid.uuid4())
+        users[admin_id] = {
+            "id": admin_id,
+            "name": "Admin",
+            "email": admin_email,
+            "password": admin_password,
+            "role": "admin",
+            "company": "",
+            "phone": "",
+            "address": "",
+            "vehicle_info": "",
+            "created_at": datetime.now().isoformat()
         }
+
+# Routes
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+@app.route('/api')
+def api_info():
+    return jsonify({
+        "endpoints": {
+            "auth": "/api/auth/login",
+            "health": "/api/health",
+            "loads": "/api/loads",
+            "messages": "/api/messages",
+            "users": "/api/users"
+        },
+        "message": "Welcome to MakiwaFreight API",
+        "status": "running",
+        "version": "1.0.0"
     })
+
+@app.route('/api/health')
+def health():
+    return jsonify({"status": "healthy"})
 
 # Auth endpoints
 @app.route('/api/auth/login', methods=['POST'])
 def login():
-    auth = request.json
-    if not auth or not auth.get('email') or not auth.get('password'):
-        return make_response(
-            'Could not verify',
-            401,
-            {'WWW-Authenticate': 'Basic realm="Login required!"'}
-        )
-    
-    email = auth['email'].lower()
-    user = users_db.get(email)
-    
-    if not user or user['password'] != hashlib.sha256(auth['password'].encode()).hexdigest():
-        return jsonify({'message': 'Invalid credentials'}), 401
-    
-    # Generate token
-    token = jwt.encode({
-        'email': email,
-        'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=24)
-    }, app.config['SECRET_KEY'])
-    
-    # Store token with user
-    user['token'] = token
-    
-    # Return user without password
-    user_response = user.copy()
-    user_response.pop('password', None)
-    
-    return jsonify({
-        'access_token': token,
-        'token_type': 'bearer',
-        'user': user_response
-    })
+    data = request.get_json()
+    email = data.get('email')
+    password = data.get('password')
+
+    user = None
+    for u in users.values():
+        if u['email'] == email and u['password'] == password:
+            user = u
+            break
+
+    if user:
+        token = generate_token()
+        user['token'] = token
+        return jsonify({
+            "token": token,
+            "user": {
+                "id": user['id'],
+                "name": user['name'],
+                "email": user['email'],
+                "role": user['role']
+            }
+        })
+    else:
+        return jsonify({"message": "Invalid credentials"}), 401
+
+# User endpoints
+@app.route('/api/users', methods=['GET'])
+def get_users():
+    user = check_auth(request)
+    if not user or user['role'] != 'admin':
+        return jsonify({"message": "Unauthorized"}), 401
+
+    user_list = []
+    for u in users.values():
+        user_list.append({
+            "id": u['id'],
+            "name": u['name'],
+            "email": u['email'],
+            "role": u['role']
+        })
+    return jsonify(user_list)
 
 @app.route('/api/users', methods=['POST'])
 def create_user():
-    data = request.json
-    
-    if not data or not data.get('name') or not data.get('email') or not data.get('password') or not data.get('phone') or not data.get('role'):
-        return jsonify({'message': 'Missing required fields'}), 400
-    
-    email = data['email'].lower()
-    
-    if email in users_db:
-        return jsonify({'message': 'Email already registered'}), 400
-    
+    data = request.get_json()
+    required_fields = ['name', 'email', 'password', 'role']
+    for field in required_fields:
+        if field not in data:
+            return jsonify({"message": f"Missing field: {field}"}), 400
+
+    for u in users.values():
+        if u['email'] == data['email']:
+            return jsonify({"message": "Email already exists"}), 400
+
     user_id = str(uuid.uuid4())
-    now = datetime.datetime.now().isoformat()
-    
-    user = {
+    users[user_id] = {
         "id": user_id,
         "name": data['name'],
-        "email": email,
-        "password": hashlib.sha256(data['password'].encode()).hexdigest(),
+        "email": data['email'],
+        "password": data['password'],
         "role": data['role'],
-        "company": data.get('company'),
-        "phone": data['phone'],
-        "address": data.get('address'),
-        "vehicle_info": data.get('vehicle_info'),
-        "created_at": now,
-        "updated_at": now
+        "company": data.get('company', ''),
+        "phone": data.get('phone', ''),
+        "address": data.get('address', ''),
+        "vehicle_info": data.get('vehicle_info', ''),
+        "created_at": datetime.now().isoformat()
     }
-    
-    users_db[email] = user
-    
-    # Set default access
-    if data['role'] == "shipper":
-        access_control_db["post"][email] = True
-    if data['role'] == "transporter":
-        access_control_db["market"][email] = True
-    
-    # Initialize page access
-    access_control_db["pages"][email] = {}
-    
-    # Return user without password
-    user_response = user.copy()
-    user_response.pop('password', None)
-    
-    return jsonify(user_response), 201
+    return jsonify({"id": user_id}), 201
 
 @app.route('/api/users/me', methods=['GET'])
-@token_required
-def get_current_user_info(current_user):
-    user_response = current_user.copy()
-    user_response.pop('password', None)
-    return jsonify(user_response)
+def get_current_user():
+    user = check_auth(request)
+    if not user:
+        return jsonify({"message": "Unauthorized"}), 401
+
+    return jsonify({
+        "id": user['id'],
+        "name": user['name'],
+        "email": user['email'],
+        "role": user['role'],
+        "company": user.get('company', ''),
+        "phone": user.get('phone', ''),
+        "address": user.get('address', ''),
+        "vehicle_info": user.get('vehicle_info', ''),
+        "created_at": user['created_at']
+    })
 
 @app.route('/api/users/<user_id>', methods=['PUT'])
-@token_required
-def update_user(user_id, current_user):
-    data = request.json
-    
-    # Find user by email (since we use email as key)
-    user_email = None
-    for email, user in users_db.items():
-        if user["id"] == user_id:
-            user_email = email
-            break
-    
-    if not user_email:
-        return jsonify({'message': 'User not found'}), 404
-    
-    # Only allow updating specific fields
-    allowed_fields = ["name", "phone", "address", "password"]
-    for field in data:
-        if field in allowed_fields:
-            if field == "password":
-                users_db[user_email][field] = hashlib.sha256(data[field].encode()).hexdigest()
-            else:
-                users_db[user_email][field] = data[field]
-    
-    users_db[user_email]["updated_at"] = datetime.datetime.now().isoformat()
-    
-    # Return user without password
-    user_response = users_db[user_email].copy()
-    user_response.pop('password', None)
-    
-    return jsonify(user_response)
+def update_user(user_id):
+    user = check_auth(request)
+    if not user:
+        return jsonify({"message": "Unauthorized"}), 401
+
+    if user['id'] != user_id and user['role'] != 'admin':
+        return jsonify({"message": "Forbidden"}), 403
+
+    target_user = users.get(user_id)
+    if not target_user:
+        return jsonify({"message": "User not found"}), 404
+
+    data = request.get_json()
+    allowed_fields = ['name', 'phone', 'address', 'password']
+    for field in allowed_fields:
+        if field in data:
+            target_user[field] = data[field]
+
+    return jsonify({"message": "User updated"})
 
 # Load endpoints
+@app.route('/api/loads', methods=['GET'])
+def get_loads():
+    user = check_auth(request)
+    if not user:
+        return jsonify({"message": "Unauthorized"}), 401
+
+    origin = request.args.get('origin')
+    destination = request.args.get('destination')
+    shipper_id = request.args.get('shipper_id')
+
+    load_list = []
+    for load in loads.values():
+        if shipper_id and load['shipper_id'] != shipper_id:
+            continue
+        if origin and origin.lower() not in load['origin'].lower():
+            continue
+        if destination and destination.lower() not in load['destination'].lower():
+            continue
+        load_list.append(load)
+
+    return jsonify(load_list)
+
 @app.route('/api/loads', methods=['POST'])
-@token_required
-def create_load(current_user):
-    data = request.json
-    
-    # Check if user has permission to post
-    if not access_control_db["post"].get(current_user["email"]):
-        return jsonify({'message': "You don't have permission to post loads"}), 403
-    
-    if not data or not data.get('origin') or not data.get('destination') or not data.get('date') or not data.get('cargo_type') or not data.get('weight'):
-        return jsonify({'message': 'Missing required fields'}), 400
-    
+def create_load():
+    user = check_auth(request)
+    if not user:
+        return jsonify({"message": "Unauthorized"}), 401
+
+    data = request.get_json()
+    required_fields = ['origin', 'destination', 'date', 'cargo_type', 'weight']
+    for field in required_fields:
+        if field not in data:
+            return jsonify({"message": f"Missing field: {field}"}), 400
+
     load_id = str(uuid.uuid4())
-    now = datetime.datetime.now().isoformat()
-    
-    load = {
+    expiry_date = datetime.now() + timedelta(days=7)
+    loads[load_id] = {
         "id": load_id,
-        "ref": generate_load_ref(),
+        "ref": f"LD{len(loads)+1:04d}",
         "origin": data['origin'],
         "destination": data['destination'],
         "date": data['date'],
         "cargo_type": data['cargo_type'],
         "weight": data['weight'],
-        "notes": data.get('notes'),
-        "shipper_id": current_user["id"],
-        "shipper_email": current_user["email"],
-        "created_at": now,
-        "updated_at": now,
-        "expires_at": calculate_expiry_date(),
-        "status": "active"
+        "notes": data.get('notes', ''),
+        "shipper_id": user['id'],
+        "shipper_email": user['email'],
+        "expires_at": expiry_date.isoformat(),
+        "created_at": datetime.now().isoformat()
     }
-    
-    loads_db[load_id] = load
-    return jsonify(load), 201
-
-@app.route('/api/loads', methods=['GET'])
-@token_required
-def get_loads(current_user):
-    origin = request.args.get('origin')
-    destination = request.args.get('destination')
-    shipper_id = request.args.get('shipper_id')
-    
-    loads = []
-    
-    for load_id, load in loads_db.items():
-        # Apply filters
-        if origin and origin.lower() not in load["origin"].lower():
-            continue
-        if destination and destination.lower() not in load["destination"].lower():
-            continue
-        if shipper_id and load["shipper_id"] != shipper_id:
-            continue
-        
-        # Check if load is expired
-        if datetime.datetime.fromisoformat(load["expires_at"]) < datetime.datetime.now():
-            continue
-        
-        loads.append(load)
-    
-    return jsonify(loads)
+    return jsonify({"id": load_id}), 201
 
 @app.route('/api/loads/<load_id>', methods=['PUT'])
-@token_required
-def update_load(load_id, current_user):
-    data = request.json
-    
-    if load_id not in loads_db:
-        return jsonify({'message': 'Load not found'}), 404
-    
-    # Only allow updating specific fields
-    allowed_fields = ["origin", "destination", "date", "cargo_type", "weight", "notes"]
-    for field in data:
-        if field in allowed_fields:
-            loads_db[load_id][field] = data[field]
-    
-    loads_db[load_id]["updated_at"] = datetime.datetime.now().isoformat()
-    return jsonify(loads_db[load_id])
+def update_load(load_id):
+    user = check_auth(request)
+    if not user:
+        return jsonify({"message": "Unauthorized"}), 401
+
+    load = loads.get(load_id)
+    if not load:
+        return jsonify({"message": "Load not found"}), 404
+
+    if load['shipper_id'] != user['id'] and user['role'] != 'admin':
+        return jsonify({"message": "Forbidden"}), 403
+
+    data = request.get_json()
+    allowed_fields = ['origin', 'destination', 'date', 'cargo_type', 'weight', 'notes']
+    for field in allowed_fields:
+        if field in data:
+            load[field] = data[field]
+
+    return jsonify({"message": "Load updated"})
 
 @app.route('/api/loads/<load_id>', methods=['DELETE'])
-@token_required
-def delete_load(load_id, current_user):
-    if load_id not in loads_db:
-        return jsonify({'message': 'Load not found'}), 404
-    
-    del loads_db[load_id]
-    return jsonify({'message': 'Load deleted successfully'})
+def delete_load(load_id):
+    user = check_auth(request)
+    if not user:
+        return jsonify({"message": "Unauthorized"}), 401
+
+    load = loads.get(load_id)
+    if not load:
+        return jsonify({"message": "Load not found"}), 404
+
+    if load['shipper_id'] != user['id'] and user['role'] != 'admin':
+        return jsonify({"message": "Forbidden"}), 403
+
+    del loads[load_id]
+    return jsonify({"message": "Load deleted"})
 
 # Message endpoints
-@app.route('/api/messages', methods=['POST'])
-@token_required
-def create_message(current_user):
-    data = request.json
-    
-    if not data or not data.get('to') or not data.get('body'):
-        return jsonify({'message': 'Missing required fields'}), 400
-    
-    receiver_email = data['to'].lower()
-    
-    if receiver_email not in users_db:
-        return jsonify({'message': 'Receiver not found'}), 404
-    
-    message_id = str(uuid.uuid4())
-    now = datetime.datetime.now().isoformat()
-    
-    message = {
-        "id": message_id,
-        "sender_id": current_user["id"],
-        "sender_email": current_user["email"],
-        "receiver_id": users_db[receiver_email]["id"],
-        "receiver_email": receiver_email,
-        "body": data['body'],
-        "created_at": now
-    }
-    
-    messages_db[message_id] = message
-    return jsonify(message), 201
-
 @app.route('/api/messages', methods=['GET'])
-@token_required
-def get_messages(current_user):
-    messages = []
-    
-    for message_id, message in messages_db.items():
-        if message["receiver_id"] == current_user["id"]:
-            messages.append(message)
-    
-    return jsonify(messages)
+def get_messages():
+    user = check_auth(request)
+    if not user:
+        return jsonify({"message": "Unauthorized"}), 401
+
+    message_list = []
+    for msg in messages.values():
+        if msg['sender_email'] == user['email'] or msg['recipient_email'] == user['email']:
+            message_list.append(msg)
+
+    return jsonify(message_list)
+
+@app.route('/api/messages', methods=['POST'])
+def send_message():
+    user = check_auth(request)
+    if not user:
+        return jsonify({"message": "Unauthorized"}), 401
+
+    data = request.get_json()
+    required_fields = ['to', 'body']
+    for field in required_fields:
+        if field not in data:
+            return jsonify({"message": f"Missing field: {field}"}), 400
+
+    message_id = str(uuid.uuid4())
+    messages[message_id] = {
+        "id": message_id,
+        "sender_email": user['email'],
+        "recipient_email": data['to'],
+        "body": data['body'],
+        "created_at": datetime.now().isoformat()
+    }
+    return jsonify({"id": message_id}), 201
 
 @app.route('/api/messages/<message_id>', methods=['DELETE'])
-@token_required
-def delete_message(message_id, current_user):
-    if message_id not in messages_db:
-        return jsonify({'message': 'Message not found'}), 404
-    
-    if messages_db[message_id]["receiver_id"] != current_user["id"]:
-        return jsonify({'message': 'You can only delete your own messages'}), 403
-    
-    del messages_db[message_id]
-    return jsonify({'message': 'Message deleted successfully'})
+def delete_message(message_id):
+    user = check_auth(request)
+    if not user:
+        return jsonify({"message": "Unauthorized"}), 401
+
+    msg = messages.get(message_id)
+    if not msg:
+        return jsonify({"message": "Message not found"}), 404
+
+    if msg['sender_email'] != user['email'] and msg['recipient_email'] != user['email']:
+        return jsonify({"message": "Forbidden"}), 403
+
+    del messages[message_id]
+    return jsonify({"message": "Message deleted"})
 
 # Admin endpoints
 @app.route('/api/admin/users', methods=['GET'])
-@token_required
-def get_all_users(current_user):
-    if current_user["role"] != "admin":
-        return jsonify({'message': 'Admin access required'}), 403
-    
-    users = []
-    for email, user in users_db.items():
-        user_response = user.copy()
-        user_response.pop('password', None)
-        users.append(user_response)
-    
-    return jsonify(users)
+def admin_get_users():
+    user = check_auth(request)
+    if not user or user['role'] != 'admin':
+        return jsonify({"message": "Unauthorized"}), 401
+
+    user_list = []
+    for u in users.values():
+        user_list.append({
+            "id": u['id'],
+            "name": u['name'],
+            "email": u['email'],
+            "role": u['role']
+        })
+    return jsonify(user_list)
 
 @app.route('/api/admin/users/<email>', methods=['DELETE'])
-@token_required
-def delete_user(email, current_user):
-    if current_user["role"] != "admin":
-        return jsonify({'message': 'Admin access required'}), 403
-    
-    if email not in users_db:
-        return jsonify({'message': 'User not found'}), 404
-    
-    # Delete user
-    del users_db[email]
-    
-    # Delete user's loads
-    loads_to_delete = [load_id for load_id, load in loads_db.items() if load["shipper_email"] == email]
+def admin_delete_user(email):
+    user = check_auth(request)
+    if not user or user['role'] != 'admin':
+        return jsonify({"message": "Unauthorized"}), 401
+
+    target_user = None
+    for u in users.values():
+        if u['email'] == email:
+            target_user = u
+            break
+
+    if not target_user:
+        return jsonify({"message": "User not found"}), 404
+
+    del users[target_user['id']]
+    loads_to_delete = [load_id for load_id, load in loads.items() if load['shipper_id'] == target_user['id']]
     for load_id in loads_to_delete:
-        del loads_db[load_id]
-    
-    # Delete user's messages
-    messages_to_delete = [
-        msg_id for msg_id, msg in messages_db.items() 
-        if msg["sender_email"] == email or msg["receiver_email"] == email
-    ]
+        del loads[load_id]
+    messages_to_delete = [msg_id for msg_id, msg in messages.items() if msg['sender_email'] == target_user['email'] or msg['recipient_email'] == target_user['email']]
     for msg_id in messages_to_delete:
-        del messages_db[msg_id]
-    
-    # Remove from access control
-    if email in access_control_db["post"]:
-        del access_control_db["post"][email]
-    if email in access_control_db["market"]:
-        del access_control_db["market"][email]
-    if email in access_control_db["pages"]:
-        del access_control_db["pages"][email]
-    
-    return jsonify({'message': 'User deleted successfully'})
+        del messages[msg_id]
+
+    return jsonify({"message": "User deleted"})
 
 @app.route('/api/admin/reset-password', methods=['POST'])
-@token_required
-def reset_password(current_user):
-    data = request.json
-    
-    if current_user["role"] != "admin":
-        return jsonify({'message': 'Admin access required'}), 403
-    
-    if not data or not data.get('email') or not data.get('password'):
-        return jsonify({'message': 'Missing required fields'}), 400
-    
-    email = data['email']
-    
-    if email not in users_db:
-        return jsonify({'message': 'User not found'}), 404
-    
-    users_db[email]["password"] = hashlib.sha256(data['password'].encode()).hexdigest()
-    users_db[email]["updated_at"] = datetime.datetime.now().isoformat()
-    
-    return jsonify({'message': 'Password reset successfully'})
+def admin_reset_password():
+    user = check_auth(request)
+    if not user or user['role'] != 'admin':
+        return jsonify({"message": "Unauthorized"}), 401
+
+    data = request.get_json()
+    email = data.get('email')
+    new_password = data.get('password')
+
+    if not email or not new_password:
+        return jsonify({"message": "Email and password are required"}), 400
+
+    target_user = None
+    for u in users.values():
+        if u['email'] == email:
+            target_user = u
+            break
+
+    if not target_user:
+        return jsonify({"message": "User not found"}), 404
+
+    target_user['password'] = new_password
+    return jsonify({"message": "Password reset"})
 
 @app.route('/api/admin/banners', methods=['GET'])
-@token_required
-def get_banners(current_user):
-    if current_user["role"] != "admin":
-        return jsonify({'message': 'Admin access required'}), 403
-    
-    return jsonify(access_control_db["banners"])
+def admin_get_banners():
+    user = check_auth(request)
+    if not user or user['role'] != 'admin':
+        return jsonify({"message": "Unauthorized"}), 401
+
+    return jsonify(banners)
 
 @app.route('/api/admin/banners', methods=['PUT'])
-@token_required
-def update_banners(current_user):
-    if current_user["role"] != "admin":
-        return jsonify({'message': 'Admin access required'}), 403
-    
-    data = request.json
-    
-    if not data or 'index' not in data or 'dashboard' not in data:
-        return jsonify({'message': 'Missing required fields'}), 400
-    
-    access_control_db["banners"] = {
-        "index": data['index'],
-        "dashboard": data['dashboard']
-    }
-    
-    return jsonify(access_control_db["banners"])
+def admin_update_banners():
+    user = check_auth(request)
+    if not user or user['role'] != 'admin':
+        return jsonify({"message": "Unauthorized"}), 401
+
+    data = request.get_json()
+    if 'index' in data:
+        banners['index'] = data['index']
+    if 'dashboard' in data:
+        banners['dashboard'] = data['dashboard']
+
+    return jsonify(banners)
 
 @app.route('/api/admin/access-control', methods=['GET'])
-@token_required
-def get_access_control(current_user):
-    if current_user["role"] != "admin":
-        return jsonify({'message': 'Admin access required'}), 403
-    
-    return jsonify(access_control_db)
+def admin_get_access_control():
+    user = check_auth(request)
+    if not user or user['role'] != 'admin':
+        return jsonify({"message": "Unauthorized"}), 401
+
+    return jsonify(access_control)
 
 @app.route('/api/admin/access-control', methods=['PUT'])
-@token_required
-def update_access_control(current_user):
-    if current_user["role"] != "admin":
-        return jsonify({'message': 'Admin access required'}), 403
-    
-    data = request.json
-    
-    if not data or 'post' not in data or 'market' not in data or 'pages' not in data:
-        return jsonify({'message': 'Missing required fields'}), 400
-    
-    access_control_db["post"] = data['post']
-    access_control_db["market"] = data['market']
-    access_control_db["pages"] = data['pages']
-    
-    return jsonify(access_control_db)
+def admin_update_access_control():
+    user = check_auth(request)
+    if not user or user['role'] != 'admin':
+        return jsonify({"message": "Unauthorized"}), 401
 
-# Health check endpoint
-@app.route('/api/health', methods=['GET'])
-def health_check():
-    return jsonify({'status': 'healthy'})
+    data = request.get_json()
+    if 'post' in data:
+        access_control['post'] = data['post']
+    if 'market' in data:
+        access_control['market'] = data['market']
+    if 'pages' in data:
+        access_control['pages'] = data['pages']
+
+    return jsonify(access_control)
+
+# Initialize data and run app
+initialize_data()
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+    app.run(host='0.0.0.0', port=10000)
