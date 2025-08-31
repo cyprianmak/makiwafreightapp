@@ -77,21 +77,62 @@ def check_auth(request):
     token = token.split(' ')[1]
     return User.query.filter_by(token=token).first()
 
+def get_default_access_control_data():
+    return {
+        'pages': {
+            'post_load': {
+                'allowed_roles': ['admin', 'shipper']
+            },
+            'market': {
+                'allowed_roles': ['admin', 'shipper', 'carrier']
+            }
+        },
+        'banners': {
+            'index': '',
+            'dashboard': ''
+        }
+    }
+
 def get_access_control():
     ac = AccessControl.query.first()
     if not ac:
-        # Initialize with empty structure (removed post and market)
-        ac = AccessControl(data=json.dumps({
-            'pages': {},
-            'banners': {
-                'index': '',
-                'dashboard': ''
-            }
-        }))
+        # Initialize with default structure
+        ac = AccessControl(data=json.dumps(get_default_access_control_data()))
         db.session.add(ac)
         db.session.commit()
+        return json.loads(ac.data)
     
-    return json.loads(ac.data)
+    data = json.loads(ac.data)
+    default_data = get_default_access_control_data()
+    updated = False
+
+    # Check pages
+    if 'pages' not in data:
+        data['pages'] = default_data['pages']
+        updated = True
+    else:
+        if 'post_load' not in data['pages']:
+            data['pages']['post_load'] = default_data['pages']['post_load']
+            updated = True
+        if 'market' not in data['pages']:
+            data['pages']['market'] = default_data['pages']['market']
+            updated = True
+
+    # Check banners
+    if 'banners' not in data:
+        data['banners'] = default_data['banners']
+        updated = True
+    else:
+        for key in ['index', 'dashboard']:
+            if key not in data['banners']:
+                data['banners'][key] = default_data['banners'][key]
+                updated = True
+
+    if updated:
+        ac.data = json.dumps(data)
+        db.session.commit()
+
+    return data
 
 def update_access_control(data):
     ac = AccessControl.query.first()
@@ -502,7 +543,7 @@ def handle_loads():
                 "data": {"loads": result}
             })
         
-        # Create new load (requires authentication and shipper role)
+        # Create new load (requires authentication and proper role)
         if request.method == 'POST':
             if not user:
                 return jsonify({
@@ -510,11 +551,15 @@ def handle_loads():
                     "message": "Authentication required",
                     "error": "Please login to post loads"
                 }), 401
-            if user.role != 'shipper':
+            
+            # Check if user has permission to post loads
+            access_control = get_access_control()
+            allowed_roles = access_control.get('pages', {}).get('post_load', {}).get('allowed_roles', [])
+            if user.role not in allowed_roles:
                 return jsonify({
                     "success": False,
                     "message": "Access denied",
-                    "error": "Only shippers can post loads"
+                    "error": "You don't have permission to post loads"
                 }), 403
                 
             data = request.get_json()
