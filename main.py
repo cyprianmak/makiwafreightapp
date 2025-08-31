@@ -54,7 +54,7 @@ class Message(db.Model):
 
 class AccessControl(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    data = db.Column(db.Text)  # JSON string containing all access control data
+    data = db.Column(db.Text)  # JSON string containing access control data
 
 class Banner(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -72,10 +72,8 @@ def check_auth(request):
 def get_access_control():
     ac = AccessControl.query.first()
     if not ac:
-        # Initialize with empty structure
+        # Initialize with empty structure (removed post and market)
         ac = AccessControl(data=json.dumps({
-            'post': {},
-            'market': {},
             'pages': {},
             'banners': {
                 'index': '',
@@ -561,6 +559,115 @@ def handle_loads():
             "error": str(e)
         }), 500
 
+# Update load endpoint
+@app.route('/api/loads/<load_id>', methods=['PUT'])
+def update_load_endpoint(load_id):
+    try:
+        user = check_auth(request)
+        if not user:
+            return jsonify({
+                "success": False,
+                "message": "Authentication required",
+                "error": "Please login to continue"
+            }), 401
+        
+        load = Load.query.get(load_id)
+        if not load:
+            return jsonify({
+                "success": False,
+                "message": "Load not found",
+                "error": "Load does not exist"
+            }), 404
+        
+        # Only the shipper who posted the load can update it
+        if load.shipper_id != user.id:
+            return jsonify({
+                "success": False,
+                "message": "Access denied",
+                "error": "You can only update your own loads"
+            }), 403
+        
+        data = request.get_json()
+        
+        # Update fields if provided
+        if 'origin' in data:
+            load.origin = data['origin']
+        if 'destination' in data:
+            load.destination = data['destination']
+        if 'date' in data:
+            load.date = data['date']
+        if 'cargo_type' in data:
+            load.cargo_type = data['cargo_type']
+        if 'weight' in data:
+            load.weight = data['weight']
+        if 'notes' in data:
+            load.notes = data['notes']
+        
+        db.session.commit()
+        
+        return jsonify({
+            "success": True,
+            "message": "Load updated successfully",
+            "data": {
+                "load": {
+                    "id": load.id,
+                    "ref": load.ref,
+                    "origin": load.origin,
+                    "destination": load.destination,
+                    "expires_at": load.expires_at.isoformat()
+                }
+            }
+        })
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": "Failed to update load",
+            "error": str(e)
+        }), 500
+
+# Delete load endpoint
+@app.route('/api/loads/<load_id>', methods=['DELETE'])
+def delete_load_endpoint(load_id):
+    try:
+        user = check_auth(request)
+        if not user:
+            return jsonify({
+                "success": False,
+                "message": "Authentication required",
+                "error": "Please login to continue"
+            }), 401
+        
+        load = Load.query.get(load_id)
+        if not load:
+            return jsonify({
+                "success": False,
+                "message": "Load not found",
+                "error": "Load does not exist"
+            }), 404
+        
+        # Only the shipper who posted the load can delete it
+        if load.shipper_id != user.id:
+            return jsonify({
+                "success": False,
+                "message": "Access denied",
+                "error": "You can only delete your own loads"
+            }), 403
+        
+        db.session.delete(load)
+        db.session.commit()
+        
+        return jsonify({
+            "success": True,
+            "message": "Load deleted successfully",
+            "data": {"load_id": load_id}
+        })
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": "Failed to delete load",
+            "error": str(e)
+        }), 500
+
 # Message endpoints
 @app.route('/api/messages', methods=['GET', 'POST'])
 def handle_messages():
@@ -671,6 +778,94 @@ def get_users():
         return jsonify({
             "success": False,
             "message": "Failed to retrieve users",
+            "error": str(e)
+        }), 500
+
+# Delete user endpoint
+@app.route('/api/users/<email>', methods=['DELETE'])
+def delete_user_endpoint(email):
+    try:
+        user = check_auth(request)
+        if not user or user.role != 'admin':
+            return jsonify({
+                "success": False,
+                "message": "Access denied",
+                "error": "Admin access required"
+            }), 403
+        
+        user_to_delete = User.query.filter_by(email=email).first()
+        if not user_to_delete:
+            return jsonify({
+                "success": False,
+                "message": "User not found",
+                "error": "User does not exist"
+            }), 404
+        
+        # Delete user's loads and messages
+        Load.query.filter_by(shipper_id=user_to_delete.id).delete()
+        Message.query.filter(
+            (Message.sender_email == user_to_delete.email) | 
+            (Message.recipient_email == user_to_delete.email)
+        ).delete()
+        
+        db.session.delete(user_to_delete)
+        db.session.commit()
+        
+        return jsonify({
+            "success": True,
+            "message": "User deleted successfully",
+            "data": {"email": email}
+        })
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": "Failed to delete user",
+            "error": str(e)
+        }), 500
+
+# Reset password endpoint
+@app.route('/api/admin/reset-password', methods=['POST'])
+def reset_password_endpoint():
+    try:
+        user = check_auth(request)
+        if not user or user.role != 'admin':
+            return jsonify({
+                "success": False,
+                "message": "Access denied",
+                "error": "Admin access required"
+            }), 403
+        
+        data = request.get_json()
+        email = data.get('email')
+        new_password = data.get('password')
+        
+        if not email or not new_password:
+            return jsonify({
+                "success": False,
+                "message": "Reset failed",
+                "error": "Email and password are required"
+            }), 400
+        
+        user_to_update = User.query.filter_by(email=email).first()
+        if not user_to_update:
+            return jsonify({
+                "success": False,
+                "message": "User not found",
+                "error": "User does not exist"
+            }), 404
+        
+        user_to_update.set_password(new_password)
+        db.session.commit()
+        
+        return jsonify({
+            "success": True,
+            "message": "Password reset successfully",
+            "data": {"email": email}
+        })
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": "Failed to reset password",
             "error": str(e)
         }), 500
 
