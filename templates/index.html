@@ -61,28 +61,18 @@
       margin-bottom: 15px;
     }
     
-    .access-control-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-      gap: 15px;
-    }
-    
-    .access-control-card {
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 15px;
-      background: var(--panel-2);
-    }
-    
-    .access-control-card h4 {
-      margin: 0 0 10px;
-      color: var(--accent);
-    }
-    
-    .access-control-actions {
+    .select-with-actions {
       display: flex;
-      gap: 8px;
-      margin-top: 10px;
+      gap: 10px;
+      align-items: flex-end;
+    }
+    
+    .select-with-actions select {
+      flex: 1;
+    }
+    
+    .select-with-actions button {
+      white-space: nowrap;
     }
   </style>
 </head>
@@ -222,7 +212,6 @@
       <div class="card">
         <div class="toolbar">
           <h3>Your Posted Loads</h3>
-          <span class="chip" id="shipperPostAccessChip" role="status"></span>
         </div>
         <div class="table-container" style="overflow-x:auto">
           <table id="tableMyLoads" aria-label="Your posted loads"><thead><tr>
@@ -234,7 +223,6 @@
     <!-- Shipper Post Load -->
     <section id="page-shipper-post" class="card hidden" aria-label="Post a load form">
       <h2>Post a Load</h2>
-      <div id="postAccessNotice" class="banner hidden" role="alert"></div>
       <form id="formPostLoad" novalidate>
         <div class="grid two">
           <div><label for="loadOrigin">Origin</label><input required id="loadOrigin" name="origin" /></div>
@@ -308,7 +296,6 @@
       <div class="card">
         <div class="toolbar">
           <h3>Load Market Board</h3>
-          <span class="chip" id="marketAccessChip" role="status"></span>
           <div style="display:flex;gap:8px">
             <input id="filterOrigin" placeholder="Filter by origin" aria-label="Filter by origin" />
             <input id="filterDest" placeholder="Filter by destination" aria-label="Filter by destination" />
@@ -465,35 +452,6 @@
             <button id="btnSavePageAccess" class="btn primary">Save Page Access</button>
           </div>
         </div>
-        
-        <div class="access-control-section">
-          <h4>Feature Access Control</h4>
-          <div class="access-control-grid">
-            <div class="access-control-card">
-              <h4>Post Load Access</h4>
-              <div>
-                <label for="aclPostEmail">User Email</label>
-                <input id="aclPostEmail" placeholder="user@example.com" type="email" />
-              </div>
-              <div class="access-control-actions">
-                <button id="btnGrantPost" class="btn">Grant</button>
-                <button id="btnRevokePost" class="btn">Revoke</button>
-              </div>
-            </div>
-            
-            <div class="access-control-card">
-              <h4>Market Access</h4>
-              <div>
-                <label for="aclMarketEmail">User Email</label>
-                <input id="aclMarketEmail" placeholder="user@example.com" type="email" />
-              </div>
-              <div class="access-control-actions">
-                <button id="btnGrantMarket" class="btn">Grant</button>
-                <button id="btnRevokeMarket" class="btn">Revoke</button>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
       
       <div class="grid two">
@@ -507,20 +465,26 @@
         </div>
         <div class="card">
           <h3>Loads</h3>
-          <div class="table-container" style="overflow-x:auto">
-            <table id="tableAllLoads" aria-label="Load management"><thead><tr>
-              <th scope="col">Ref</th><th scope="col">Origin</th><th scope="col">Destination</th><th scope="col">Date</th><th scope="col">Expires</th><th scope="col">Cargo</th><th scope="col">Weight</th><th scope="col">By</th><th scope="col">Actions</th>
-            </tr></thead><tbody></tbody></table>
+          <div class="select-with-actions">
+            <select id="selectLoad">
+              <option value="">-- Select Load --</option>
+            </select>
+            <button id="btnEditLoad" class="btn">Edit</button>
+            <button id="btnDeleteLoad" class="btn danger">Delete</button>
           </div>
+          <div id="loadDetails" style="margin-top: 15px;"></div>
         </div>
         <div class="card">
           <h3>Reset Password</h3>
-          <div class="grid two">
-            <div><label for="resetEmail">User Email</label><input id="resetEmail" placeholder="user@example.com" type="email" /></div>
-            <div><label for="resetPass">New Password</label><input id="resetPass" placeholder="new password" type="password" /></div>
+          <div class="select-with-actions">
+            <select id="selectUserForPassword">
+              <option value="">-- Select User --</option>
+            </select>
+            <button id="btnResetPass" class="btn">Reset</button>
           </div>
-          <div class="toolbar" style="margin-top:12px">
-            <button id="btnResetPass" class="btn">Assign</button>
+          <div style="margin-top: 10px;">
+            <label for="resetPass">New Password</label>
+            <input id="resetPass" placeholder="new password" type="password" />
           </div>
         </div>
       </div>
@@ -1125,13 +1089,6 @@
         if (!u) return;
         
         try {
-          // Get access control data
-          const acl = await getAccessControl();
-          
-          // Post access chip
-          const allow = acl.post && acl.post[u.email];
-          setText('shipperPostAccessChip', allow ? 'Post access: ENABLED' : 'Post access: DISABLED');
-          
           // My loads table
           const rows = await getLoads({ shipper_id: u.id });
           const tb = el('tableMyLoads');
@@ -1213,13 +1170,6 @@
               }, 'Failed to update load');
             };
           });
-          
-          // Post page access notice
-          const notice = el('postAccessNotice');
-          if (notice) {
-            notice.textContent = allow ? '' : 'Admin has disabled your Post Load access.';
-            setHidden('postAccessNotice', allow);
-          }
         } catch (error) {
           console.error('Failed to render shipper dashboard:', error);
         }
@@ -1230,12 +1180,6 @@
         if (!u) return;
         
         try {
-          // Get access control data
-          const acl = await getAccessControl();
-          
-          const allow = acl.market && acl.market[u.email];
-          setText('marketAccessChip', allow ? 'Market access: ENABLED' : 'Market access: DISABLED');
-          
           const tb = el('tableLoads');
           if (!tb) return;
           
@@ -1248,12 +1192,12 @@
           const fo = el('filterOrigin');
           const fd = el('filterDest');
           
-          // Only show non-expired loads to users with market access
+          // Only show non-expired loads
           const filters = {};
           if (fo && fo.value.trim()) filters.origin = fo.value.trim();
           if (fd && fd.value.trim()) filters.destination = fd.value.trim();
           
-          let rows = allow ? await getLoads(filters) : [];
+          let rows = await getLoads(filters);
           
           // Filter out expired loads
           rows = rows.filter(l => !isLoadExpired(l));
@@ -1291,12 +1235,6 @@
         if (!u) return;
         
         try {
-          // Get access control data
-          const acl = await getAccessControl();
-          
-          // Only show non-expired loads to users with market access
-          const allow = acl.market && acl.market[u.email];
-          
           // Get filters
           const fo = el('marketFilterOrigin');
           const fd = el('marketFilterDest');
@@ -1305,7 +1243,7 @@
           if (fo && fo.value.trim()) filters.origin = fo.value.trim();
           if (fd && fd.value.trim()) filters.destination = fd.value.trim();
           
-          let rows = allow ? await getLoads(filters) : [];
+          let rows = await getLoads(filters);
           
           // Filter out expired loads
           rows = rows.filter(l => !isLoadExpired(l));
@@ -1492,18 +1430,37 @@
         });
       };
       
-      const renderAdmin = async () => {
-        const u = await getCurrentUser();
-        if (!isAdmin(u)) return;
+      // Render load dropdown
+      const renderLoadDropdown = async () => {
+        const select = el('selectLoad');
+        if (!select) return;
         
         try {
-          // Get access control data
-          const acl = await getAccessControl();
+          const loads = await getLoads();
           
-          // Populate user dropdown for page access control
-          const userSelect = el('pageAccessUser');
+          select.innerHTML = '<option value="">-- Select Load --</option>';
+          
+          loads.forEach(load => {
+            const option = document.createElement('option');
+            option.value = load.id;
+            option.textContent = `${load.ref}: ${load.origin} to ${load.destination}`;
+            select.appendChild(option);
+          });
+        } catch (error) {
+          console.error('Failed to render load dropdown:', error);
+        }
+      };
+      
+      // Render user dropdowns
+      const renderUserDropdowns = async () => {
+        const userSelect = el('pageAccessUser');
+        const passwordSelect = el('selectUserForPassword');
+        
+        try {
+          const users = await getUsers();
+          
+          // Page access user dropdown
           if (userSelect) {
-            const users = await getUsers();
             userSelect.innerHTML = '<option value="">-- Select User --</option>';
             
             users.forEach(user => {
@@ -1514,12 +1471,31 @@
                 userSelect.appendChild(option);
               }
             });
-            
-            // Add change event listener
-            userSelect.onchange = () => {
-              renderPageAccessCheckboxes(userSelect.value);
-            };
           }
+          
+          // Password reset user dropdown
+          if (passwordSelect) {
+            passwordSelect.innerHTML = '<option value="">-- Select User --</option>';
+            
+            users.forEach(user => {
+              const option = document.createElement('option');
+              option.value = user.email;
+              option.textContent = `${user.name} (${user.email})`;
+              passwordSelect.appendChild(option);
+            });
+          }
+        } catch (error) {
+          console.error('Failed to render user dropdowns:', error);
+        }
+      };
+      
+      const renderAdmin = async () => {
+        const u = await getCurrentUser();
+        if (!isAdmin(u)) return;
+        
+        try {
+          // Get access control data
+          const acl = await getAccessControl();
           
           // Update banners form
           const adminIndexBanner = el('adminIndexBanner');
@@ -1543,10 +1519,6 @@
                   <td>${sanitize(usr.email)}</td>
                   <td>${sanitize(usr.role)}</td>
                   <td>
-                    <button class="btn" data-grant-post="${usr.email}" aria-label="Grant post access to ${usr.email}">Grant Post</button>
-                    <button class="btn" data-revoke-post="${usr.email}" aria-label="Revoke post access from ${usr.email}">Revoke Post</button>
-                    <button class="btn" data-grant-market="${usr.email}" aria-label="Grant market access to ${usr.email}">Grant Market</button>
-                    <button class="btn" data-revoke-market="${usr.email}" aria-label="Revoke market access from ${usr.email}">Revoke Market</button>
                     <button class="btn danger" data-deluser="${usr.email}" aria-label="Delete user ${usr.email}">Delete</button>
                   </td>`;
                 tbodyU.appendChild(tr);
@@ -1562,124 +1534,12 @@
                   }
                 };
               });
-              
-              tbodyU.querySelectorAll('[data-grant-post]').forEach(b => {
-                b.onclick = async () => {
-                  const acl = await getAccessControl();
-                  if (!acl.post) acl.post = {};
-                  acl.post[b.dataset.grantPost] = true;
-                  await updateAccessControl(acl);
-                  render();
-                };
-              });
-              
-              tbodyU.querySelectorAll('[data-revoke-post]').forEach(b => {
-                b.onclick = async () => {
-                  const acl = await getAccessControl();
-                  if (acl.post && acl.post[b.dataset.revokePost]) {
-                    delete acl.post[b.dataset.revokePost];
-                    await updateAccessControl(acl);
-                    render();
-                  }
-                };
-              });
-              
-              tbodyU.querySelectorAll('[data-grant-market]').forEach(b => {
-                b.onclick = async () => {
-                  const acl = await getAccessControl();
-                  if (!acl.market) acl.market = {};
-                  acl.market[b.dataset.grantMarket] = true;
-                  await updateAccessControl(acl);
-                  render();
-                };
-              });
-              
-              tbodyU.querySelectorAll('[data-revoke-market]').forEach(b => {
-                b.onclick = async () => {
-                  const acl = await getAccessControl();
-                  if (acl.market && acl.market[b.dataset.revokeMarket]) {
-                    delete acl.market[b.dataset.revokeMarket];
-                    await updateAccessControl(acl);
-                    render();
-                  }
-                };
-              });
             }
           }
           
-          // Loads table
-          const tbL = el('tableAllLoads');
-          if (tbL) {
-            const loads = await getLoads();
-            const tbodyL = tbL.querySelector('tbody');
-            if (tbodyL) {
-              tbodyL.innerHTML = '';
-              
-              for (const l of loads) {
-                const expired = isLoadExpired(l);
-                const expiryDate = l.expires_at ? new Date(l.expires_at).toLocaleDateString() : 'N/A';
-                
-                const tr = document.createElement('tr');
-                if (expired) tr.classList.add('expired');
-                
-                tr.innerHTML = `
-                  <td>${sanitize(l.ref)}</td>
-                  <td>${sanitize(l.origin)}</td>
-                  <td>${sanitize(l.destination)}</td>
-                  <td>${sanitize(l.date)}</td>
-                  <td>${expiryDate}</td>
-                  <td>${sanitize(l.cargo_type)}</td>
-                  <td>${sanitize(l.weight)}</td>
-                  <td>${sanitize(l.shipper || '')}</td>
-                  <td>
-                    <button class="btn" data-editl="${l.id}" aria-label="Edit load ${l.ref}">Edit</button>
-                    <button class="btn danger" data-dell="${l.id}" aria-label="Delete load ${l.ref}">Delete</button>
-                  </td>`;
-                tbodyL.appendChild(tr);
-              }
-              
-              tbodyL.querySelectorAll('[data-dell]').forEach(b => {
-                b.onclick = () => {
-                  if (confirm('Are you sure you want to delete this load?')) {
-                    handleError(async () => {
-                      await deleteLoad(b.dataset.dell);
-                      render();
-                    }, 'Failed to delete load');
-                  }
-                };
-              });
-              
-              tbodyL.querySelectorAll('[data-editl]').forEach(b => {
-                b.onclick = () => {
-                  const l = loads.find(x => x.id === b.dataset.editl);
-                  if (!l) return;
-                  
-                  const origin = prompt('Origin', l.origin);
-                  if (origin === null) return;
-                  
-                  const destination = prompt('Destination', l.destination);
-                  if (destination === null) return;
-                  
-                  const date = prompt('Date (YYYY-MM-DD)', l.date);
-                  if (date === null) return;
-                  
-                  const cargo_type = prompt('Cargo', l.cargo_type);
-                  if (cargo_type === null) return;
-                  
-                  const weight = prompt('Weight', l.weight);
-                  if (weight === null) return;
-                  
-                  const notes = prompt('Notes', l.notes || '');
-                  if (notes === null) return;
-                  
-                  handleError(async () => {
-                    await updateLoad(l.id, { origin, destination, date, cargo_type, weight, notes });
-                    render();
-                  }, 'Failed to update load');
-                };
-              });
-            }
-          }
+          // Render dropdowns
+          renderLoadDropdown();
+          renderUserDropdowns();
         } catch (error) {
           console.error('Failed to render admin panel:', error);
         }
@@ -1823,18 +1683,6 @@
             
             if (!u) return;
             
-            try {
-              const acl = await getAccessControl();
-              if (!acl.post || !acl.post[u.email]) {
-                showNotification('Your Post Load access is disabled by Admin.', 'error');
-                return;
-              }
-            } catch (error) {
-              console.error('Failed to check access control:', error);
-              showNotification('Failed to verify access permissions', 'error');
-              return;
-            }
-            
             handleError(async () => {
               await postLoad({
                 origin: fd.get('origin'),
@@ -1940,18 +1788,6 @@
           };
         }
         
-        const btnResetPass = el('btnResetPass');
-        if (btnResetPass) {
-          btnResetPass.onclick = async () => {
-            const email = el('resetEmail').value.trim();
-            const p = el('resetPass').value;
-            
-            handleError(async () => {
-              await resetPassword(email, p);
-            }, 'Failed to reset password');
-          };
-        }
-        
         // Save page access
         const btnSavePageAccess = el('btnSavePageAccess');
         if (btnSavePageAccess) {
@@ -1980,90 +1816,87 @@
           };
         }
         
-        // Feature access controls
-        const btnGrantPost = el('btnGrantPost');
-        if (btnGrantPost) {
-          btnGrantPost.onclick = async () => {
-            const email = el('aclPostEmail').value.trim();
-            if (!email) {
-              showNotification('Please enter a user email', 'error');
+        // Load management
+        const btnEditLoad = el('btnEditLoad');
+        if (btnEditLoad) {
+          btnEditLoad.onclick = async () => {
+            const loadId = el('selectLoad').value;
+            if (!loadId) {
+              showNotification('Please select a load to edit', 'error');
               return;
             }
             
-            const acl = await getAccessControl();
-            if (!acl.post) acl.post = {};
-            acl.post[email] = true;
-            
-            handleError(async () => {
-              await updateAccessControl(acl);
-              el('aclPostEmail').value = '';
-              render();
-            }, 'Failed to grant post access');
-          };
-        }
-        
-        const btnRevokePost = el('btnRevokePost');
-        if (btnRevokePost) {
-          btnRevokePost.onclick = async () => {
-            const email = el('aclPostEmail').value.trim();
-            if (!email) {
-              showNotification('Please enter a user email', 'error');
-              return;
-            }
-            
-            const acl = await getAccessControl();
-            if (acl.post && acl.post[email]) {
-              delete acl.post[email];
+            try {
+              const loads = await getLoads();
+              const load = loads.find(l => l.id === loadId);
+              if (!load) {
+                showNotification('Load not found', 'error');
+                return;
+              }
+              
+              const origin = prompt('Origin', load.origin);
+              if (origin === null) return;
+              
+              const destination = prompt('Destination', load.destination);
+              if (destination === null) return;
+              
+              const date = prompt('Date (YYYY-MM-DD)', load.date);
+              if (date === null) return;
+              
+              const cargo_type = prompt('Cargo', load.cargo_type);
+              if (cargo_type === null) return;
+              
+              const weight = prompt('Weight', load.weight);
+              if (weight === null) return;
+              
+              const notes = prompt('Notes', load.notes || '');
+              if (notes === null) return;
               
               handleError(async () => {
-                await updateAccessControl(acl);
-                el('aclPostEmail').value = '';
+                await updateLoad(load.id, { origin, destination, date, cargo_type, weight, notes });
                 render();
-              }, 'Failed to revoke post access');
+              }, 'Failed to update load');
+            } catch (error) {
+              console.error('Failed to edit load:', error);
             }
           };
         }
         
-        const btnGrantMarket = el('btnGrantMarket');
-        if (btnGrantMarket) {
-          btnGrantMarket.onclick = async () => {
-            const email = el('aclMarketEmail').value.trim();
-            if (!email) {
-              showNotification('Please enter a user email', 'error');
+        const btnDeleteLoad = el('btnDeleteLoad');
+        if (btnDeleteLoad) {
+          btnDeleteLoad.onclick = async () => {
+            const loadId = el('selectLoad').value;
+            if (!loadId) {
+              showNotification('Please select a load to delete', 'error');
               return;
             }
             
-            const acl = await getAccessControl();
-            if (!acl.market) acl.market = {};
-            acl.market[email] = true;
+            if (confirm('Are you sure you want to delete this load?')) {
+              handleError(async () => {
+                await deleteLoad(loadId);
+                render();
+              }, 'Failed to delete load');
+            }
+          };
+        }
+        
+        // Reset password
+        const btnResetPass = el('btnResetPass');
+        if (btnResetPass) {
+          btnResetPass.onclick = async () => {
+            const email = el('selectUserForPassword').value;
+            const newPass = el('resetPass').value;
+            
+            if (!email || !newPass) {
+              showNotification('Please select a user and enter a new password', 'error');
+              return;
+            }
             
             handleError(async () => {
-              await updateAccessControl(acl);
-              el('aclMarketEmail').value = '';
-              render();
-            }, 'Failed to grant market access');
-          };
-        }
-        
-        const btnRevokeMarket = el('btnRevokeMarket');
-        if (btnRevokeMarket) {
-          btnRevokeMarket.onclick = async () => {
-            const email = el('aclMarketEmail').value.trim();
-            if (!email) {
-              showNotification('Please enter a user email', 'error');
-              return;
-            }
-            
-            const acl = await getAccessControl();
-            if (acl.market && acl.market[email]) {
-              delete acl.market[email];
-              
-              handleError(async () => {
-                await updateAccessControl(acl);
-                el('aclMarketEmail').value = '';
-                render();
-              }, 'Failed to revoke market access');
-            }
+              await resetPassword(email, newPass);
+              el('resetPass').value = '';
+              showNotification('Password reset successfully', 'success');
+            }, 'Failed to reset password');
           };
         }
         
