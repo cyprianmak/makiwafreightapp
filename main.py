@@ -2,6 +2,8 @@ from flask import Flask, render_template, jsonify, request
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, timedelta
 import uuid
+import bcrypt
+import json
 
 app = Flask(__name__)
 # Configure the database
@@ -14,7 +16,7 @@ class User(db.Model):
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     name = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(100), unique=True, nullable=False)
-    password = db.Column(db.String(100), nullable=False)
+    password_hash = db.Column(db.String(100), nullable=False)  # Changed to store hash
     role = db.Column(db.String(20), nullable=False)
     company = db.Column(db.String(100))
     phone = db.Column(db.String(20))
@@ -22,6 +24,12 @@ class User(db.Model):
     vehicle_info = db.Column(db.String(200))
     token = db.Column(db.String(36))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def set_password(self, password):
+        self.password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+    
+    def check_password(self, password):
+        return bcrypt.checkpw(password.encode('utf-8'), self.password_hash.encode('utf-8'))
 
 class Load(db.Model):
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
@@ -124,9 +132,9 @@ def initialize_data():
             admin = User(
                 name="Admin",
                 email=admin_email,
-                password=admin_password,
                 role="admin"
             )
+            admin.set_password(admin_password)
             db.session.add(admin)
             db.session.commit()
 
@@ -140,6 +148,7 @@ def api_info():
     return jsonify({
         "endpoints": {
             "auth": "/api/auth/login",
+            "register": "/api/auth/register",
             "health": "/api/health",
             "loads": "/api/loads",
             "messages": "/api/messages",
@@ -155,15 +164,55 @@ def health():
     return jsonify({"status": "healthy"})
 
 # Auth endpoints
+@app.route('/api/auth/register', methods=['POST'])
+def register():
+    data = request.get_json()
+    name = data.get('name')
+    email = data.get('email')
+    password = data.get('password')
+    role = data.get('role', 'user')  # Default role
+    
+    # Validate required fields
+    if not name or not email or not password:
+        return jsonify({"message": "Missing required fields"}), 400
+    
+    # Check if user already exists
+    if User.query.filter_by(email=email).first():
+        return jsonify({"message": "Email already registered"}), 400
+    
+    # Create new user
+    new_user = User(
+        name=name,
+        email=email,
+        role=role
+    )
+    new_user.set_password(password)
+    
+    db.session.add(new_user)
+    db.session.commit()
+    
+    return jsonify({
+        "message": "User registered successfully",
+        "user": {
+            "id": new_user.id,
+            "name": new_user.name,
+            "email": new_user.email,
+            "role": new_user.role
+        }
+    }), 201
+
 @app.route('/api/auth/login', methods=['POST'])
 def login():
     data = request.get_json()
     email = data.get('email')
     password = data.get('password')
 
-    user = User.query.filter_by(email=email, password=password).first()
+    if not email or not password:
+        return jsonify({"message": "Email and password required"}), 400
 
-    if user:
+    user = User.query.filter_by(email=email).first()
+
+    if user and user.check_password(password):
         token = str(uuid.uuid4())
         user.token = token
         db.session.commit()
@@ -179,7 +228,146 @@ def login():
     else:
         return jsonify({"message": "Invalid credentials"}), 401
 
-# Update other endpoints to use the database models instead of dictionaries...
+# Load endpoints
+@app.route('/api/loads', methods=['GET', 'POST'])
+def handle_loads():
+    user = check_auth(request)
+    
+    # Get all loads (public access)
+    if request.method == 'GET':
+        loads = Load.query.filter(Load.expires_at >= datetime.utcnow()).all()
+        result = []
+        for load in loads:
+            result.append({
+                "id": load.id,
+                "ref": load.ref,
+                "origin": load.origin,
+                "destination": load.destination,
+                "date": load.date,
+                "cargo_type": load.cargo_type,
+                "weight": load.weight,
+                "notes": load.notes,
+                "shipper": load.shipper.name if load.shipper else None,
+                "expires_at": load.expires_at.isoformat(),
+                "created_at": load.created_at.isoformat()
+            })
+        return jsonify(result)
+    
+    # Create new load (requires authentication and shipper role)
+    if request.method == 'POST':
+        if not user:
+            return jsonify({"message": "Authentication required"}), 401
+        if user.role != 'shipper':
+            return jsonify({"message": "Only shippers can post loads"}), 403
+            
+        data = request.get_json()
+        required_fields = ['ref', 'origin', 'destination', 'date', 'cargo_type', 'weight']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({"message": f"Missing field: {field}"}), 400
+        
+        # Set expiration date (7 days from creation)
+        expires_at = datetime.utcnow() + timedelta(days=7)
+        
+        new_load = Load(
+            ref=data['ref'],
+            origin=data['origin'],
+            destination=data['destination'],
+            date=data['date'],
+            cargo_type=data['cargo_type'],
+            weight=data['weight'],
+            notes=data.get('notes', ''),
+            shipper_id=user.id,
+            expires_at=expires_at
+        )
+        
+        db.session.add(new_load)
+        db.session.commit()
+        
+        return jsonify({
+            "message": "Load created successfully",
+            "load": {
+                "id": new_load.id,
+                "ref": new_load.ref,
+                "origin": new_load.origin,
+                "destination": new_load.destination,
+                "expires_at": new_load.expires_at.isoformat()
+            }
+        }), 201
+
+# Message endpoints
+@app.route('/api/messages', methods=['GET', 'POST'])
+def handle_messages():
+    user = check_auth(request)
+    if not user:
+        return jsonify({"message": "Authentication required"}), 401
+    
+    # Get user's messages
+    if request.method == 'GET':
+        messages = Message.query.filter(
+            (Message.sender_email == user.email) | 
+            (Message.recipient_email == user.email)
+        ).order_by(Message.created_at.desc()).all()
+        
+        result = []
+        for msg in messages:
+            result.append({
+                "id": msg.id,
+                "sender": msg.sender_email,
+                "recipient": msg.recipient_email,
+                "body": msg.body,
+                "created_at": msg.created_at.isoformat()
+            })
+        return jsonify(result)
+    
+    # Send a new message
+    if request.method == 'POST':
+        data = request.get_json()
+        recipient = data.get('recipient')
+        body = data.get('body')
+        
+        if not recipient or not body:
+            return jsonify({"message": "Recipient and message body required"}), 400
+        
+        # Verify recipient exists
+        if not User.query.filter_by(email=recipient).first():
+            return jsonify({"message": "Recipient not found"}), 404
+        
+        new_message = Message(
+            sender_email=user.email,
+            recipient_email=recipient,
+            body=body
+        )
+        
+        db.session.add(new_message)
+        db.session.commit()
+        
+        return jsonify({
+            "message": "Message sent successfully",
+            "message_id": new_message.id
+        }), 201
+
+# User management (admin only)
+@app.route('/api/users', methods=['GET'])
+def get_users():
+    user = check_auth(request)
+    if not user or user.role != 'admin':
+        return jsonify({"message": "Admin access required"}), 403
+    
+    users = User.query.all()
+    result = []
+    for u in users:
+        result.append({
+            "id": u.id,
+            "name": u.name,
+            "email": u.email,
+            "role": u.role,
+            "company": u.company,
+            "phone": u.phone,
+            "created_at": u.created_at.isoformat()
+        })
+    
+    return jsonify(result)
 
 # Initialize data and run app
 initialize_data()
