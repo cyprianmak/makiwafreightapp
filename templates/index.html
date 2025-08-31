@@ -6,7 +6,7 @@
   <meta name="description" content="MakiwaFreight - A marketplace where shippers meet transporters" />
   <meta name="author" content="MakiwaFreight Team" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';" />
-  <title>MakiwaFreight App</title>
+  <title>MakiwaFreight App (Plug & Play)</title>
   <style>
     :root{--bg:#0b1220;--panel:#121a2b;--panel-2:#1b2742;--text:#d7e7ff;--muted:#8fb7ff;--accent:#4da3ff;--accent-2:#73c1ff;--good:#22c55e;--warn:#f59e0b;--bad:#ef4444;--border:#2a3b5f;--chip:#0e1a33}*{box-sizing:border-box}html,body{height:100%}body{margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:linear-gradient(180deg,var(--bg),#0d1426 40%,#0a1120);color:var(--text)}a{color:var(--accent)}.container{max-width:1100px;margin:0 auto;padding:24px}header{position:sticky;top:0;z-index:10;background:rgba(11,18,32,0.8);backdrop-filter:blur(8px);border-bottom:1px solid var(--border)}.nav{display:flex;gap:12px;align-items:center;justify-content:space-between}.brand{display:flex;gap:12px;align-items:center}.logo{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:grid;place-items:center;font-weight:800;color:#08203a}.brand h1{font-size:18px;margin:0;color:var(--text)}.auth-area{display:flex;gap:8px;align-items:center}.nav-links{display:flex;gap:8px;flex-wrap:wrap}button,.btn{border:1px solid var(--border);background:linear-gradient(180deg,var(--panel),var(--panel-2));color:var(--text);padding:10px 14px;border-radius:12px;cursor:pointer;font-weight:600;transition:all .15s ease;text-decoration:none;display:inline-flex;align-items:center;gap:8px}button:hover,.btn:hover{transform:translateY(-1px);border-color:var(--accent)}.btn.ghost{background:transparent}.btn.primary{background:linear-gradient(180deg,var(--accent),var(--accent-2));color:#0a1a2e;border-color:transparent}.grid{display:grid;gap:16px}.two{grid-template-columns:repeat(2,minmax(0,1fr))}.three{grid-template-columns:repeat(3,minmax(0,1fr))}@media (max-width:900px){.two,.three{grid-template-columns:1fr}}.card{border:1px solid var(--border);border-radius:16px;padding:16px;background:linear-gradient(180deg,var(--panel),var(--panel-2));box-shadow:0 10px 30px rgba(0,0,0,0.25)}.card h3{margin:0 0 8px}.muted{color:var(--muted)}.kpi{display:flex;gap:14px;align-items:center}.chip{background:var(--chip);border:1px solid var(--border);border-radius:999px;padding:6px 10px;font-size:12px}.danger{color:var(--bad)}.success{color:var(--good)}.warn{color:var(--warn)}.hidden{display:none !important}input,select,textarea{width:100%;padding:10px 12px;border-radius:12px;border:1px solid var(--border);background:#0c1530;color:var(--text)}label{font-size:12px;color:var(--muted)}form .grid{margin-top:8px}table{width:100%;border-collapse:separate;border-spacing:0 8px}th,td{padding:10px 12px;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}th{font-weight:700;text-align:left;color:var(--muted);background:#0f1940}tr td:first-child,tr th:first-child{border-left:1px solid var(--border);border-top-left-radius:12px;border-bottom-left-radius:12px}tr td:last-child,tr th:last-child{border-right:1px solid var(--border);border-top-right-radius:12px;border-bottom-right-radius:12px}.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between}.banner{border:1px dashed var(--border);padding:10px 14px;border-radius:12px;background:#0d1836;color:var(--muted)}.footer{opacity:.75;font-size:12px;text-align:center;padding:24px}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}.checkbox-group{display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:10px;margin-top:10px}.checkbox-item{display:flex;align-items:center;gap:8px}.checkbox-item input{width:auto}.expired{opacity:0.6; text-decoration: line-through;}.profile-header{display:flex;align-items:center;gap:16px;margin-bottom:16px}.profile-avatar{width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:800;color:#08203a}.profile-info h2{margin:0 0 4px}.profile-info .muted{margin:0}.status-indicator{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px}.status-active{background-color:var(--good)}.status-inactive{background-color:var(--bad)}.profile-details{background:var(--panel-2);border-radius:12px;padding:16px;margin-bottom:16px}.profile-details h3{margin:0 0 12px;color:var(--accent)}.detail-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)}.detail-row:last-child{border-bottom:none}.detail-label{color:var(--muted)}.detail-value{font-weight:500}.editable-section{margin-top:20px}.editable-section h3{margin:0 0 12px;color:var(--accent)}.form-notice{background:var(--panel-2);border-left:4px solid var(--accent);padding:10px 14px;border-radius:8px;margin-bottom:16px;font-size:14px;}.recommendations-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:20px;margin-top:20px}.recommendation-card{padding:20px;border:1px solid var(--border);border-radius:12px;background:var(--panel-2);box-shadow:0 4px 12px rgba(0,0,0,0.1)}.recommendation-card h3{margin-top:0;color:var(--accent);margin-bottom:10px}
     
@@ -47,6 +47,42 @@
     
     .notification.info {
       background-color: var(--accent);
+    }
+    
+    /* Access control styles */
+    .access-control-section {
+      margin-bottom: 20px;
+    }
+    
+    .access-control-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+    
+    .access-control-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      gap: 15px;
+    }
+    
+    .access-control-card {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 15px;
+      background: var(--panel-2);
+    }
+    
+    .access-control-card h4 {
+      margin: 0 0 10px;
+      color: var(--accent);
+    }
+    
+    .access-control-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
     }
   </style>
 </head>
@@ -392,50 +428,75 @@
           <a class="btn" href="#messages">Messages</a>
         </div>
       </div>
-      <div class="grid two">
-        <div class="card">
-          <h3>Broadcasts</h3>
-          <label for="adminIndexBanner">Index Banner</label>
-          <input id="adminIndexBanner" placeholder="Short notice shown on Index" />
-          <label for="adminDashBanner" style="margin-top:8px">Dashboard Banner</label>
-          <input id="adminDashBanner" placeholder="Shown on all dashboards" />
-          <div class="toolbar" style="margin-top:12px">
-            <button id="btnSaveBanners" class="btn primary">Save</button>
-            <button id="btnClearBanners" class="btn">Clear</button>
-          </div>
+      
+      <!-- Unified Access Control Section -->
+      <div class="card">
+        <div class="access-control-header">
+          <h3>Access Control Management</h3>
+          <button id="btnRefreshAccessControl" class="btn">Refresh</button>
         </div>
-        <div class="card">
-          <h3>Access Controls</h3>
+        
+        <div class="access-control-section">
+          <h4>Broadcasts</h4>
           <div class="grid two">
             <div>
-              <label for="aclPostEmail">Post Load access (by user email)</label>
-              <input id="aclPostEmail" placeholder="user@example.com" type="email" />
-              <div class="toolbar" style="margin-top:8px">
-                <button id="btnGrantPost" class="btn">Grant</button>
-                <button id="btnRevokePost" class="btn">Revoke</button>
-              </div>
+              <label for="adminIndexBanner">Index Banner</label>
+              <input id="adminIndexBanner" placeholder="Short notice shown on Index" />
             </div>
             <div>
-              <label for="aclMarketEmail">Load Market access (by user email)</label>
-              <input id="aclMarketEmail" placeholder="user@example.com" type="email" />
-              <div class="toolbar" style="margin-top:8px">
-                <button id="btnGrantMarket" class="btn">Grant</button>
-                <button id="btnRevokeMarket" class="btn">Revoke</button>
-              </div>
+              <label for="adminDashBanner">Dashboard Banner</label>
+              <input id="adminDashBanner" placeholder="Shown on all dashboards" />
             </div>
           </div>
+          <div class="toolbar" style="margin-top:12px">
+            <button id="btnSaveBanners" class="btn primary">Save Banners</button>
+            <button id="btnClearBanners" class="btn">Clear Banners</button>
+          </div>
         </div>
-        <div class="card">
-          <h3>Page Access Control</h3>
+        
+        <div class="access-control-section">
+          <h4>Page Access Control</h4>
           <label for="pageAccessUser">Select User</label>
           <select id="pageAccessUser">
             <option value="">-- Select User --</option>
           </select>
           <div id="pageAccessCheckboxes" class="checkbox-group"></div>
           <div class="toolbar" style="margin-top:12px">
-            <button id="btnSavePageAccess" class="btn primary">Save Access</button>
+            <button id="btnSavePageAccess" class="btn primary">Save Page Access</button>
           </div>
         </div>
+        
+        <div class="access-control-section">
+          <h4>Feature Access Control</h4>
+          <div class="access-control-grid">
+            <div class="access-control-card">
+              <h4>Post Load Access</h4>
+              <div>
+                <label for="aclPostEmail">User Email</label>
+                <input id="aclPostEmail" placeholder="user@example.com" type="email" />
+              </div>
+              <div class="access-control-actions">
+                <button id="btnGrantPost" class="btn">Grant</button>
+                <button id="btnRevokePost" class="btn">Revoke</button>
+              </div>
+            </div>
+            
+            <div class="access-control-card">
+              <h4>Market Access</h4>
+              <div>
+                <label for="aclMarketEmail">User Email</label>
+                <input id="aclMarketEmail" placeholder="user@example.com" type="email" />
+              </div>
+              <div class="access-control-actions">
+                <button id="btnGrantMarket" class="btn">Grant</button>
+                <button id="btnRevokeMarket" class="btn">Revoke</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="grid two">
         <div class="card">
           <h3>Users</h3>
           <div class="table-container" style="overflow-x:auto">
@@ -1391,11 +1452,54 @@
         }
       };
       
+      // Render page access checkboxes for a specific user
+      const renderPageAccessCheckboxes = async (email) => {
+        const container = el('pageAccessCheckboxes');
+        if (!container || !email) {
+          container.innerHTML = '';
+          return;
+        }
+        
+        container.innerHTML = '';
+        
+        // Get current access control data
+        const acl = await getAccessControl();
+        
+        // Get current page access for this user
+        const userPages = (acl.pages && acl.pages[email]) || {};
+        
+        // Create checkboxes for each page
+        Object.keys(PAGES).forEach(pageId => {
+          // Skip admin control page for non-admin users
+          if (pageId === 'control') return;
+          
+          const checkboxItem = document.createElement('div');
+          checkboxItem.className = 'checkbox-item';
+          
+          const checkbox = document.createElement('input');
+          checkbox.type = 'checkbox';
+          checkbox.id = `page_${pageId}`;
+          checkbox.value = pageId;
+          checkbox.checked = !!userPages[pageId];
+          
+          const label = document.createElement('label');
+          label.htmlFor = `page_${pageId}`;
+          label.textContent = PAGES[pageId].name;
+          
+          checkboxItem.appendChild(checkbox);
+          checkboxItem.appendChild(label);
+          container.appendChild(checkboxItem);
+        });
+      };
+      
       const renderAdmin = async () => {
         const u = await getCurrentUser();
         if (!isAdmin(u)) return;
         
         try {
+          // Get access control data
+          const acl = await getAccessControl();
+          
           // Populate user dropdown for page access control
           const userSelect = el('pageAccessUser');
           if (userSelect) {
@@ -1417,11 +1521,16 @@
             };
           }
           
+          // Update banners form
+          const adminIndexBanner = el('adminIndexBanner');
+          const adminDashBanner = el('adminDashBanner');
+          if (adminIndexBanner) adminIndexBanner.value = acl.banners?.index || '';
+          if (adminDashBanner) adminDashBanner.value = acl.banners?.dashboard || '';
+          
           // Users table
           const tbU = el('tableUsers');
           if (tbU) {
             const users = await getUsers();
-            const acl = await getAccessControl();
             
             const tbodyU = tbU.querySelector('tbody');
             if (tbodyU) {
@@ -1574,44 +1683,6 @@
         } catch (error) {
           console.error('Failed to render admin panel:', error);
         }
-      };
-      
-      // Render page access checkboxes for a specific user
-      const renderPageAccessCheckboxes = async (email) => {
-        const container = el('pageAccessCheckboxes');
-        if (!container || !email) {
-          container.innerHTML = '';
-          return;
-        }
-        
-        container.innerHTML = '';
-        
-        // Get current page access for this user
-        const acl = await getAccessControl();
-        const userPages = (acl.pages && acl.pages[email]) || {};
-        
-        // Create checkboxes for each page
-        Object.keys(PAGES).forEach(pageId => {
-          // Skip admin control page for non-admin users
-          if (pageId === 'control') return;
-          
-          const checkboxItem = document.createElement('div');
-          checkboxItem.className = 'checkbox-item';
-          
-          const checkbox = document.createElement('input');
-          checkbox.type = 'checkbox';
-          checkbox.id = `page_${pageId}`;
-          checkbox.value = pageId;
-          checkbox.checked = !!userPages[pageId];
-          
-          const label = document.createElement('label');
-          label.htmlFor = `page_${pageId}`;
-          label.textContent = PAGES[pageId].name;
-          
-          checkboxItem.appendChild(checkbox);
-          checkboxItem.appendChild(label);
-          container.appendChild(checkboxItem);
-        });
       };
       
       const render = async () => {
@@ -1891,6 +1962,9 @@
               return;
             }
             
+            const acl = await getAccessControl();
+            if (!acl.pages) acl.pages = {};
+            
             const pageAccess = {};
             const checkboxes = el('pageAccessCheckboxes').querySelectorAll('input[type="checkbox"]');
             
@@ -1898,12 +1972,108 @@
               pageAccess[checkbox.value] = checkbox.checked;
             });
             
+            acl.pages[email] = pageAccess;
+            
             handleError(async () => {
-              const acl = await getAccessControl();
-              if (!acl.pages) acl.pages = {};
-              acl.pages[email] = pageAccess;
               await updateAccessControl(acl);
             }, 'Failed to update page access');
+          };
+        }
+        
+        // Feature access controls
+        const btnGrantPost = el('btnGrantPost');
+        if (btnGrantPost) {
+          btnGrantPost.onclick = async () => {
+            const email = el('aclPostEmail').value.trim();
+            if (!email) {
+              showNotification('Please enter a user email', 'error');
+              return;
+            }
+            
+            const acl = await getAccessControl();
+            if (!acl.post) acl.post = {};
+            acl.post[email] = true;
+            
+            handleError(async () => {
+              await updateAccessControl(acl);
+              el('aclPostEmail').value = '';
+              render();
+            }, 'Failed to grant post access');
+          };
+        }
+        
+        const btnRevokePost = el('btnRevokePost');
+        if (btnRevokePost) {
+          btnRevokePost.onclick = async () => {
+            const email = el('aclPostEmail').value.trim();
+            if (!email) {
+              showNotification('Please enter a user email', 'error');
+              return;
+            }
+            
+            const acl = await getAccessControl();
+            if (acl.post && acl.post[email]) {
+              delete acl.post[email];
+              
+              handleError(async () => {
+                await updateAccessControl(acl);
+                el('aclPostEmail').value = '';
+                render();
+              }, 'Failed to revoke post access');
+            }
+          };
+        }
+        
+        const btnGrantMarket = el('btnGrantMarket');
+        if (btnGrantMarket) {
+          btnGrantMarket.onclick = async () => {
+            const email = el('aclMarketEmail').value.trim();
+            if (!email) {
+              showNotification('Please enter a user email', 'error');
+              return;
+            }
+            
+            const acl = await getAccessControl();
+            if (!acl.market) acl.market = {};
+            acl.market[email] = true;
+            
+            handleError(async () => {
+              await updateAccessControl(acl);
+              el('aclMarketEmail').value = '';
+              render();
+            }, 'Failed to grant market access');
+          };
+        }
+        
+        const btnRevokeMarket = el('btnRevokeMarket');
+        if (btnRevokeMarket) {
+          btnRevokeMarket.onclick = async () => {
+            const email = el('aclMarketEmail').value.trim();
+            if (!email) {
+              showNotification('Please enter a user email', 'error');
+              return;
+            }
+            
+            const acl = await getAccessControl();
+            if (acl.market && acl.market[email]) {
+              delete acl.market[email];
+              
+              handleError(async () => {
+                await updateAccessControl(acl);
+                el('aclMarketEmail').value = '';
+                render();
+              }, 'Failed to revoke market access');
+            }
+          };
+        }
+        
+        // Refresh access control
+        const btnRefreshAccessControl = el('btnRefreshAccessControl');
+        if (btnRefreshAccessControl) {
+          btnRefreshAccessControl.onclick = async () => {
+            handleError(async () => {
+              render();
+            }, 'Failed to refresh access control');
           };
         }
         
