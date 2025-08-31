@@ -74,6 +74,48 @@
     .select-with-actions button {
       white-space: nowrap;
     }
+    
+    .page-access-container {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      margin-top: 15px;
+    }
+    
+    .page-access-item {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 15px;
+      background: var(--panel-2);
+    }
+    
+    .page-access-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    
+    .page-access-title {
+      font-weight: 600;
+      color: var(--accent);
+    }
+    
+    .role-checkboxes {
+      display: flex;
+      gap: 15px;
+      flex-wrap: wrap;
+    }
+    
+    .role-checkbox-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    
+    .role-checkbox-item input {
+      width: auto;
+    }
   </style>
 </head>
 <body>
@@ -443,11 +485,7 @@
         
         <div class="access-control-section">
           <h4>Page Access Control</h4>
-          <label for="pageAccessUser">Select User</label>
-          <select id="pageAccessUser">
-            <option value="">-- Select User --</option>
-          </select>
-          <div id="pageAccessCheckboxes" class="checkbox-group"></div>
+          <div id="pageAccessContainer" class="page-access-container"></div>
           <div class="toolbar" style="margin-top:12px">
             <button id="btnSavePageAccess" class="btn primary">Save Page Access</button>
           </div>
@@ -494,7 +532,6 @@
   
   <!-- Notification Container -->
   <div id="notificationContainer"></div>
-
   <script>
     // API-based implementation for MakiwaFreight App
     (function() {
@@ -517,6 +554,9 @@
         'messages': { name: 'Messages', roles: ['shipper', 'transporter'] },
         'control': { name: 'Admin Control', roles: ['admin'] }
       };
+      
+      // Role definitions
+      const ROLES = ['admin', 'shipper', 'transporter'];
       
       // Utility functions
       const now = () => new Date().toISOString();
@@ -1390,44 +1430,70 @@
         }
       };
       
-      // Render page access checkboxes for a specific user
-      const renderPageAccessCheckboxes = async (email) => {
-        const container = el('pageAccessCheckboxes');
-        if (!container || !email) {
+      // Render role-based page access checkboxes
+      const renderRoleBasedPageAccess = async () => {
+        const container = el('pageAccessContainer');
+        if (!container) return;
+        
+        try {
+          const acl = await getAccessControl();
+          const pages = acl.pages || {};
+          
           container.innerHTML = '';
-          return;
+          
+          // Create sections for post_load and market pages
+          const pageSections = [
+            { id: 'post_load', name: 'Post Load' },
+            { id: 'market', name: 'Market' }
+          ];
+          
+          pageSections.forEach(page => {
+            const pageItem = document.createElement('div');
+            pageItem.className = 'page-access-item';
+            
+            const pageHeader = document.createElement('div');
+            pageHeader.className = 'page-access-header';
+            
+            const pageTitle = document.createElement('div');
+            pageTitle.className = 'page-access-title';
+            pageTitle.textContent = page.name;
+            
+            pageHeader.appendChild(pageTitle);
+            pageItem.appendChild(pageHeader);
+            
+            const roleCheckboxes = document.createElement('div');
+            roleCheckboxes.className = 'role-checkboxes';
+            
+            // Add checkboxes for each role
+            ROLES.forEach(role => {
+              const checkboxItem = document.createElement('div');
+              checkboxItem.className = 'role-checkbox-item';
+              
+              const checkbox = document.createElement('input');
+              checkbox.type = 'checkbox';
+              checkbox.id = `page_${page.id}_role_${role}`;
+              checkbox.value = role;
+              
+              // Check if this role has access to this page
+              const pageAccess = pages[page.id] || {};
+              const allowedRoles = pageAccess.allowed_roles || [];
+              checkbox.checked = allowedRoles.includes(role);
+              
+              const label = document.createElement('label');
+              label.htmlFor = `page_${page.id}_role_${role}`;
+              label.textContent = role.charAt(0).toUpperCase() + role.slice(1);
+              
+              checkboxItem.appendChild(checkbox);
+              checkboxItem.appendChild(label);
+              roleCheckboxes.appendChild(checkboxItem);
+            });
+            
+            pageItem.appendChild(roleCheckboxes);
+            container.appendChild(pageItem);
+          });
+        } catch (error) {
+          console.error('Failed to render page access control:', error);
         }
-        
-        container.innerHTML = '';
-        
-        // Get current access control data
-        const acl = await getAccessControl();
-        
-        // Get current page access for this user
-        const userPages = (acl.pages && acl.pages[email]) || {};
-        
-        // Create checkboxes for each page
-        Object.keys(PAGES).forEach(pageId => {
-          // Skip admin control page for non-admin users
-          if (pageId === 'control') return;
-          
-          const checkboxItem = document.createElement('div');
-          checkboxItem.className = 'checkbox-item';
-          
-          const checkbox = document.createElement('input');
-          checkbox.type = 'checkbox';
-          checkbox.id = `page_${pageId}`;
-          checkbox.value = pageId;
-          checkbox.checked = !!userPages[pageId];
-          
-          const label = document.createElement('label');
-          label.htmlFor = `page_${pageId}`;
-          label.textContent = PAGES[pageId].name;
-          
-          checkboxItem.appendChild(checkbox);
-          checkboxItem.appendChild(label);
-          container.appendChild(checkboxItem);
-        });
       };
       
       // Render load dropdown
@@ -1453,25 +1519,10 @@
       
       // Render user dropdowns
       const renderUserDropdowns = async () => {
-        const userSelect = el('pageAccessUser');
         const passwordSelect = el('selectUserForPassword');
         
         try {
           const users = await getUsers();
-          
-          // Page access user dropdown
-          if (userSelect) {
-            userSelect.innerHTML = '<option value="">-- Select User --</option>';
-            
-            users.forEach(user => {
-              if (user.role !== 'admin') { // Exclude admin from the list
-                const option = document.createElement('option');
-                option.value = user.email;
-                option.textContent = `${user.name} (${user.email})`;
-                userSelect.appendChild(option);
-              }
-            });
-          }
           
           // Password reset user dropdown
           if (passwordSelect) {
@@ -1502,6 +1553,9 @@
           const adminDashBanner = el('adminDashBanner');
           if (adminIndexBanner) adminIndexBanner.value = acl.banners?.index || '';
           if (adminDashBanner) adminDashBanner.value = acl.banners?.dashboard || '';
+          
+          // Render role-based page access checkboxes
+          renderRoleBasedPageAccess();
           
           // Users table
           const tbU = el('tableUsers');
@@ -1792,27 +1846,41 @@
         const btnSavePageAccess = el('btnSavePageAccess');
         if (btnSavePageAccess) {
           btnSavePageAccess.onclick = async () => {
-            const email = el('pageAccessUser').value;
-            if (!email) {
-              showNotification('Please select a user', 'error');
-              return;
-            }
-            
-            const acl = await getAccessControl();
-            if (!acl.pages) acl.pages = {};
-            
-            const pageAccess = {};
-            const checkboxes = el('pageAccessCheckboxes').querySelectorAll('input[type="checkbox"]');
-            
-            checkboxes.forEach(checkbox => {
-              pageAccess[checkbox.value] = checkbox.checked;
-            });
-            
-            acl.pages[email] = pageAccess;
-            
-            handleError(async () => {
+            try {
+              const acl = await getAccessControl();
+              
+              // Initialize pages if not present
+              if (!acl.pages) acl.pages = {};
+              
+              // Get page access data from checkboxes
+              const pageSections = [
+                { id: 'post_load', name: 'Post Load' },
+                { id: 'market', name: 'Market' }
+              ];
+              
+              pageSections.forEach(page => {
+                if (!acl.pages[page.id]) {
+                  acl.pages[page.id] = { allowed_roles: [] };
+                }
+                
+                // Reset allowed roles
+                acl.pages[page.id].allowed_roles = [];
+                
+                // Get all checked roles for this page
+                ROLES.forEach(role => {
+                  const checkbox = el(`page_${page.id}_role_${role}`);
+                  if (checkbox && checkbox.checked) {
+                    acl.pages[page.id].allowed_roles.push(role);
+                  }
+                });
+              });
+              
               await updateAccessControl(acl);
-            }, 'Failed to update page access');
+              showNotification('Page access control updated successfully', 'success');
+            } catch (error) {
+              console.error('Failed to save page access:', error);
+              showNotification('Failed to save page access: ' + error.message, 'error');
+            }
           };
         }
         
