@@ -190,13 +190,25 @@ def initialize_data():
         db_exists = os.path.exists(db_path)
         print(f"Database file exists: {db_exists}")
         
-        # Only create tables if the database file doesn't exist
-        if not db_exists:
+        # Check if tables exist by trying to query them
+        tables_exist = False
+        if db_exists:
+            try:
+                # Try to query the User table
+                user_count = User.query.count()
+                print(f"User table exists with {user_count} users")
+                tables_exist = True
+            except Exception as e:
+                print(f"Error querying User table: {e}")
+                tables_exist = False
+        
+        # Only create tables if they don't exist
+        if not tables_exist:
             print("Creating database tables...")
             db.create_all()
             print("Database tables created")
         else:
-            print("Database file exists, skipping table creation")
+            print("Database tables already exist, skipping table creation")
         
         # Check if admin user exists
         admin_email = 'cyprianmak@gmail.com'
@@ -281,6 +293,142 @@ def debug_db():
             "error": str(e)
         }), 500
 
+# Backup and restore endpoints
+@app.route('/api/admin/backup', methods=['POST'])
+def backup_data():
+    try:
+        user = check_auth(request)
+        if not user or user.role != 'admin':
+            return jsonify({
+                "success": False,
+                "message": "Access denied",
+                "error": "Admin access required"
+            }), 403
+        
+        # Create backup directory if it doesn't exist
+        backup_dir = '/opt/render/project/.render/backups'
+        if not os.path.exists(backup_dir):
+            os.makedirs(backup_dir)
+        
+        # Generate backup filename with timestamp
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_path = os.path.join(backup_dir, f'makiwafreight_backup_{timestamp}.db')
+        
+        # Copy the database file
+        import shutil
+        shutil.copy2(db_path, backup_path)
+        
+        return jsonify({
+            "success": True,
+            "message": "Backup created successfully",
+            "data": {
+                "backup_path": backup_path,
+                "timestamp": timestamp
+            }
+        })
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": "Backup failed",
+            "error": str(e)
+        }), 500
+
+@app.route('/api/admin/restore', methods=['POST'])
+def restore_data():
+    try:
+        user = check_auth(request)
+        if not user or user.role != 'admin':
+            return jsonify({
+                "success": False,
+                "message": "Access denied",
+                "error": "Admin access required"
+            }), 403
+        
+        data = request.get_json()
+        backup_file = data.get('backup_file')
+        
+        if not backup_file:
+            return jsonify({
+                "success": False,
+                "message": "Backup file is required",
+                "error": "Please provide a backup file path"
+            }), 400
+        
+        # Check if backup file exists
+        if not os.path.exists(backup_file):
+            return jsonify({
+                "success": False,
+                "message": "Backup file not found",
+                "error": f"Backup file {backup_file} does not exist"
+            }), 404
+        
+        # Close all database connections
+        db.session.remove()
+        
+        # Restore the database file
+        import shutil
+        shutil.copy2(backup_file, db_path)
+        
+        # Reinitialize the database
+        initialize_data()
+        
+        return jsonify({
+            "success": True,
+            "message": "Data restored successfully",
+            "data": {
+                "backup_file": backup_file
+            }
+        })
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": "Restore failed",
+            "error": str(e)
+        }), 500
+
+@app.route('/api/admin/list-backups', methods=['GET'])
+def list_backups():
+    try:
+        user = check_auth(request)
+        if not user or user.role != 'admin':
+            return jsonify({
+                "success": False,
+                "message": "Access denied",
+                "error": "Admin access required"
+            }), 403
+        
+        backup_dir = '/opt/render/project/.render/backups'
+        backups = []
+        
+        if os.path.exists(backup_dir):
+            for filename in os.listdir(backup_dir):
+                if filename.startswith('makiwafreight_backup_') and filename.endswith('.db'):
+                    file_path = os.path.join(backup_dir, filename)
+                    stat = os.stat(file_path)
+                    backups.append({
+                        "filename": filename,
+                        "path": file_path,
+                        "size": stat.st_size,
+                        "created": datetime.fromtimestamp(stat.st_ctime).isoformat()
+                    })
+        
+        # Sort backups by creation time (newest first)
+        backups.sort(key=lambda x: x['created'], reverse=True)
+        
+        return jsonify({
+            "success": True,
+            "message": "Backups retrieved",
+            "data": {
+                "backups": backups
+            }
+        })
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": "Failed to retrieve backups",
+            "error": str(e)
+        }), 500
+
 # Routes
 @app.route('/')
 def index():
@@ -302,7 +450,10 @@ def api_info():
                 "users_me": "/api/users/me",
                 "admin_banners": "/api/admin/banners",
                 "admin_access_control": "/api/admin/access-control",
-                "debug_db": "/api/debug/db"
+                "debug_db": "/api/debug/db",
+                "admin_backup": "/api/admin/backup",
+                "admin_restore": "/api/admin/restore",
+                "admin_list_backups": "/api/admin/list-backups"
             },
             "status": "running",
             "version": "1.0.0"
