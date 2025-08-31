@@ -2,8 +2,8 @@ from flask import Flask, render_template, jsonify, request
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, timedelta
 import uuid
-import bcrypt
 import json
+from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
 # Configure the database
@@ -16,7 +16,7 @@ class User(db.Model):
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     name = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(100), unique=True, nullable=False)
-    password_hash = db.Column(db.String(100), nullable=False)  # Changed to store hash
+    password_hash = db.Column(db.String(200), nullable=False)
     role = db.Column(db.String(20), nullable=False)
     company = db.Column(db.String(100))
     phone = db.Column(db.String(20))
@@ -26,10 +26,10 @@ class User(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def set_password(self, password):
-        self.password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+        self.password_hash = generate_password_hash(password)
     
     def check_password(self, password):
-        return bcrypt.checkpw(password.encode('utf-8'), self.password_hash.encode('utf-8'))
+        return check_password_hash(self.password_hash, password)
 
 class Load(db.Model):
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
@@ -152,7 +152,9 @@ def api_info():
             "health": "/api/health",
             "loads": "/api/loads",
             "messages": "/api/messages",
-            "users": "/api/users"
+            "users": "/api/users",
+            "users_me": "/api/users/me",
+            "admin_banners": "/api/admin/banners"
         },
         "message": "Welcome to MakiwaFreight API",
         "status": "running",
@@ -227,6 +229,90 @@ def login():
         })
     else:
         return jsonify({"message": "Invalid credentials"}), 401
+
+# Get current user endpoint
+@app.route('/api/users/me', methods=['GET'])
+def get_current_user():
+    user = check_auth(request)
+    if not user:
+        return jsonify({"message": "Authentication required"}), 401
+    
+    return jsonify({
+        "id": user.id,
+        "name": user.name,
+        "email": user.email,
+        "role": user.role,
+        "company": user.company,
+        "phone": user.phone,
+        "address": user.address,
+        "vehicle_info": user.vehicle_info,
+        "created_at": user.created_at.isoformat()
+    })
+
+# Update current user endpoint
+@app.route('/api/users/me', methods=['PUT'])
+def update_current_user():
+    user = check_auth(request)
+    if not user:
+        return jsonify({"message": "Authentication required"}), 401
+    
+    data = request.get_json()
+    
+    # Update fields if provided
+    if 'name' in data:
+        user.name = data['name']
+    if 'company' in data:
+        user.company = data['company']
+    if 'phone' in data:
+        user.phone = data['phone']
+    if 'address' in data:
+        user.address = data['address']
+    if 'vehicle_info' in data:
+        user.vehicle_info = data['vehicle_info']
+    
+    db.session.commit()
+    
+    return jsonify({
+        "message": "User updated successfully",
+        "user": {
+            "id": user.id,
+            "name": user.name,
+            "email": user.email,
+            "role": user.role,
+            "company": user.company,
+            "phone": user.phone,
+            "address": user.address,
+            "vehicle_info": user.vehicle_info
+        }
+    })
+
+# Admin banners endpoints
+@app.route('/api/admin/banners', methods=['GET'])
+def get_admin_banners():
+    # Check if user is admin
+    user = check_auth(request)
+    if not user or user.role != 'admin':
+        return jsonify({"message": "Admin access required"}), 403
+    
+    return jsonify(get_banners())
+
+@app.route('/api/admin/banners', methods=['POST'])
+def update_admin_banners():
+    # Check if user is admin
+    user = check_auth(request)
+    if not user or user.role != 'admin':
+        return jsonify({"message": "Admin access required"}), 403
+    
+    data = request.get_json()
+    
+    if 'index' not in data or 'dashboard' not in data:
+        return jsonify({"message": "Both index and dashboard banners are required"}), 400
+    
+    updated_banners = update_banners(data)
+    return jsonify({
+        "message": "Banners updated successfully",
+        "banners": updated_banners
+    })
 
 # Load endpoints
 @app.route('/api/loads', methods=['GET', 'POST'])
