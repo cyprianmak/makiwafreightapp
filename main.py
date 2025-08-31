@@ -97,29 +97,39 @@ def get_access_control():
     ac = AccessControl.query.first()
     if not ac:
         # Initialize with default structure
-        ac = AccessControl(data=json.dumps(get_default_access_control_data()))
+        default_data = get_default_access_control_data()
+        ac = AccessControl(data=json.dumps(default_data))
         db.session.add(ac)
         db.session.commit()
-        return json.loads(ac.data)
+        return default_data
     
-    data = json.loads(ac.data)
+    try:
+        data = json.loads(ac.data)
+    except:
+        # If data is corrupted, reset to default
+        default_data = get_default_access_control_data()
+        ac.data = json.dumps(default_data)
+        db.session.commit()
+        return default_data
+
     default_data = get_default_access_control_data()
     updated = False
 
-    # Check pages
-    if 'pages' not in data:
+    # Ensure pages exists and has the required structure
+    if 'pages' not in data or not isinstance(data['pages'], dict):
         data['pages'] = default_data['pages']
         updated = True
     else:
-        if 'post_load' not in data['pages']:
+        # Ensure post_load and market exist
+        if 'post_load' not in data['pages'] or not isinstance(data['pages'].get('post_load'), dict):
             data['pages']['post_load'] = default_data['pages']['post_load']
             updated = True
-        if 'market' not in data['pages']:
+        if 'market' not in data['pages'] or not isinstance(data['pages'].get('market'), dict):
             data['pages']['market'] = default_data['pages']['market']
             updated = True
 
-    # Check banners
-    if 'banners' not in data:
+    # Ensure banners exists and has the required structure
+    if 'banners' not in data or not isinstance(data['banners'], dict):
         data['banners'] = default_data['banners']
         updated = True
     else:
@@ -555,6 +565,11 @@ def handle_loads():
             # Check if user has permission to post loads
             access_control = get_access_control()
             allowed_roles = access_control.get('pages', {}).get('post_load', {}).get('allowed_roles', [])
+            
+            # Fallback: if allowed_roles is empty, use default
+            if not allowed_roles:
+                allowed_roles = ['admin', 'shipper']
+            
             if user.role not in allowed_roles:
                 return jsonify({
                     "success": False,
