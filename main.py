@@ -54,9 +54,7 @@ class Message(db.Model):
 
 class AccessControl(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    post = db.Column(db.Text)  # JSON string
-    market = db.Column(db.Text)  # JSON string
-    pages = db.Column(db.Text)  # JSON string
+    data = db.Column(db.Text)  # JSON string containing all access control data
 
 class Banner(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -74,50 +72,47 @@ def check_auth(request):
 def get_access_control():
     ac = AccessControl.query.first()
     if not ac:
-        ac = AccessControl(post='{}', market='{}', pages='{}')
+        # Initialize with empty structure
+        ac = AccessControl(data=json.dumps({
+            'post': {},
+            'market': {},
+            'pages': {},
+            'banners': {
+                'index': '',
+                'dashboard': ''
+            }
+        }))
         db.session.add(ac)
         db.session.commit()
     
-    return {
-        'post': json.loads(ac.post),
-        'market': json.loads(ac.market),
-        'pages': json.loads(ac.pages)
-    }
+    return json.loads(ac.data)
 
-def update_access_control(acl):
+def update_access_control(data):
     ac = AccessControl.query.first()
     if not ac:
         ac = AccessControl()
         db.session.add(ac)
     
-    ac.post = json.dumps(acl.post)
-    ac.market = json.dumps(acl.market)
-    ac.pages = json.dumps(acl.pages)
+    ac.data = json.dumps(data)
     db.session.commit()
-    return acl
+    return data
 
 def get_banners():
-    b = Banner.query.first()
-    if not b:
-        b = Banner(index='', dashboard='')
-        db.session.add(b)
-        db.session.commit()
-    
+    ac_data = get_access_control()
     return {
-        'index': b.index,
-        'dashboard': b.dashboard
+        'index': ac_data.get('banners', {}).get('index', ''),
+        'dashboard': ac_data.get('banners', {}).get('dashboard', '')
     }
 
 def update_banners(banners):
-    b = Banner.query.first()
-    if not b:
-        b = Banner()
-        db.session.add(b)
+    ac_data = get_access_control()
+    if 'banners' not in ac_data:
+        ac_data['banners'] = {}
     
-    b.index = banners.index
-    b.dashboard = banners.dashboard
-    db.session.commit()
-    return banners
+    ac_data['banners']['index'] = banners.get('index', '')
+    ac_data['banners']['dashboard'] = banners.get('dashboard', '')
+    
+    return update_access_control(ac_data)
 
 # Initialize admin user and database
 def initialize_data():
@@ -157,7 +152,8 @@ def api_info():
                 "messages": "/api/messages",
                 "users": "/api/users",
                 "users_me": "/api/users/me",
-                "admin_banners": "/api/admin/banners"
+                "admin_banners": "/api/admin/banners",
+                "admin_access_control": "/api/admin/access-control"
             },
             "status": "running",
             "version": "1.0.0"
@@ -417,6 +413,58 @@ def update_admin_banners():
         return jsonify({
             "success": False,
             "message": "Banner update failed",
+            "error": str(e)
+        }), 500
+
+# Admin access control endpoints
+@app.route('/api/admin/access-control', methods=['GET'])
+def get_admin_access_control():
+    try:
+        # Check if user is admin
+        user = check_auth(request)
+        if not user or user.role != 'admin':
+            return jsonify({
+                "success": False,
+                "message": "Access denied",
+                "error": "Admin access required"
+            }), 403
+        
+        return jsonify({
+            "success": True,
+            "message": "Access control data retrieved",
+            "data": get_access_control()
+        })
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": "Failed to retrieve access control data",
+            "error": str(e)
+        }), 500
+
+@app.route('/api/admin/access-control', methods=['PUT'])
+def update_admin_access_control():
+    try:
+        # Check if user is admin
+        user = check_auth(request)
+        if not user or user.role != 'admin':
+            return jsonify({
+                "success": False,
+                "message": "Access denied",
+                "error": "Admin access required"
+            }), 403
+        
+        data = request.get_json()
+        updated_data = update_access_control(data)
+        
+        return jsonify({
+            "success": True,
+            "message": "Access control updated successfully",
+            "data": updated_data
+        })
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": "Failed to update access control",
             "error": str(e)
         }), 500
 
