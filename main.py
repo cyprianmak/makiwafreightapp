@@ -9,11 +9,21 @@ from werkzeug.security import generate_password_hash, check_password_hash
 app = Flask(__name__)
 
 # Configure the database with persistent storage
-basedir = os.path.abspath(os.path.dirname(__file__))
-db_dir = os.path.join(basedir, 'data')
-if not os.path.exists(db_dir):
-    os.makedirs(db_dir)
-db_path = os.path.join(db_dir, 'makiwafreight.db')
+# Check if we're running on Render
+if os.environ.get('RENDER'):
+    # Use Render's persistent storage
+    persistent_dir = '/opt/render/project/.render/data'
+    if not os.path.exists(persistent_dir):
+        os.makedirs(persistent_dir)
+    db_path = os.path.join(persistent_dir, 'makiwafreight.db')
+else:
+    # Local development - use data directory
+    basedir = os.path.abspath(os.path.dirname(__file__))
+    db_dir = os.path.join(basedir, 'data')
+    if not os.path.exists(db_dir):
+        os.makedirs(db_dir)
+    db_path = os.path.join(db_dir, 'makiwafreight.db')
+
 app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
