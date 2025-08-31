@@ -186,8 +186,17 @@ def update_banners(banners):
 # Initialize admin user and database
 def initialize_data():
     with app.app_context():
-        # Create tables only if they don't exist
-        db.create_all()
+        # Check if the database file exists
+        db_exists = os.path.exists(db_path)
+        print(f"Database file exists: {db_exists}")
+        
+        # Only create tables if the database file doesn't exist
+        if not db_exists:
+            print("Creating database tables...")
+            db.create_all()
+            print("Database tables created")
+        else:
+            print("Database file exists, skipping table creation")
         
         # Check if admin user exists
         admin_email = 'cyprianmak@gmail.com'
@@ -206,6 +215,18 @@ def initialize_data():
             print("Admin user created")
         else:
             print("Admin user already exists")
+        
+        # Check if access control data exists
+        ac = AccessControl.query.first()
+        if not ac:
+            print("Creating access control data...")
+            default_data = get_default_access_control_data()
+            ac = AccessControl(data=json.dumps(default_data))
+            db.session.add(ac)
+            db.session.commit()
+            print("Access control data created")
+        else:
+            print("Access control data already exists")
 
 # Debug route to check database status
 @app.route('/api/debug/db')
@@ -213,6 +234,17 @@ def debug_db():
     try:
         # Check if database file exists
         db_exists = os.path.exists(db_path)
+        
+        # Get file stats
+        file_stats = {}
+        if db_exists:
+            stat = os.stat(db_path)
+            file_stats = {
+                "size": stat.st_size,
+                "created": datetime.fromtimestamp(stat.st_ctime).isoformat(),
+                "modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
+                "accessed": datetime.fromtimestamp(stat.st_atime).isoformat()
+            }
         
         # Count users
         user_count = User.query.count()
@@ -223,12 +255,25 @@ def debug_db():
         # Count messages
         message_count = Message.query.count()
         
+        # List users
+        users = []
+        for user in User.query.all():
+            users.append({
+                "id": user.id,
+                "name": user.name,
+                "email": user.email,
+                "role": user.role,
+                "created_at": user.created_at.isoformat()
+            })
+        
         return jsonify({
             "database_path": db_path,
             "database_exists": db_exists,
+            "file_stats": file_stats,
             "user_count": user_count,
             "load_count": load_count,
             "message_count": message_count,
+            "users": users,
             "environment": os.environ.get('RENDER', 'local')
         })
     except Exception as e:
