@@ -6,9 +6,48 @@
   <meta name="description" content="MakiwaFreight - A marketplace where shippers meet transporters" />
   <meta name="author" content="MakiwaFreight Team" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';" />
-  <title>MakiwaFreight App (Plug & Play)</title>
+  <title>MakiwaFreight App</title>
   <style>
     :root{--bg:#0b1220;--panel:#121a2b;--panel-2:#1b2742;--text:#d7e7ff;--muted:#8fb7ff;--accent:#4da3ff;--accent-2:#73c1ff;--good:#22c55e;--warn:#f59e0b;--bad:#ef4444;--border:#2a3b5f;--chip:#0e1a33}*{box-sizing:border-box}html,body{height:100%}body{margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:linear-gradient(180deg,var(--bg),#0d1426 40%,#0a1120);color:var(--text)}a{color:var(--accent)}.container{max-width:1100px;margin:0 auto;padding:24px}header{position:sticky;top:0;z-index:10;background:rgba(11,18,32,0.8);backdrop-filter:blur(8px);border-bottom:1px solid var(--border)}.nav{display:flex;gap:12px;align-items:center;justify-content:space-between}.brand{display:flex;gap:12px;align-items:center}.logo{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:grid;place-items:center;font-weight:800;color:#08203a}.brand h1{font-size:18px;margin:0;color:var(--text)}.auth-area{display:flex;gap:8px;align-items:center}.nav-links{display:flex;gap:8px;flex-wrap:wrap}button,.btn{border:1px solid var(--border);background:linear-gradient(180deg,var(--panel),var(--panel-2));color:var(--text);padding:10px 14px;border-radius:12px;cursor:pointer;font-weight:600;transition:all .15s ease;text-decoration:none;display:inline-flex;align-items:center;gap:8px}button:hover,.btn:hover{transform:translateY(-1px);border-color:var(--accent)}.btn.ghost{background:transparent}.btn.primary{background:linear-gradient(180deg,var(--accent),var(--accent-2));color:#0a1a2e;border-color:transparent}.grid{display:grid;gap:16px}.two{grid-template-columns:repeat(2,minmax(0,1fr))}.three{grid-template-columns:repeat(3,minmax(0,1fr))}@media (max-width:900px){.two,.three{grid-template-columns:1fr}}.card{border:1px solid var(--border);border-radius:16px;padding:16px;background:linear-gradient(180deg,var(--panel),var(--panel-2));box-shadow:0 10px 30px rgba(0,0,0,0.25)}.card h3{margin:0 0 8px}.muted{color:var(--muted)}.kpi{display:flex;gap:14px;align-items:center}.chip{background:var(--chip);border:1px solid var(--border);border-radius:999px;padding:6px 10px;font-size:12px}.danger{color:var(--bad)}.success{color:var(--good)}.warn{color:var(--warn)}.hidden{display:none !important}input,select,textarea{width:100%;padding:10px 12px;border-radius:12px;border:1px solid var(--border);background:#0c1530;color:var(--text)}label{font-size:12px;color:var(--muted)}form .grid{margin-top:8px}table{width:100%;border-collapse:separate;border-spacing:0 8px}th,td{padding:10px 12px;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}th{font-weight:700;text-align:left;color:var(--muted);background:#0f1940}tr td:first-child,tr th:first-child{border-left:1px solid var(--border);border-top-left-radius:12px;border-bottom-left-radius:12px}tr td:last-child,tr th:last-child{border-right:1px solid var(--border);border-top-right-radius:12px;border-bottom-right-radius:12px}.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between}.banner{border:1px dashed var(--border);padding:10px 14px;border-radius:12px;background:#0d1836;color:var(--muted)}.footer{opacity:.75;font-size:12px;text-align:center;padding:24px}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}.checkbox-group{display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:10px;margin-top:10px}.checkbox-item{display:flex;align-items:center;gap:8px}.checkbox-item input{width:auto}.expired{opacity:0.6; text-decoration: line-through;}.profile-header{display:flex;align-items:center;gap:16px;margin-bottom:16px}.profile-avatar{width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:800;color:#08203a}.profile-info h2{margin:0 0 4px}.profile-info .muted{margin:0}.status-indicator{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px}.status-active{background-color:var(--good)}.status-inactive{background-color:var(--bad)}.profile-details{background:var(--panel-2);border-radius:12px;padding:16px;margin-bottom:16px}.profile-details h3{margin:0 0 12px;color:var(--accent)}.detail-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)}.detail-row:last-child{border-bottom:none}.detail-label{color:var(--muted)}.detail-value{font-weight:500}.editable-section{margin-top:20px}.editable-section h3{margin:0 0 12px;color:var(--accent)}.form-notice{background:var(--panel-2);border-left:4px solid var(--accent);padding:10px 14px;border-radius:8px;margin-bottom:16px;font-size:14px;}.recommendations-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:20px;margin-top:20px}.recommendation-card{padding:20px;border:1px solid var(--border);border-radius:12px;background:var(--panel-2);box-shadow:0 4px 12px rgba(0,0,0,0.1)}.recommendation-card h3{margin-top:0;color:var(--accent);margin-bottom:10px}
+    
+    /* Notification styles */
+    .notification {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 15px 25px;
+      border-radius: 5px;
+      color: white;
+      font-weight: 500;
+      z-index: 1000;
+      opacity: 0;
+      transform: translateY(-20px);
+      transition: opacity 0.3s, transform 0.3s;
+      max-width: 350px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+    
+    .notification.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    
+    .notification.success {
+      background-color: var(--good);
+    }
+    
+    .notification.error {
+      background-color: var(--bad);
+    }
+    
+    .notification.warning {
+      background-color: var(--warn);
+      color: #212529;
+    }
+    
+    .notification.info {
+      background-color: var(--accent);
+    }
   </style>
 </head>
 <body>
@@ -427,6 +466,10 @@
     </section>
     <div class="footer">Demo build – data stored locally in your browser. Replace with real API in production.</div>
   </main>
+  
+  <!-- Notification Container -->
+  <div id="notificationContainer"></div>
+
   <script>
     // API-based implementation for MakiwaFreight App
     (function() {
@@ -479,7 +522,7 @@
           return fn();
         } catch (error) {
           console.error('MakiwaFreight Error:', error);
-          alert(fallbackMsg + ': ' + error.message);
+          showNotification(fallbackMsg + ': ' + error.message, 'error');
           return null;
         }
       };
@@ -496,6 +539,28 @@
         if (!load.expires_at) return false;
         return new Date(load.expires_at) < new Date();
       };
+      
+      // Notification system
+      function showNotification(message, type = 'info') {
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`;
+        notification.textContent = message;
+        
+        document.getElementById('notificationContainer').appendChild(notification);
+        
+        // Show notification
+        setTimeout(() => {
+          notification.classList.add('show');
+        }, 10);
+        
+        // Hide and remove notification after 5 seconds
+        setTimeout(() => {
+          notification.classList.remove('show');
+          setTimeout(() => {
+            notification.remove();
+          }, 300);
+        }, 5000);
+      }
       
       // API helper functions
       const apiRequest = async (endpoint, options = {}) => {
@@ -529,23 +594,30 @@
           body: JSON.stringify({ email, password })
         });
         
-        if (response.token) {
-          localStorage.setItem('authToken', response.token);
-          return response.user;
+        if (response.success && response.data) {
+          localStorage.setItem('authToken', response.data.token);
+          showNotification(response.message, 'success');
+          return response.data.user;
+        } else {
+          showNotification(response.message, 'error');
+          return null;
         }
-        
-        return null;
       };
       
       const logout = () => {
         localStorage.removeItem('authToken');
+        showNotification('Logged out successfully', 'info');
         location.hash = '#login';
         render();
       };
       
       const getCurrentUser = async () => {
         try {
-          return await apiRequest('/users/me');
+          const response = await apiRequest('/users/me');
+          if (response.success) {
+            return response.data.user;
+          }
+          return null;
         } catch (error) {
           return null;
         }
@@ -574,10 +646,18 @@
           vehicle_info: sanitize(data.vehicle_info || '')
         };
         
-        return await apiRequest('/users', {
+        const response = await apiRequest('/auth/register', {
           method: 'POST',
           body: JSON.stringify(sanitizedData)
         });
+        
+        if (response.success) {
+          showNotification(response.message, 'success');
+          return response.data;
+        } else {
+          showNotification(response.message, 'error');
+          throw new Error(response.error || 'Registration failed');
+        }
       };
       
       const updateUserProfile = async (userId, profileData) => {
@@ -597,10 +677,18 @@
           }
         }
         
-        return await apiRequest(`/users/${userId}`, {
+        const response = await apiRequest(`/users/me`, {
           method: 'PUT',
           body: JSON.stringify(sanitizedData)
         });
+        
+        if (response.success) {
+          showNotification(response.message, 'success');
+          return response.data;
+        } else {
+          showNotification(response.message, 'error');
+          throw new Error(response.error || 'Profile update failed');
+        }
       };
       
       // Load API functions
@@ -620,10 +708,18 @@
           notes: sanitize(payload.notes || '')
         };
         
-        return await apiRequest('/loads', {
+        const response = await apiRequest('/loads', {
           method: 'POST',
           body: JSON.stringify(sanitizedPayload)
         });
+        
+        if (response.success) {
+          showNotification(response.message, 'success');
+          return response.data;
+        } else {
+          showNotification(response.message, 'error');
+          throw new Error(response.error || 'Failed to post load');
+        }
       };
       
       const getLoads = async (filters = {}) => {
@@ -633,7 +729,14 @@
         if (filters.shipper_id) params.append('shipper_id', filters.shipper_id);
         
         const endpoint = `/loads${params.toString() ? `?${params.toString()}` : ''}`;
-        return await apiRequest(endpoint);
+        const response = await apiRequest(endpoint);
+        
+        if (response.success) {
+          return response.data.loads;
+        } else {
+          showNotification(response.message, 'error');
+          throw new Error(response.error || 'Failed to get loads');
+        }
       };
       
       const updateLoad = async (loadId, patch) => {
@@ -649,17 +752,34 @@
           }
         }
         
-        return await apiRequest(`/loads/${loadId}`, {
+        const response = await apiRequest(`/loads/${loadId}`, {
           method: 'PUT',
           body: JSON.stringify(sanitizedPatch)
         });
+        
+        if (response.success) {
+          showNotification(response.message, 'success');
+          return response.data;
+        } else {
+          showNotification(response.message, 'error');
+          throw new Error(response.error || 'Failed to update load');
+        }
       };
       
       const deleteLoad = async (loadId) => {
         if (!loadId) throw new Error('Load ID is required');
-        return await apiRequest(`/loads/${loadId}`, {
+        
+        const response = await apiRequest(`/loads/${loadId}`, {
           method: 'DELETE'
         });
+        
+        if (response.success) {
+          showNotification(response.message, 'success');
+          return response.data;
+        } else {
+          showNotification(response.message, 'error');
+          throw new Error(response.error || 'Failed to delete load');
+        }
       };
       
       // Message API functions
@@ -673,65 +793,144 @@
         }
         
         const sanitizedBody = sanitize(body);
-        return await apiRequest('/messages', {
+        const response = await apiRequest('/messages', {
           method: 'POST',
-          body: JSON.stringify({ to: toEmail, body: sanitizedBody })
+          body: JSON.stringify({ recipient: toEmail, body: sanitizedBody })
         });
+        
+        if (response.success) {
+          showNotification(response.message, 'success');
+          return response.data;
+        } else {
+          showNotification(response.message, 'error');
+          throw new Error(response.error || 'Failed to send message');
+        }
       };
       
       const getMessages = async () => {
-        return await apiRequest('/messages');
+        const response = await apiRequest('/messages');
+        
+        if (response.success) {
+          return response.data.messages;
+        } else {
+          showNotification(response.message, 'error');
+          throw new Error(response.error || 'Failed to get messages');
+        }
       };
       
       const deleteMessage = async (messageId) => {
         if (!messageId) throw new Error('Message ID is required');
-        return await apiRequest(`/messages/${messageId}`, {
+        
+        const response = await apiRequest(`/messages/${messageId}`, {
           method: 'DELETE'
         });
+        
+        if (response.success) {
+          showNotification(response.message, 'success');
+          return response.data;
+        } else {
+          showNotification(response.message, 'error');
+          throw new Error(response.error || 'Failed to delete message');
+        }
       };
       
       // Admin API functions
       const isAdmin = u => u && u.role === 'admin';
       
       const getUsers = async () => {
-        return await apiRequest('/admin/users');
+        const response = await apiRequest('/users');
+        
+        if (response.success) {
+          return response.data.users;
+        } else {
+          showNotification(response.message, 'error');
+          throw new Error(response.error || 'Failed to get users');
+        }
       };
       
       const deleteUser = async (email) => {
         if (!email) throw new Error('Email is required');
-        return await apiRequest(`/admin/users/${encodeURIComponent(email)}`, {
+        
+        const response = await apiRequest(`/users/${encodeURIComponent(email)}`, {
           method: 'DELETE'
         });
+        
+        if (response.success) {
+          showNotification(response.message, 'success');
+          return response.data;
+        } else {
+          showNotification(response.message, 'error');
+          throw new Error(response.error || 'Failed to delete user');
+        }
       };
       
       const resetPassword = async (email, newPass) => {
         if (!email || !newPass) throw new Error('Email and password are required');
-        return await apiRequest('/admin/reset-password', {
+        
+        const response = await apiRequest('/admin/reset-password', {
           method: 'POST',
           body: JSON.stringify({ email, password: newPass })
         });
+        
+        if (response.success) {
+          showNotification(response.message, 'success');
+          return response.data;
+        } else {
+          showNotification(response.message, 'error');
+          throw new Error(response.error || 'Failed to reset password');
+        }
       };
       
       const getBanners = async () => {
-        return await apiRequest('/admin/banners');
+        const response = await apiRequest('/admin/banners');
+        
+        if (response.success) {
+          return response.data;
+        } else {
+          showNotification(response.message, 'error');
+          throw new Error(response.error || 'Failed to get banners');
+        }
       };
       
       const updateBanners = async (banners) => {
-        return await apiRequest('/admin/banners', {
-          method: 'PUT',
+        const response = await apiRequest('/admin/banners', {
+          method: 'POST',
           body: JSON.stringify(banners)
         });
+        
+        if (response.success) {
+          showNotification(response.message, 'success');
+          return response.data;
+        } else {
+          showNotification(response.message, 'error');
+          throw new Error(response.error || 'Failed to update banners');
+        }
       };
       
       const getAccessControl = async () => {
-        return await apiRequest('/admin/access-control');
+        const response = await apiRequest('/admin/access-control');
+        
+        if (response.success) {
+          return response.data;
+        } else {
+          showNotification(response.message, 'error');
+          throw new Error(response.error || 'Failed to get access control');
+        }
       };
       
       const updateAccessControl = async (acl) => {
-        return await apiRequest('/admin/access-control', {
+        const response = await apiRequest('/admin/access-control', {
           method: 'PUT',
           body: JSON.stringify(acl)
         });
+        
+        if (response.success) {
+          showNotification(response.message, 'success');
+          return response.data;
+        } else {
+          showNotification(response.message, 'error');
+          throw new Error(response.error || 'Failed to update access control');
+        }
       };
       
       // Check if user can access a specific page
@@ -1018,7 +1217,7 @@
               <td>${sanitize(l.cargo_type)}</td>
               <td>${sanitize(l.weight)}</td>
               <td>${sanitize(l.notes || '')}</td>
-              <td>${sanitize(l.shipper_email || '')}</td>`;
+              <td>${sanitize(l.shipper || '')}</td>`;
             tbody.appendChild(tr);
           }
         } catch (error) {
@@ -1078,7 +1277,7 @@
               <td>${sanitize(l.cargo_type)}</td>
               <td>${sanitize(l.weight)}</td>
               <td>${sanitize(l.notes || '')}</td>
-              <td>${sanitize(l.shipper_email || '')}</td>`;
+              <td>${sanitize(l.shipper || '')}</td>`;
             tbody.appendChild(tr);
           }
         } catch (error) {
@@ -1322,7 +1521,7 @@
                   <td>${expiryDate}</td>
                   <td>${sanitize(l.cargo_type)}</td>
                   <td>${sanitize(l.weight)}</td>
-                  <td>${sanitize(l.shipper_email || '')}</td>
+                  <td>${sanitize(l.shipper || '')}</td>
                   <td>
                     <button class="btn" data-editl="${l.id}" aria-label="Edit load ${l.ref}">Edit</button>
                     <button class="btn danger" data-dell="${l.id}" aria-label="Delete load ${l.ref}">Delete</button>
@@ -1483,13 +1682,12 @@
             const password = fd.get('password');
             
             if (!email || !password) {
-              alert('Please enter both email and password');
+              showNotification('Please enter both email and password', 'error');
               return;
             }
             
             const user = await login(email, password);
             if (!user) {
-              alert('Invalid credentials');
               return;
             }
             
@@ -1516,7 +1714,6 @@
                 address: fd.get('address'),
                 role: 'shipper'
               });
-              alert('Shipper registered. Please login.');
               location.hash = '#login';
             }, 'Registration failed');
           };
@@ -1540,7 +1737,6 @@
                 vehicle_info: fd.get('vehicle_info'),
                 role: 'transporter'
               });
-              alert('Transporter registered. Please login.');
               location.hash = '#login';
             }, 'Registration failed');
           };
@@ -1559,12 +1755,12 @@
             try {
               const acl = await getAccessControl();
               if (!acl.post || !acl.post[u.email]) {
-                alert('Your Post Load access is disabled by Admin.');
+                showNotification('Your Post Load access is disabled by Admin.', 'error');
                 return;
               }
             } catch (error) {
               console.error('Failed to check access control:', error);
-              alert('Failed to verify access permissions');
+              showNotification('Failed to verify access permissions', 'error');
               return;
             }
             
@@ -1577,7 +1773,6 @@
                 weight: fd.get('weight'),
                 notes: fd.get('notes')
               });
-              alert('Load published successfully. It will expire in 7 days.');
               e.target.reset();
               location.hash = '#shipper-dashboard';
             }, 'Failed to post load');
@@ -1597,7 +1792,6 @@
             handleError(async () => {
               const data = Object.fromEntries(new FormData(f).entries());
               await updateUserProfile(u.id, data);
-              alert('Contact information updated successfully');
               render();
             }, 'Failed to save profile');
           };
@@ -1616,7 +1810,6 @@
             handleError(async () => {
               const data = Object.fromEntries(new FormData(f).entries());
               await updateUserProfile(u.id, data);
-              alert('Contact information updated successfully');
               render();
             }, 'Failed to save profile');
           };
@@ -1684,7 +1877,6 @@
             
             handleError(async () => {
               await resetPassword(email, p);
-              alert('Password updated');
             }, 'Failed to reset password');
           };
         }
@@ -1695,7 +1887,7 @@
           btnSavePageAccess.onclick = async () => {
             const email = el('pageAccessUser').value;
             if (!email) {
-              alert('Please select a user');
+              showNotification('Please select a user', 'error');
               return;
             }
             
@@ -1711,7 +1903,6 @@
               if (!acl.pages) acl.pages = {};
               acl.pages[email] = pageAccess;
               await updateAccessControl(acl);
-              alert('Page access updated successfully');
             }, 'Failed to update page access');
           };
         }
