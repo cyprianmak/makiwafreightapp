@@ -16,6 +16,7 @@ if os.environ.get('RENDER'):
     if not os.path.exists(persistent_dir):
         os.makedirs(persistent_dir)
     db_path = os.path.join(persistent_dir, 'makiwafreight.db')
+    print(f"Using persistent database at: {db_path}")
 else:
     # Local development - use data directory
     basedir = os.path.abspath(os.path.dirname(__file__))
@@ -23,6 +24,7 @@ else:
     if not os.path.exists(db_dir):
         os.makedirs(db_dir)
     db_path = os.path.join(db_dir, 'makiwafreight.db')
+    print(f"Using local database at: {db_path}")
 
 app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -187,19 +189,52 @@ def initialize_data():
         # Create tables only if they don't exist
         db.create_all()
         
+        # Check if admin user exists
         admin_email = 'cyprianmak@gmail.com'
-        admin_password = 'Muchandida@1'
         admin = User.query.filter_by(email=admin_email).first()
         
         if not admin:
+            print("Creating admin user...")
             admin = User(
                 name="Admin",
                 email=admin_email,
                 role="admin"
             )
-            admin.set_password(admin_password)
+            admin.set_password("Muchandida@1")
             db.session.add(admin)
             db.session.commit()
+            print("Admin user created")
+        else:
+            print("Admin user already exists")
+
+# Debug route to check database status
+@app.route('/api/debug/db')
+def debug_db():
+    try:
+        # Check if database file exists
+        db_exists = os.path.exists(db_path)
+        
+        # Count users
+        user_count = User.query.count()
+        
+        # Count loads
+        load_count = Load.query.count()
+        
+        # Count messages
+        message_count = Message.query.count()
+        
+        return jsonify({
+            "database_path": db_path,
+            "database_exists": db_exists,
+            "user_count": user_count,
+            "load_count": load_count,
+            "message_count": message_count,
+            "environment": os.environ.get('RENDER', 'local')
+        })
+    except Exception as e:
+        return jsonify({
+            "error": str(e)
+        }), 500
 
 # Routes
 @app.route('/')
@@ -221,7 +256,8 @@ def api_info():
                 "users": "/api/users",
                 "users_me": "/api/users/me",
                 "admin_banners": "/api/admin/banners",
-                "admin_access_control": "/api/admin/access-control"
+                "admin_access_control": "/api/admin/access-control",
+                "debug_db": "/api/debug/db"
             },
             "status": "running",
             "version": "1.0.0"
@@ -946,6 +982,9 @@ def reset_password_endpoint():
         }), 500
 
 # Initialize data and run app
+print("Initializing application...")
 initialize_data()
+print("Application initialized")
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=10000)
