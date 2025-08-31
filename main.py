@@ -1182,5 +1182,19 @@ print("Initializing application...")
 initialize_data()
 print("Application initialized")
 
+# Use a production WSGI server when running on Render
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=10000)
+    if os.environ.get('RENDER'):
+        # Use Waitress as a production WSGI server
+        try:
+            from waitress import serve
+            print("Starting production server with Waitress...")
+            serve(app, host='0.0.0.0', port=10000)
+        except ImportError:
+            # Fall back to development server if Waitress is not available
+            print("Waitress not available, falling back to development server...")
+            app.run(host='0.0.0.0', port=10000)
+    else:
+        # Use development server for local development
+        print("Starting development server...")
+        app.run(host='0.0.0.0', port=10000)
