@@ -146,314 +146,485 @@ def index():
 @app.route('/api')
 def api_info():
     return jsonify({
-        "endpoints": {
-            "auth": "/api/auth/login",
-            "register": "/api/auth/register",
-            "health": "/api/health",
-            "loads": "/api/loads",
-            "messages": "/api/messages",
-            "users": "/api/users",
-            "users_me": "/api/users/me",
-            "admin_banners": "/api/admin/banners"
-        },
-        "message": "Welcome to MakiwaFreight API",
-        "status": "running",
-        "version": "1.0.0"
+        "success": True,
+        "message": "API is running",
+        "data": {
+            "endpoints": {
+                "auth": "/api/auth/login",
+                "register": "/api/auth/register",
+                "health": "/api/health",
+                "loads": "/api/loads",
+                "messages": "/api/messages",
+                "users": "/api/users",
+                "users_me": "/api/users/me",
+                "admin_banners": "/api/admin/banners"
+            },
+            "status": "running",
+            "version": "1.0.0"
+        }
     })
 
 @app.route('/api/health')
 def health():
-    return jsonify({"status": "healthy"})
+    return jsonify({
+        "success": True,
+        "message": "Service is healthy",
+        "data": {"status": "healthy"}
+    })
 
 # Auth endpoints
 @app.route('/api/auth/register', methods=['POST'])
 def register():
-    data = request.get_json()
-    name = data.get('name')
-    email = data.get('email')
-    password = data.get('password')
-    role = data.get('role', 'user')  # Default role
-    
-    # Validate required fields
-    if not name or not email or not password:
-        return jsonify({"message": "Missing required fields"}), 400
-    
-    # Check if user already exists
-    if User.query.filter_by(email=email).first():
-        return jsonify({"message": "Email already registered"}), 400
-    
-    # Create new user
-    new_user = User(
-        name=name,
-        email=email,
-        role=role
-    )
-    new_user.set_password(password)
-    
-    db.session.add(new_user)
-    db.session.commit()
-    
-    return jsonify({
-        "message": "User registered successfully",
-        "user": {
-            "id": new_user.id,
-            "name": new_user.name,
-            "email": new_user.email,
-            "role": new_user.role
-        }
-    }), 201
+    try:
+        data = request.get_json()
+        name = data.get('name')
+        email = data.get('email')
+        password = data.get('password')
+        role = data.get('role', 'user')  # Default role
+        
+        # Validate required fields
+        if not name or not email or not password:
+            return jsonify({
+                "success": False,
+                "message": "Registration failed",
+                "error": "name, email, and password are required"
+            }), 400
+        
+        # Check if user already exists
+        if User.query.filter_by(email=email).first():
+            return jsonify({
+                "success": False,
+                "message": "Registration failed",
+                "error": "Email already registered"
+            }), 400
+        
+        # Create new user
+        new_user = User(
+            name=name,
+            email=email,
+            role=role
+        )
+        new_user.set_password(password)
+        
+        db.session.add(new_user)
+        db.session.commit()
+        
+        return jsonify({
+            "success": True,
+            "message": "Registration successful",
+            "data": {
+                "user": {
+                    "id": new_user.id,
+                    "name": new_user.name,
+                    "email": new_user.email,
+                    "role": new_user.role
+                }
+            }
+        }), 201
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": "Registration failed",
+            "error": str(e)
+        }), 500
 
 @app.route('/api/auth/login', methods=['POST'])
 def login():
-    data = request.get_json()
-    email = data.get('email')
-    password = data.get('password')
+    try:
+        data = request.get_json()
+        email = data.get('email')
+        password = data.get('password')
 
-    if not email or not password:
-        return jsonify({"message": "Email and password required"}), 400
+        if not email or not password:
+            return jsonify({
+                "success": False,
+                "message": "Login failed",
+                "error": "Email and password required"
+            }), 400
 
-    user = User.query.filter_by(email=email).first()
+        user = User.query.filter_by(email=email).first()
 
-    if user and user.check_password(password):
-        token = str(uuid.uuid4())
-        user.token = token
-        db.session.commit()
+        if user and user.check_password(password):
+            token = str(uuid.uuid4())
+            user.token = token
+            db.session.commit()
+            return jsonify({
+                "success": True,
+                "message": "Login successful",
+                "data": {
+                    "token": token,
+                    "user": {
+                        "id": user.id,
+                        "name": user.name,
+                        "email": user.email,
+                        "role": user.role
+                    }
+                }
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "message": "Login failed",
+                "error": "Invalid credentials"
+            }), 401
+    except Exception as e:
         return jsonify({
-            "token": token,
-            "user": {
-                "id": user.id,
-                "name": user.name,
-                "email": user.email,
-                "role": user.role
-            }
-        })
-    else:
-        return jsonify({"message": "Invalid credentials"}), 401
+            "success": False,
+            "message": "Login failed",
+            "error": str(e)
+        }), 500
 
 # Get current user endpoint
 @app.route('/api/users/me', methods=['GET'])
 def get_current_user():
-    user = check_auth(request)
-    if not user:
-        return jsonify({"message": "Authentication required"}), 401
-    
-    return jsonify({
-        "id": user.id,
-        "name": user.name,
-        "email": user.email,
-        "role": user.role,
-        "company": user.company,
-        "phone": user.phone,
-        "address": user.address,
-        "vehicle_info": user.vehicle_info,
-        "created_at": user.created_at.isoformat()
-    })
+    try:
+        user = check_auth(request)
+        if not user:
+            return jsonify({
+                "success": False,
+                "message": "Authentication required",
+                "error": "Please login to continue"
+            }), 401
+        
+        return jsonify({
+            "success": True,
+            "message": "User data retrieved",
+            "data": {
+                "user": {
+                    "id": user.id,
+                    "name": user.name,
+                    "email": user.email,
+                    "role": user.role,
+                    "company": user.company,
+                    "phone": user.phone,
+                    "address": user.address,
+                    "vehicle_info": user.vehicle_info,
+                    "created_at": user.created_at.isoformat()
+                }
+            }
+        })
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": "Failed to retrieve user data",
+            "error": str(e)
+        }), 500
 
 # Update current user endpoint
 @app.route('/api/users/me', methods=['PUT'])
 def update_current_user():
-    user = check_auth(request)
-    if not user:
-        return jsonify({"message": "Authentication required"}), 401
-    
-    data = request.get_json()
-    
-    # Update fields if provided
-    if 'name' in data:
-        user.name = data['name']
-    if 'company' in data:
-        user.company = data['company']
-    if 'phone' in data:
-        user.phone = data['phone']
-    if 'address' in data:
-        user.address = data['address']
-    if 'vehicle_info' in data:
-        user.vehicle_info = data['vehicle_info']
-    
-    db.session.commit()
-    
-    return jsonify({
-        "message": "User updated successfully",
-        "user": {
-            "id": user.id,
-            "name": user.name,
-            "email": user.email,
-            "role": user.role,
-            "company": user.company,
-            "phone": user.phone,
-            "address": user.address,
-            "vehicle_info": user.vehicle_info
-        }
-    })
+    try:
+        user = check_auth(request)
+        if not user:
+            return jsonify({
+                "success": False,
+                "message": "Authentication required",
+                "error": "Please login to continue"
+            }), 401
+        
+        data = request.get_json()
+        
+        # Update fields if provided
+        if 'name' in data:
+            user.name = data['name']
+        if 'company' in data:
+            user.company = data['company']
+        if 'phone' in data:
+            user.phone = data['phone']
+        if 'address' in data:
+            user.address = data['address']
+        if 'vehicle_info' in data:
+            user.vehicle_info = data['vehicle_info']
+        
+        db.session.commit()
+        
+        return jsonify({
+            "success": True,
+            "message": "Profile updated successfully",
+            "data": {
+                "user": {
+                    "id": user.id,
+                    "name": user.name,
+                    "email": user.email,
+                    "role": user.role,
+                    "company": user.company,
+                    "phone": user.phone,
+                    "address": user.address,
+                    "vehicle_info": user.vehicle_info
+                }
+            }
+        })
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": "Profile update failed",
+            "error": str(e)
+        }), 500
 
 # Admin banners endpoints
 @app.route('/api/admin/banners', methods=['GET'])
 def get_admin_banners():
-    # Check if user is admin
-    user = check_auth(request)
-    if not user or user.role != 'admin':
-        return jsonify({"message": "Admin access required"}), 403
-    
-    return jsonify(get_banners())
+    try:
+        # Check if user is admin
+        user = check_auth(request)
+        if not user or user.role != 'admin':
+            return jsonify({
+                "success": False,
+                "message": "Access denied",
+                "error": "Admin access required"
+            }), 403
+        
+        return jsonify({
+            "success": True,
+            "message": "Banners retrieved",
+            "data": get_banners()
+        })
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": "Failed to retrieve banners",
+            "error": str(e)
+        }), 500
 
 @app.route('/api/admin/banners', methods=['POST'])
 def update_admin_banners():
-    # Check if user is admin
-    user = check_auth(request)
-    if not user or user.role != 'admin':
-        return jsonify({"message": "Admin access required"}), 403
-    
-    data = request.get_json()
-    
-    if 'index' not in data or 'dashboard' not in data:
-        return jsonify({"message": "Both index and dashboard banners are required"}), 400
-    
-    updated_banners = update_banners(data)
-    return jsonify({
-        "message": "Banners updated successfully",
-        "banners": updated_banners
-    })
+    try:
+        # Check if user is admin
+        user = check_auth(request)
+        if not user or user.role != 'admin':
+            return jsonify({
+                "success": False,
+                "message": "Access denied",
+                "error": "Admin access required"
+            }), 403
+        
+        data = request.get_json()
+        
+        if 'index' not in data or 'dashboard' not in data:
+            return jsonify({
+                "success": False,
+                "message": "Update failed",
+                "error": "Both index and dashboard banners are required"
+            }), 400
+        
+        updated_banners = update_banners(data)
+        return jsonify({
+            "success": True,
+            "message": "Banners updated successfully",
+            "data": updated_banners
+        })
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": "Banner update failed",
+            "error": str(e)
+        }), 500
 
 # Load endpoints
 @app.route('/api/loads', methods=['GET', 'POST'])
 def handle_loads():
-    user = check_auth(request)
-    
-    # Get all loads (public access)
-    if request.method == 'GET':
-        loads = Load.query.filter(Load.expires_at >= datetime.utcnow()).all()
-        result = []
-        for load in loads:
-            result.append({
-                "id": load.id,
-                "ref": load.ref,
-                "origin": load.origin,
-                "destination": load.destination,
-                "date": load.date,
-                "cargo_type": load.cargo_type,
-                "weight": load.weight,
-                "notes": load.notes,
-                "shipper": load.shipper.name if load.shipper else None,
-                "expires_at": load.expires_at.isoformat(),
-                "created_at": load.created_at.isoformat()
+    try:
+        user = check_auth(request)
+        
+        # Get all loads (public access)
+        if request.method == 'GET':
+            loads = Load.query.filter(Load.expires_at >= datetime.utcnow()).all()
+            result = []
+            for load in loads:
+                result.append({
+                    "id": load.id,
+                    "ref": load.ref,
+                    "origin": load.origin,
+                    "destination": load.destination,
+                    "date": load.date,
+                    "cargo_type": load.cargo_type,
+                    "weight": load.weight,
+                    "notes": load.notes,
+                    "shipper": load.shipper.name if load.shipper else None,
+                    "expires_at": load.expires_at.isoformat(),
+                    "created_at": load.created_at.isoformat()
+                })
+            return jsonify({
+                "success": True,
+                "message": "Loads retrieved",
+                "data": {"loads": result}
             })
-        return jsonify(result)
-    
-    # Create new load (requires authentication and shipper role)
-    if request.method == 'POST':
-        if not user:
-            return jsonify({"message": "Authentication required"}), 401
-        if user.role != 'shipper':
-            return jsonify({"message": "Only shippers can post loads"}), 403
+        
+        # Create new load (requires authentication and shipper role)
+        if request.method == 'POST':
+            if not user:
+                return jsonify({
+                    "success": False,
+                    "message": "Authentication required",
+                    "error": "Please login to post loads"
+                }), 401
+            if user.role != 'shipper':
+                return jsonify({
+                    "success": False,
+                    "message": "Access denied",
+                    "error": "Only shippers can post loads"
+                }), 403
+                
+            data = request.get_json()
+            required_fields = ['ref', 'origin', 'destination', 'date', 'cargo_type', 'weight']
+            for field in required_fields:
+                if field not in data:
+                    return jsonify({
+                        "success": False,
+                        "message": "Load creation failed",
+                        "error": f"Missing field: {field}"
+                    }), 400
             
-        data = request.get_json()
-        required_fields = ['ref', 'origin', 'destination', 'date', 'cargo_type', 'weight']
-        for field in required_fields:
-            if field not in data:
-                return jsonify({"message": f"Missing field: {field}"}), 400
-        
-        # Set expiration date (7 days from creation)
-        expires_at = datetime.utcnow() + timedelta(days=7)
-        
-        new_load = Load(
-            ref=data['ref'],
-            origin=data['origin'],
-            destination=data['destination'],
-            date=data['date'],
-            cargo_type=data['cargo_type'],
-            weight=data['weight'],
-            notes=data.get('notes', ''),
-            shipper_id=user.id,
-            expires_at=expires_at
-        )
-        
-        db.session.add(new_load)
-        db.session.commit()
-        
+            # Set expiration date (7 days from creation)
+            expires_at = datetime.utcnow() + timedelta(days=7)
+            
+            new_load = Load(
+                ref=data['ref'],
+                origin=data['origin'],
+                destination=data['destination'],
+                date=data['date'],
+                cargo_type=data['cargo_type'],
+                weight=data['weight'],
+                notes=data.get('notes', ''),
+                shipper_id=user.id,
+                expires_at=expires_at
+            )
+            
+            db.session.add(new_load)
+            db.session.commit()
+            
+            return jsonify({
+                "success": True,
+                "message": "Load created successfully",
+                "data": {
+                    "load": {
+                        "id": new_load.id,
+                        "ref": new_load.ref,
+                        "origin": new_load.origin,
+                        "destination": new_load.destination,
+                        "expires_at": new_load.expires_at.isoformat()
+                    }
+                }
+            }), 201
+    except Exception as e:
         return jsonify({
-            "message": "Load created successfully",
-            "load": {
-                "id": new_load.id,
-                "ref": new_load.ref,
-                "origin": new_load.origin,
-                "destination": new_load.destination,
-                "expires_at": new_load.expires_at.isoformat()
-            }
-        }), 201
+            "success": False,
+            "message": "Operation failed",
+            "error": str(e)
+        }), 500
 
 # Message endpoints
 @app.route('/api/messages', methods=['GET', 'POST'])
 def handle_messages():
-    user = check_auth(request)
-    if not user:
-        return jsonify({"message": "Authentication required"}), 401
-    
-    # Get user's messages
-    if request.method == 'GET':
-        messages = Message.query.filter(
-            (Message.sender_email == user.email) | 
-            (Message.recipient_email == user.email)
-        ).order_by(Message.created_at.desc()).all()
+    try:
+        user = check_auth(request)
+        if not user:
+            return jsonify({
+                "success": False,
+                "message": "Authentication required",
+                "error": "Please login to access messages"
+            }), 401
         
-        result = []
-        for msg in messages:
-            result.append({
-                "id": msg.id,
-                "sender": msg.sender_email,
-                "recipient": msg.recipient_email,
-                "body": msg.body,
-                "created_at": msg.created_at.isoformat()
+        # Get user's messages
+        if request.method == 'GET':
+            messages = Message.query.filter(
+                (Message.sender_email == user.email) | 
+                (Message.recipient_email == user.email)
+            ).order_by(Message.created_at.desc()).all()
+            
+            result = []
+            for msg in messages:
+                result.append({
+                    "id": msg.id,
+                    "sender": msg.sender_email,
+                    "recipient": msg.recipient_email,
+                    "body": msg.body,
+                    "created_at": msg.created_at.isoformat()
+                })
+            return jsonify({
+                "success": True,
+                "message": "Messages retrieved",
+                "data": {"messages": result}
             })
-        return jsonify(result)
-    
-    # Send a new message
-    if request.method == 'POST':
-        data = request.get_json()
-        recipient = data.get('recipient')
-        body = data.get('body')
         
-        if not recipient or not body:
-            return jsonify({"message": "Recipient and message body required"}), 400
-        
-        # Verify recipient exists
-        if not User.query.filter_by(email=recipient).first():
-            return jsonify({"message": "Recipient not found"}), 404
-        
-        new_message = Message(
-            sender_email=user.email,
-            recipient_email=recipient,
-            body=body
-        )
-        
-        db.session.add(new_message)
-        db.session.commit()
-        
+        # Send a new message
+        if request.method == 'POST':
+            data = request.get_json()
+            recipient = data.get('recipient')
+            body = data.get('body')
+            
+            if not recipient or not body:
+                return jsonify({
+                    "success": False,
+                    "message": "Message not sent",
+                    "error": "Recipient and message body required"
+                }), 400
+            
+            # Verify recipient exists
+            if not User.query.filter_by(email=recipient).first():
+                return jsonify({
+                    "success": False,
+                    "message": "Message not sent",
+                    "error": "Recipient not found"
+                }), 404
+            
+            new_message = Message(
+                sender_email=user.email,
+                recipient_email=recipient,
+                body=body
+            )
+            
+            db.session.add(new_message)
+            db.session.commit()
+            
+            return jsonify({
+                "success": True,
+                "message": "Message sent successfully",
+                "data": {"message_id": new_message.id}
+            }), 201
+    except Exception as e:
         return jsonify({
-            "message": "Message sent successfully",
-            "message_id": new_message.id
-        }), 201
+            "success": False,
+            "message": "Message operation failed",
+            "error": str(e)
+        }), 500
 
 # User management (admin only)
 @app.route('/api/users', methods=['GET'])
 def get_users():
-    user = check_auth(request)
-    if not user or user.role != 'admin':
-        return jsonify({"message": "Admin access required"}), 403
-    
-    users = User.query.all()
-    result = []
-    for u in users:
-        result.append({
-            "id": u.id,
-            "name": u.name,
-            "email": u.email,
-            "role": u.role,
-            "company": u.company,
-            "phone": u.phone,
-            "created_at": u.created_at.isoformat()
+    try:
+        user = check_auth(request)
+        if not user or user.role != 'admin':
+            return jsonify({
+                "success": False,
+                "message": "Access denied",
+                "error": "Admin access required"
+            }), 403
+        
+        users = User.query.all()
+        result = []
+        for u in users:
+            result.append({
+                "id": u.id,
+                "name": u.name,
+                "email": u.email,
+                "role": u.role,
+                "company": u.company,
+                "phone": u.phone,
+                "created_at": u.created_at.isoformat()
+            })
+        
+        return jsonify({
+            "success": True,
+            "message": "Users retrieved",
+            "data": {"users": result}
         })
-    
-    return jsonify(result)
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": "Failed to retrieve users",
+            "error": str(e)
+        }), 500
 
 # Initialize data and run app
 initialize_data()
