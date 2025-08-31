@@ -3,12 +3,20 @@ from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, timedelta
 import uuid
 import json
+import os
 from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
-# Configure the database
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///makiwafreight.db'
+
+# Configure the database with persistent storage
+basedir = os.path.abspath(os.path.dirname(__file__))
+db_dir = os.path.join(basedir, 'data')
+if not os.path.exists(db_dir):
+    os.makedirs(db_dir)
+db_path = os.path.join(db_dir, 'makiwafreight.db')
+app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
 db = SQLAlchemy(app)
 
 # Define database models
@@ -115,6 +123,7 @@ def update_banners(banners):
 # Initialize admin user and database
 def initialize_data():
     with app.app_context():
+        # Create tables only if they don't exist
         db.create_all()
         
         admin_email = 'cyprianmak@gmail.com'
@@ -228,16 +237,13 @@ def login():
         data = request.get_json()
         email = data.get('email')
         password = data.get('password')
-
         if not email or not password:
             return jsonify({
                 "success": False,
                 "message": "Login failed",
                 "error": "Email and password required"
             }), 400
-
         user = User.query.filter_by(email=email).first()
-
         if user and user.check_password(password):
             token = str(uuid.uuid4())
             user.token = token
@@ -871,6 +877,5 @@ def reset_password_endpoint():
 
 # Initialize data and run app
 initialize_data()
-
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=10000)
