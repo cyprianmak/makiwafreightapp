@@ -845,37 +845,13 @@
       
       // Check if user can post loads
       const canUserPostLoads = (userId) => {
-        if (!userId) return false;
-        
-        // Admins can always post loads
-        const user = getCurrentUserSync();
-        if (user && user.role === 'admin') return true;
-        
-        // Check user-specific access control
-        const userAccess = accessControlData.user_access || {};
-        if (userAccess[userId]) {
-          return userAccess[userId].can_post_loads !== false;
-        }
-        
-        // Default to global setting if no user-specific setting
-        return isPostLoadsEnabled();
+        // Always allow all users to post loads
+        return true;
       };
       
       // Check if user can access market
       const canUserAccessMarket = (userId) => {
-        if (!userId) return false;
-        
-        // Admins can always access market
-        const user = getCurrentUserSync();
-        if (user && user.role === 'admin') return true;
-        
-        // Check user-specific access control
-        const userAccess = accessControlData.user_access || {};
-        if (userAccess[userId]) {
-          return userAccess[userId].can_access_market !== false;
-        }
-        
-        // Default to true if no user-specific setting
+        // Always allow all users to access market
         return true;
       };
       
@@ -1362,16 +1338,7 @@
             // Add navigation links based on user access
             Object.keys(PAGES).forEach(pageId => {
               if (canAccessPage(u, pageId)) {
-                // Skip Post Load link if user cannot post loads
-                if (pageId === 'shipper-post' && !canUserPostLoads(u.id)) {
-                  return;
-                }
-                
-                // Skip Market link if user cannot access market
-                if (pageId === 'market' && !canUserAccessMarket(u.id)) {
-                  return;
-                }
-                
+                // Always show Post Load and Market links for all users
                 const link = document.createElement('a');
                 link.href = `#${pageId}`;
                 link.className = 'btn';
@@ -1433,16 +1400,16 @@
         if (!u) return;
         
         try {
-          // Show/hide Post Load button based on user access
+          // Always show Post Load and Market buttons
           const postLoadBtn = el('shipperDashboardPostLoadBtn');
           if (postLoadBtn) {
-            setHidden('shipperDashboardPostLoadBtn', !canUserPostLoads(u.id));
+            setHidden('shipperDashboardPostLoadBtn', false);
           }
           
-          // Show/hide Market button based on user access
+          // Always show Market button
           const marketBtn = el('shipperDashboardMarketBtn');
           if (marketBtn) {
-            setHidden('shipperDashboardMarketBtn', !canUserAccessMarket(u.id));
+            setHidden('shipperDashboardMarketBtn', false);
           }
           
           // My loads table
@@ -1536,16 +1503,16 @@
         if (!u) return;
         
         try {
-          // Show/hide Post Load button based on user access
+          // Always show Post Load and Market buttons
           const postLoadBtn = el('transporterDashboardPostLoadBtn');
           if (postLoadBtn) {
-            setHidden('transporterDashboardPostLoadBtn', !canUserPostLoads(u.id));
+            setHidden('transporterDashboardPostLoadBtn', false);
           }
           
-          // Show/hide Market button based on user access
+          // Always show Market button
           const marketBtn = el('transporterDashboardMarketBtn');
           if (marketBtn) {
-            setHidden('transporterDashboardMarketBtn', !canUserAccessMarket(u.id));
+            setHidden('transporterDashboardMarketBtn', false);
           }
           
           const tb = el('tableLoads');
@@ -1603,10 +1570,10 @@
         if (!u) return;
         
         try {
-          // Show/hide Post Load button based on user access
+          // Always show Post Load button
           const postLoadBtn = el('marketPostLoadBtn');
           if (postLoadBtn) {
-            setHidden('marketPostLoadBtn', !canUserPostLoads(u.id));
+            setHidden('marketPostLoadBtn', false);
           }
           
           // Get filters
