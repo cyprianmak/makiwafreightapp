@@ -28,7 +28,6 @@ else:
 
 app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-
 db = SQLAlchemy(app)
 
 # Define database models
@@ -44,7 +43,7 @@ class User(db.Model):
     vehicle_info = db.Column(db.String(200))
     token = db.Column(db.String(36))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
+    
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
     
@@ -63,6 +62,7 @@ class Load(db.Model):
     shipper_id = db.Column(db.String(36), db.ForeignKey('user.id'), nullable=False)
     expires_at = db.Column(db.DateTime, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
     shipper = db.relationship('User', backref=db.backref('loads', lazy=True))
 
 class Message(db.Model):
@@ -93,7 +93,7 @@ def get_default_access_control_data():
     return {
         'pages': {
             'post_load': {
-                'allowed_roles': ['admin', 'shipper']
+                'allowed_roles': ['admin', 'shipper', 'transporter']  # All roles can post loads
             },
             'market': {
                 'allowed_roles': ['admin', 'shipper', 'carrier']
@@ -102,7 +102,9 @@ def get_default_access_control_data():
         'banners': {
             'index': '',
             'dashboard': ''
-        }
+        },
+        'post_loads_enabled': True,  # Global setting to control post loads access
+        'user_access': {}  # User-specific access control
     }
 
 def get_access_control():
@@ -123,10 +125,10 @@ def get_access_control():
         ac.data = json.dumps(default_data)
         db.session.commit()
         return default_data
-
+        
     default_data = get_default_access_control_data()
     updated = False
-
+    
     # Ensure pages exists and has the required structure
     if 'pages' not in data or not isinstance(data['pages'], dict):
         data['pages'] = default_data['pages']
@@ -139,7 +141,7 @@ def get_access_control():
         if 'market' not in data['pages'] or not isinstance(data['pages'].get('market'), dict):
             data['pages']['market'] = default_data['pages']['market']
             updated = True
-
+    
     # Ensure banners exists and has the required structure
     if 'banners' not in data or not isinstance(data['banners'], dict):
         data['banners'] = default_data['banners']
@@ -149,11 +151,20 @@ def get_access_control():
             if key not in data['banners']:
                 data['banners'][key] = default_data['banners'][key]
                 updated = True
-
+    
+    # Ensure post_loads_enabled exists
+    if 'post_loads_enabled' not in data:
+        data['post_loads_enabled'] = default_data['post_loads_enabled']
+        updated = True
+    
+    # Ensure user_access exists
+    if 'user_access' not in data:
+        data['user_access'] = default_data['user_access']
+        updated = True
+    
     if updated:
         ac.data = json.dumps(data)
         db.session.commit()
-
     return data
 
 def update_access_control(data):
@@ -530,12 +541,14 @@ def login():
         data = request.get_json()
         email = data.get('email')
         password = data.get('password')
+        
         if not email or not password:
             return jsonify({
                 "success": False,
                 "message": "Login failed",
                 "error": "Email and password required"
             }), 400
+        
         user = User.query.filter_by(email=email).first()
         if user and user.check_password(password):
             token = str(uuid.uuid4())
@@ -795,7 +808,7 @@ def handle_loads():
                 "data": {"loads": result}
             })
         
-        # Create new load (requires authentication and proper role)
+        # Create new load (requires authentication and access checks)
         if request.method == 'POST':
             if not user:
                 return jsonify({
@@ -804,62 +817,115 @@ def handle_loads():
                     "error": "Please login to post loads"
                 }), 401
             
-            # Check if user has permission to post loads
+            # Check access control
             access_control = get_access_control()
-            allowed_roles = access_control.get('pages', {}).get('post_load', {}).get('allowed_roles', [])
             
-            # Fallback: if allowed_roles is empty, use default
-            if not allowed_roles:
-                allowed_roles = ['admin', 'shipper']
-            
-            if user.role not in allowed_roles:
+            # Check global setting first
+            if not access_control.get('post_loads_enabled', True):
                 return jsonify({
                     "success": False,
                     "message": "Access denied",
-                    "error": "You don't have permission to post loads"
+                    "error": "Posting loads is currently disabled"
                 }), 403
-                
-            data = request.get_json()
-            required_fields = ['ref', 'origin', 'destination', 'date', 'cargo_type', 'weight']
-            for field in required_fields:
-                if field not in data:
+            
+            # Check user-specific access control
+            user_access = access_control.get('user_access', {})
+            user_id = user.id
+            
+            # If user has specific access control settings, check them
+            if user_id in user_access:
+                user_settings = user_access[user_id]
+                if not user_settings.get('can_post_loads', True):
                     return jsonify({
                         "success": False,
-                        "message": "Load creation failed",
-                        "error": f"Missing field: {field}"
-                    }), 400
-            
-            # Set expiration date (7 days from creation)
-            expires_at = datetime.utcnow() + timedelta(days=7)
-            
-            new_load = Load(
-                ref=data['ref'],
-                origin=data['origin'],
-                destination=data['destination'],
-                date=data['date'],
-                cargo_type=data['cargo_type'],
-                weight=data['weight'],
-                notes=data.get('notes', ''),
-                shipper_id=user.id,
-                expires_at=expires_at
-            )
-            
-            db.session.add(new_load)
-            db.session.commit()
-            
-            return jsonify({
-                "success": True,
-                "message": "Load created successfully",
-                "data": {
-                    "load": {
-                        "id": new_load.id,
-                        "ref": new_load.ref,
-                        "origin": new_load.origin,
-                        "destination": new_load.destination,
-                        "expires_at": new_load.expires_at.isoformat()
+                        "message": "Access denied",
+                        "error": "You do not have permission to post loads"
+                    }), 403
+                
+                data = request.get_json()
+                required_fields = ['ref', 'origin', 'destination', 'date', 'cargo_type', 'weight']
+                for field in required_fields:
+                    if field not in data:
+                        return jsonify({
+                            "success": False,
+                            "message": "Load creation failed",
+                            "error": f"Missing field: {field}"
+                        }), 400
+                
+                # Set expiration date (7 days from creation)
+                expires_at = datetime.utcnow() + timedelta(days=7)
+                
+                new_load = Load(
+                    ref=data['ref'],
+                    origin=data['origin'],
+                    destination=data['destination'],
+                    date=data['date'],
+                    cargo_type=data['cargo_type'],
+                    weight=data['weight'],
+                    notes=data.get('notes', ''),
+                    shipper_id=user.id,
+                    expires_at=expires_at
+                )
+                
+                db.session.add(new_load)
+                db.session.commit()
+                
+                return jsonify({
+                    "success": True,
+                    "message": "Load created successfully",
+                    "data": {
+                        "load": {
+                            "id": new_load.id,
+                            "ref": new_load.ref,
+                            "origin": new_load.origin,
+                            "destination": new_load.destination,
+                            "expires_at": new_load.expires_at.isoformat()
+                        }
                     }
-                }
-            }), 201
+                }), 201
+            else:
+                # If no user-specific settings, use default behavior
+                data = request.get_json()
+                required_fields = ['ref', 'origin', 'destination', 'date', 'cargo_type', 'weight']
+                for field in required_fields:
+                    if field not in data:
+                        return jsonify({
+                            "success": False,
+                            "message": "Load creation failed",
+                            "error": f"Missing field: {field}"
+                        }), 400
+                
+                # Set expiration date (7 days from creation)
+                expires_at = datetime.utcnow() + timedelta(days=7)
+                
+                new_load = Load(
+                    ref=data['ref'],
+                    origin=data['origin'],
+                    destination=data['destination'],
+                    date=data['date'],
+                    cargo_type=data['cargo_type'],
+                    weight=data['weight'],
+                    notes=data.get('notes', ''),
+                    shipper_id=user.id,
+                    expires_at=expires_at
+                )
+                
+                db.session.add(new_load)
+                db.session.commit()
+                
+                return jsonify({
+                    "success": True,
+                    "message": "Load created successfully",
+                    "data": {
+                        "load": {
+                            "id": new_load.id,
+                            "ref": new_load.ref,
+                            "origin": new_load.origin,
+                            "destination": new_load.destination,
+                            "expires_at": new_load.expires_at.isoformat()
+                        }
+                    }
+                }), 201
     except Exception as e:
         return jsonify({
             "success": False,
