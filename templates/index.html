@@ -116,6 +116,164 @@
     .role-checkbox-item input {
       width: auto;
     }
+    
+    /* Toggle switch styles */
+    .toggle-switch {
+      position: relative;
+      display: inline-block;
+      width: 60px;
+      height: 30px;
+    }
+    
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #ccc;
+      transition: .4s;
+      border-radius: 30px;
+    }
+    
+    .toggle-slider:before {
+      position: absolute;
+      content: "";
+      height: 22px;
+      width: 22px;
+      left: 4px;
+      bottom: 4px;
+      background-color: white;
+      transition: .4s;
+      border-radius: 50%;
+    }
+    
+    input:checked + .toggle-slider {
+      background-color: var(--accent);
+    }
+    
+    input:checked + .toggle-slider:before {
+      transform: translateX(30px);
+    }
+    
+    .control-panel {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      background: var(--panel-2);
+      margin-bottom: 20px;
+    }
+    
+    .control-panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+    
+    .control-panel-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--accent);
+    }
+    
+    .control-panel-body {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    
+    .control-panel-description {
+      flex: 1;
+      margin-right: 20px;
+      color: var(--muted);
+    }
+    
+    .control-panel-action {
+      display: flex;
+      align-items: center;
+    }
+    
+    .user-access-control {
+      margin-top: 20px;
+    }
+    
+    .user-access-row {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      margin-bottom: 15px;
+      padding: 15px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--panel-2);
+    }
+    
+    .user-info {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .user-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: linear-gradient(135deg,var(--accent),var(--accent-2));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      color: #08203a;
+    }
+    
+    .user-details {
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .user-name {
+      font-weight: 600;
+      color: var(--text);
+    }
+    
+    .user-email {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    
+    .access-controls {
+      display: flex;
+      gap: 20px;
+    }
+    
+    .access-control-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .access-control-label {
+      font-size: 14px;
+      color: var(--muted);
+    }
+    
+    .no-users-message {
+      text-align: center;
+      padding: 20px;
+      color: var(--muted);
+      border: 1px dashed var(--border);
+      border-radius: 12px;
+      margin-top: 20px;
+    }
   </style>
 </head>
 <body>
@@ -244,8 +402,8 @@
       <div class="toolbar">
         <h2>Shipper Dashboard</h2>
         <div>
-          <a class="btn" href="#shipper-post">Post Load</a>
-          <a class="btn" href="#market">Market</a>
+          <a id="shipperDashboardPostLoadBtn" class="btn" href="#shipper-post">Post Load</a>
+          <a id="shipperDashboardMarketBtn" class="btn" href="#market">Market</a>
           <a class="btn" href="#shipper-profile">Profile</a>
           <a class="btn" href="#messages">Messages</a>
         </div>
@@ -329,7 +487,8 @@
       <div class="toolbar">
         <h2>Transporter Dashboard</h2>
         <div>
-          <a class="btn" href="#market">Market</a>
+          <a id="transporterDashboardPostLoadBtn" class="btn" href="#shipper-post">Post Load</a>
+          <a id="transporterDashboardMarketBtn" class="btn" href="#market">Market</a>
           <a class="btn" href="#transporter-profile">Profile</a>
           <a class="btn" href="#messages">Messages</a>
         </div>
@@ -404,6 +563,7 @@
       <div class="toolbar">
         <h2>Load Market</h2>
         <div>
+          <a id="marketPostLoadBtn" class="btn" href="#shipper-post">Post Load</a>
           <a class="btn" href="#messages">Messages</a>
         </div>
       </div>
@@ -455,6 +615,76 @@
         <h2>Admin Control</h2>
         <div>
           <a class="btn" href="#messages">Messages</a>
+        </div>
+      </div>
+      
+      <!-- Post Loads Control Panel -->
+      <div class="control-panel">
+        <div class="control-panel-header">
+          <h3 class="control-panel-title">Post Loads Control</h3>
+        </div>
+        <div class="control-panel-body">
+          <div class="control-panel-description">
+            Enable or disable the ability for users to post new loads. When disabled, only administrators can post loads.
+          </div>
+          <div class="control-panel-action">
+            <label class="toggle-switch">
+              <input type="checkbox" id="postLoadsToggle">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+        <div class="toolbar" style="margin-top:15px">
+          <button id="btnSavePostLoadsControl" class="btn primary">Save Setting</button>
+        </div>
+      </div>
+      
+      <!-- User Access Control Panel -->
+      <div class="control-panel">
+        <div class="control-panel-header">
+          <h3 class="control-panel-title">User Access Control</h3>
+        </div>
+        <div class="control-panel-body">
+          <div class="control-panel-description">
+            Select a user to control their access to posting loads and accessing the market.
+          </div>
+          <div class="select-with-actions">
+            <select id="userAccessSelect">
+              <option value="">-- Select User --</option>
+            </select>
+            <button id="btnLoadUserAccess" class="btn">Load</button>
+          </div>
+        </div>
+        
+        <div id="userAccessControls" class="user-access-control hidden">
+          <div class="user-access-row">
+            <div class="user-info">
+              <div class="user-avatar" id="selectedUserAvatar">U</div>
+              <div class="user-details">
+                <div class="user-name" id="selectedUserName">User Name</div>
+                <div class="user-email" id="selectedUserEmail">user@example.com</div>
+              </div>
+            </div>
+            <div class="access-controls">
+              <div class="access-control-item">
+                <label class="toggle-switch">
+                  <input type="checkbox" id="canPostLoadsToggle">
+                  <span class="toggle-slider"></span>
+                </label>
+                <span class="access-control-label">Can Post Loads</span>
+              </div>
+              <div class="access-control-item">
+                <label class="toggle-switch">
+                  <input type="checkbox" id="canAccessMarketToggle">
+                  <span class="toggle-slider"></span>
+                </label>
+                <span class="access-control-label">Can Access Market</span>
+              </div>
+            </div>
+          </div>
+          <div class="toolbar" style="margin-top:15px">
+            <button id="btnSaveUserAccess" class="btn primary">Save User Access</button>
+          </div>
         </div>
       </div>
       
@@ -546,7 +776,7 @@
       // Page definitions for access control
       const PAGES = {
         'shipper-dashboard': { name: 'Shipper Dashboard', roles: ['shipper'] },
-        'shipper-post': { name: 'Post Load', roles: ['shipper'] },
+        'shipper-post': { name: 'Post Load', roles: ['admin', 'shipper', 'transporter'] }, // All roles can post loads
         'shipper-profile': { name: 'Shipper Profile', roles: ['shipper'] },
         'transporter-dashboard': { name: 'Transporter Dashboard', roles: ['transporter'] },
         'transporter-profile': { name: 'Transporter Profile', roles: ['transporter'] },
@@ -557,6 +787,9 @@
       
       // Role definitions
       const ROLES = ['admin', 'shipper', 'transporter'];
+      
+      // Global variable to store access control data
+      let accessControlData = {};
       
       // Utility functions
       const now = () => new Date().toISOString();
@@ -603,6 +836,61 @@
       const isLoadExpired = load => {
         if (!load.expires_at) return false;
         return new Date(load.expires_at) < new Date();
+      };
+      
+      // Check if post loads is enabled globally
+      const isPostLoadsEnabled = () => {
+        return accessControlData.post_loads_enabled !== false;
+      };
+      
+      // Check if user can post loads
+      const canUserPostLoads = (userId) => {
+        if (!userId) return false;
+        
+        // Admins can always post loads
+        const user = getCurrentUserSync();
+        if (user && user.role === 'admin') return true;
+        
+        // Check user-specific access control
+        const userAccess = accessControlData.user_access || {};
+        if (userAccess[userId]) {
+          return userAccess[userId].can_post_loads !== false;
+        }
+        
+        // Default to global setting if no user-specific setting
+        return isPostLoadsEnabled();
+      };
+      
+      // Check if user can access market
+      const canUserAccessMarket = (userId) => {
+        if (!userId) return false;
+        
+        // Admins can always access market
+        const user = getCurrentUserSync();
+        if (user && user.role === 'admin') return true;
+        
+        // Check user-specific access control
+        const userAccess = accessControlData.user_access || {};
+        if (userAccess[userId]) {
+          return userAccess[userId].can_access_market !== false;
+        }
+        
+        // Default to true if no user-specific setting
+        return true;
+      };
+      
+      // Get current user synchronously (from stored data)
+      const getCurrentUserSync = () => {
+        try {
+          const userData = localStorage.getItem('currentUser');
+          if (userData) {
+            return JSON.parse(userData);
+          }
+          return null;
+        } catch (error) {
+          console.error('Error getting current user:', error);
+          return null;
+        }
       };
       
       // Notification system
@@ -661,6 +949,7 @@
         
         if (response.success && response.data) {
           localStorage.setItem('authToken', response.data.token);
+          localStorage.setItem('currentUser', JSON.stringify(response.data.user));
           showNotification(response.message, 'success');
           return response.data.user;
         } else {
@@ -671,6 +960,7 @@
       
       const logout = () => {
         localStorage.removeItem('authToken');
+        localStorage.removeItem('currentUser');
         showNotification('Logged out successfully', 'info');
         location.hash = '#login';
         render();
@@ -680,6 +970,7 @@
         try {
           const response = await apiRequest('/users/me');
           if (response.success) {
+            localStorage.setItem('currentUser', JSON.stringify(response.data.user));
             return response.data.user;
           }
           return null;
@@ -1071,6 +1362,16 @@
             // Add navigation links based on user access
             Object.keys(PAGES).forEach(pageId => {
               if (canAccessPage(u, pageId)) {
+                // Skip Post Load link if user cannot post loads
+                if (pageId === 'shipper-post' && !canUserPostLoads(u.id)) {
+                  return;
+                }
+                
+                // Skip Market link if user cannot access market
+                if (pageId === 'market' && !canUserAccessMarket(u.id)) {
+                  return;
+                }
+                
                 const link = document.createElement('a');
                 link.href = `#${pageId}`;
                 link.className = 'btn';
@@ -1084,7 +1385,10 @@
       
       const renderBanners = async () => {
         try {
-          const banners = await getBanners();
+          const acl = await getAccessControl();
+          accessControlData = acl; // Store globally
+          
+          const banners = acl.banners || {};
           
           const i = el('indexBanner');
           if (i) {
@@ -1129,6 +1433,18 @@
         if (!u) return;
         
         try {
+          // Show/hide Post Load button based on user access
+          const postLoadBtn = el('shipperDashboardPostLoadBtn');
+          if (postLoadBtn) {
+            setHidden('shipperDashboardPostLoadBtn', !canUserPostLoads(u.id));
+          }
+          
+          // Show/hide Market button based on user access
+          const marketBtn = el('shipperDashboardMarketBtn');
+          if (marketBtn) {
+            setHidden('shipperDashboardMarketBtn', !canUserAccessMarket(u.id));
+          }
+          
           // My loads table
           const rows = await getLoads({ shipper_id: u.id });
           const tb = el('tableMyLoads');
@@ -1220,6 +1536,18 @@
         if (!u) return;
         
         try {
+          // Show/hide Post Load button based on user access
+          const postLoadBtn = el('transporterDashboardPostLoadBtn');
+          if (postLoadBtn) {
+            setHidden('transporterDashboardPostLoadBtn', !canUserPostLoads(u.id));
+          }
+          
+          // Show/hide Market button based on user access
+          const marketBtn = el('transporterDashboardMarketBtn');
+          if (marketBtn) {
+            setHidden('transporterDashboardMarketBtn', !canUserAccessMarket(u.id));
+          }
+          
           const tb = el('tableLoads');
           if (!tb) return;
           
@@ -1275,6 +1603,12 @@
         if (!u) return;
         
         try {
+          // Show/hide Post Load button based on user access
+          const postLoadBtn = el('marketPostLoadBtn');
+          if (postLoadBtn) {
+            setHidden('marketPostLoadBtn', !canUserPostLoads(u.id));
+          }
+          
           // Get filters
           const fo = el('marketFilterOrigin');
           const fd = el('marketFilterDest');
@@ -1430,6 +1764,27 @@
         }
       };
       
+      // Render user access control dropdown
+      const renderUserAccessControl = async () => {
+        const userSelect = el('userAccessSelect');
+        if (!userSelect) return;
+        
+        try {
+          const users = await getUsers();
+          
+          userSelect.innerHTML = '<option value="">-- Select User --</option>';
+          
+          users.forEach(user => {
+            const option = document.createElement('option');
+            option.value = user.id;
+            option.textContent = `${user.name} (${user.email})`;
+            userSelect.appendChild(option);
+          });
+        } catch (error) {
+          console.error('Failed to render user access control dropdown:', error);
+        }
+      };
+      
       // Render role-based page access checkboxes
       const renderRoleBasedPageAccess = async () => {
         const container = el('pageAccessContainer');
@@ -1548,11 +1903,20 @@
           // Get access control data
           const acl = await getAccessControl();
           
+          // Set post loads toggle
+          const postLoadsToggle = el('postLoadsToggle');
+          if (postLoadsToggle) {
+            postLoadsToggle.checked = acl.post_loads_enabled !== false;
+          }
+          
           // Update banners form
           const adminIndexBanner = el('adminIndexBanner');
           const adminDashBanner = el('adminDashBanner');
           if (adminIndexBanner) adminIndexBanner.value = acl.banners?.index || '';
           if (adminDashBanner) adminDashBanner.value = acl.banners?.dashboard || '';
+          
+          // Render user access control dropdown
+          renderUserAccessControl();
           
           // Render role-based page access checkboxes
           renderRoleBasedPageAccess();
@@ -1818,6 +2182,107 @@
               e.target.reset();
               renderMessages();
             }, 'Failed to send message');
+          };
+        }
+        
+        // Post loads control
+        const btnSavePostLoadsControl = el('btnSavePostLoadsControl');
+        if (btnSavePostLoadsControl) {
+          btnSavePostLoadsControl.onclick = async () => {
+            try {
+              const acl = await getAccessControl();
+              acl.post_loads_enabled = el('postLoadsToggle').checked;
+              await updateAccessControl(acl);
+              showNotification('Post loads control updated successfully', 'success');
+              // Update global variable
+              accessControlData = acl;
+              // Re-render to update UI
+              render();
+            } catch (error) {
+              console.error('Failed to save post loads control:', error);
+              showNotification('Failed to save post loads control: ' + error.message, 'error');
+            }
+          };
+        }
+        
+        // User access control
+        const btnLoadUserAccess = el('btnLoadUserAccess');
+        if (btnLoadUserAccess) {
+          btnLoadUserAccess.onclick = async () => {
+            const userId = el('userAccessSelect').value;
+            if (!userId) {
+              showNotification('Please select a user', 'error');
+              return;
+            }
+            
+            try {
+              const users = await getUsers();
+              const user = users.find(u => u.id === userId);
+              if (!user) {
+                showNotification('User not found', 'error');
+                return;
+              }
+              
+              // Show user access controls
+              setHidden('userAccessControls', false);
+              
+              // Update user info
+              setText('selectedUserName', user.name);
+              setText('selectedUserEmail', user.email);
+              el('selectedUserAvatar').textContent = user.name.charAt(0).toUpperCase();
+              
+              // Get user access settings
+              const acl = await getAccessControl();
+              const userAccess = acl.user_access || {};
+              const userSettings = userAccess[userId] || {};
+              
+              // Set toggle states
+              el('canPostLoadsToggle').checked = userSettings.can_post_loads !== false;
+              el('canAccessMarketToggle').checked = userSettings.can_access_market !== false;
+              
+              // Store user ID for saving
+              el('btnSaveUserAccess').dataset.userId = userId;
+            } catch (error) {
+              console.error('Failed to load user access:', error);
+              showNotification('Failed to load user access: ' + error.message, 'error');
+            }
+          };
+        }
+        
+        // Save user access control
+        const btnSaveUserAccess = el('btnSaveUserAccess');
+        if (btnSaveUserAccess) {
+          btnSaveUserAccess.onclick = async () => {
+            const userId = btnSaveUserAccess.dataset.userId;
+            if (!userId) {
+              showNotification('No user selected', 'error');
+              return;
+            }
+            
+            try {
+              const acl = await getAccessControl();
+              
+              // Initialize user_access if not present
+              if (!acl.user_access) {
+                acl.user_access = {};
+              }
+              
+              // Update user settings
+              acl.user_access[userId] = {
+                can_post_loads: el('canPostLoadsToggle').checked,
+                can_access_market: el('canAccessMarketToggle').checked
+              };
+              
+              await updateAccessControl(acl);
+              showNotification('User access control updated successfully', 'success');
+              // Update global variable
+              accessControlData = acl;
+              // Re-render to update UI
+              render();
+            } catch (error) {
+              console.error('Failed to save user access control:', error);
+              showNotification('Failed to save user access control: ' + error.message, 'error');
+            }
           };
         }
         
