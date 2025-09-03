@@ -5,9 +5,7 @@ import uuid
 import json
 import os
 from werkzeug.security import generate_password_hash, check_password_hash
-
 app = Flask(__name__)
-
 # Configure the database with persistent storage
 # Check if we're running on Render
 if os.environ.get('RENDER'):
@@ -25,11 +23,9 @@ else:
         os.makedirs(db_dir)
     db_path = os.path.join(db_dir, 'makiwafreight.db')
     print(f"Using local database at: {db_path}")
-
 app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
-
 # Define database models
 class User(db.Model):
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
@@ -49,7 +45,6 @@ class User(db.Model):
     
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
-
 class Load(db.Model):
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     ref = db.Column(db.String(10), nullable=False)
@@ -64,23 +59,19 @@ class Load(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     shipper = db.relationship('User', backref=db.backref('loads', lazy=True))
-
 class Message(db.Model):
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     sender_email = db.Column(db.String(100), nullable=False)
     recipient_email = db.Column(db.String(100), nullable=False)
     body = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
 class AccessControl(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     data = db.Column(db.Text)  # JSON string containing access control data
-
 class Banner(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     index = db.Column(db.String(200))
     dashboard = db.Column(db.String(200))
-
 # Helper functions
 def check_auth(request):
     token = request.headers.get('Authorization')
@@ -88,7 +79,6 @@ def check_auth(request):
         return None
     token = token.split(' ')[1]
     return User.query.filter_by(token=token).first()
-
 def get_default_access_control_data():
     return {
         'pages': {
@@ -96,7 +86,7 @@ def get_default_access_control_data():
                 'allowed_roles': ['admin', 'shipper', 'transporter']  # All roles can post loads
             },
             'market': {
-                'allowed_roles': ['admin', 'shipper', 'carrier']
+                'allowed_roles': ['admin', 'shipper', 'transporter']  # All roles can access market
             }
         },
         'banners': {
@@ -106,7 +96,6 @@ def get_default_access_control_data():
         'post_loads_enabled': True,  # Global setting to control post loads access
         'user_access': {}  # User-specific access control
     }
-
 def get_access_control():
     ac = AccessControl.query.first()
     if not ac:
@@ -166,7 +155,6 @@ def get_access_control():
         ac.data = json.dumps(data)
         db.session.commit()
     return data
-
 def update_access_control(data):
     ac = AccessControl.query.first()
     if not ac:
@@ -176,14 +164,12 @@ def update_access_control(data):
     ac.data = json.dumps(data)
     db.session.commit()
     return data
-
 def get_banners():
     ac_data = get_access_control()
     return {
         'index': ac_data.get('banners', {}).get('index', ''),
         'dashboard': ac_data.get('banners', {}).get('dashboard', '')
     }
-
 def update_banners(banners):
     ac_data = get_access_control()
     if 'banners' not in ac_data:
@@ -193,7 +179,6 @@ def update_banners(banners):
     ac_data['banners']['dashboard'] = banners.get('dashboard', '')
     
     return update_access_control(ac_data)
-
 # Initialize admin user and database
 def initialize_data():
     with app.app_context():
@@ -250,7 +235,6 @@ def initialize_data():
             print("Access control data created")
         else:
             print("Access control data already exists")
-
 # Debug route to check database status
 @app.route('/api/debug/db')
 def debug_db():
@@ -303,7 +287,6 @@ def debug_db():
         return jsonify({
             "error": str(e)
         }), 500
-
 # Backup and restore endpoints
 @app.route('/api/admin/backup', methods=['POST'])
 def backup_data():
@@ -343,7 +326,6 @@ def backup_data():
             "message": "Backup failed",
             "error": str(e)
         }), 500
-
 @app.route('/api/admin/restore', methods=['POST'])
 def restore_data():
     try:
@@ -396,7 +378,6 @@ def restore_data():
             "message": "Restore failed",
             "error": str(e)
         }), 500
-
 @app.route('/api/admin/list-backups', methods=['GET'])
 def list_backups():
     try:
@@ -439,12 +420,10 @@ def list_backups():
             "message": "Failed to retrieve backups",
             "error": str(e)
         }), 500
-
 # Routes
 @app.route('/')
 def index():
     return render_template('index.html')
-
 @app.route('/api')
 def api_info():
     return jsonify({
@@ -470,7 +449,6 @@ def api_info():
             "version": "1.0.0"
         }
     })
-
 @app.route('/api/health')
 def health():
     return jsonify({
@@ -478,7 +456,6 @@ def health():
         "message": "Service is healthy",
         "data": {"status": "healthy"}
     })
-
 # Auth endpoints
 @app.route('/api/auth/register', methods=['POST'])
 def register():
@@ -534,7 +511,6 @@ def register():
             "message": "Registration failed",
             "error": str(e)
         }), 500
-
 @app.route('/api/auth/login', methods=['POST'])
 def login():
     try:
@@ -579,7 +555,6 @@ def login():
             "message": "Login failed",
             "error": str(e)
         }), 500
-
 # Get current user endpoint
 @app.route('/api/users/me', methods=['GET'])
 def get_current_user():
@@ -615,7 +590,6 @@ def get_current_user():
             "message": "Failed to retrieve user data",
             "error": str(e)
         }), 500
-
 # Update current user endpoint
 @app.route('/api/users/me', methods=['PUT'])
 def update_current_user():
@@ -666,7 +640,6 @@ def update_current_user():
             "message": "Profile update failed",
             "error": str(e)
         }), 500
-
 # Admin banners endpoints
 @app.route('/api/admin/banners', methods=['GET'])
 def get_admin_banners():
@@ -691,7 +664,6 @@ def get_admin_banners():
             "message": "Failed to retrieve banners",
             "error": str(e)
         }), 500
-
 @app.route('/api/admin/banners', methods=['POST'])
 def update_admin_banners():
     try:
@@ -725,7 +697,6 @@ def update_admin_banners():
             "message": "Banner update failed",
             "error": str(e)
         }), 500
-
 # Admin access control endpoints
 @app.route('/api/admin/access-control', methods=['GET'])
 def get_admin_access_control():
@@ -750,7 +721,6 @@ def get_admin_access_control():
             "message": "Failed to retrieve access control data",
             "error": str(e)
         }), 500
-
 @app.route('/api/admin/access-control', methods=['PUT'])
 def update_admin_access_control():
     try:
@@ -777,7 +747,6 @@ def update_admin_access_control():
             "message": "Failed to update access control",
             "error": str(e)
         }), 500
-
 # Load endpoints
 @app.route('/api/loads', methods=['GET', 'POST'])
 def handle_loads():
@@ -808,7 +777,7 @@ def handle_loads():
                 "data": {"loads": result}
             })
         
-        # Create new load (requires authentication and access checks)
+        # Create new load (requires authentication)
         if request.method == 'POST':
             if not user:
                 return jsonify({
@@ -817,122 +786,53 @@ def handle_loads():
                     "error": "Please login to post loads"
                 }), 401
             
-            # Check access control
-            access_control = get_access_control()
-            
-            # Check global setting first
-            if not access_control.get('post_loads_enabled', True):
-                return jsonify({
-                    "success": False,
-                    "message": "Access denied",
-                    "error": "Posting loads is currently disabled"
-                }), 403
-            
-            # Check user-specific access control
-            user_access = access_control.get('user_access', {})
-            user_id = user.id
-            
-            # If user has specific access control settings, check them
-            if user_id in user_access:
-                user_settings = user_access[user_id]
-                if not user_settings.get('can_post_loads', True):
+            data = request.get_json()
+            required_fields = ['ref', 'origin', 'destination', 'date', 'cargo_type', 'weight']
+            for field in required_fields:
+                if field not in data:
                     return jsonify({
                         "success": False,
-                        "message": "Access denied",
-                        "error": "You do not have permission to post loads"
-                    }), 403
-                
-                data = request.get_json()
-                required_fields = ['ref', 'origin', 'destination', 'date', 'cargo_type', 'weight']
-                for field in required_fields:
-                    if field not in data:
-                        return jsonify({
-                            "success": False,
-                            "message": "Load creation failed",
-                            "error": f"Missing field: {field}"
-                        }), 400
-                
-                # Set expiration date (7 days from creation)
-                expires_at = datetime.utcnow() + timedelta(days=7)
-                
-                new_load = Load(
-                    ref=data['ref'],
-                    origin=data['origin'],
-                    destination=data['destination'],
-                    date=data['date'],
-                    cargo_type=data['cargo_type'],
-                    weight=data['weight'],
-                    notes=data.get('notes', ''),
-                    shipper_id=user.id,
-                    expires_at=expires_at
-                )
-                
-                db.session.add(new_load)
-                db.session.commit()
-                
-                return jsonify({
-                    "success": True,
-                    "message": "Load created successfully",
-                    "data": {
-                        "load": {
-                            "id": new_load.id,
-                            "ref": new_load.ref,
-                            "origin": new_load.origin,
-                            "destination": new_load.destination,
-                            "expires_at": new_load.expires_at.isoformat()
-                        }
+                        "message": "Load creation failed",
+                        "error": f"Missing field: {field}"
+                    }), 400
+            
+            # Set expiration date (7 days from creation)
+            expires_at = datetime.utcnow() + timedelta(days=7)
+            
+            new_load = Load(
+                ref=data['ref'],
+                origin=data['origin'],
+                destination=data['destination'],
+                date=data['date'],
+                cargo_type=data['cargo_type'],
+                weight=data['weight'],
+                notes=data.get('notes', ''),
+                shipper_id=user.id,
+                expires_at=expires_at
+            )
+            
+            db.session.add(new_load)
+            db.session.commit()
+            
+            return jsonify({
+                "success": True,
+                "message": "Load created successfully",
+                "data": {
+                    "load": {
+                        "id": new_load.id,
+                        "ref": new_load.ref,
+                        "origin": new_load.origin,
+                        "destination": new_load.destination,
+                        "expires_at": new_load.expires_at.isoformat()
                     }
-                }), 201
-            else:
-                # If no user-specific settings, use default behavior
-                data = request.get_json()
-                required_fields = ['ref', 'origin', 'destination', 'date', 'cargo_type', 'weight']
-                for field in required_fields:
-                    if field not in data:
-                        return jsonify({
-                            "success": False,
-                            "message": "Load creation failed",
-                            "error": f"Missing field: {field}"
-                        }), 400
-                
-                # Set expiration date (7 days from creation)
-                expires_at = datetime.utcnow() + timedelta(days=7)
-                
-                new_load = Load(
-                    ref=data['ref'],
-                    origin=data['origin'],
-                    destination=data['destination'],
-                    date=data['date'],
-                    cargo_type=data['cargo_type'],
-                    weight=data['weight'],
-                    notes=data.get('notes', ''),
-                    shipper_id=user.id,
-                    expires_at=expires_at
-                )
-                
-                db.session.add(new_load)
-                db.session.commit()
-                
-                return jsonify({
-                    "success": True,
-                    "message": "Load created successfully",
-                    "data": {
-                        "load": {
-                            "id": new_load.id,
-                            "ref": new_load.ref,
-                            "origin": new_load.origin,
-                            "destination": new_load.destination,
-                            "expires_at": new_load.expires_at.isoformat()
-                        }
-                    }
-                }), 201
+                }
+            }), 201
     except Exception as e:
         return jsonify({
             "success": False,
             "message": "Operation failed",
             "error": str(e)
         }), 500
-
 # Update load endpoint
 @app.route('/api/loads/<load_id>', methods=['PUT'])
 def update_load_endpoint(load_id):
@@ -998,7 +898,6 @@ def update_load_endpoint(load_id):
             "message": "Failed to update load",
             "error": str(e)
         }), 500
-
 # Delete load endpoint
 @app.route('/api/loads/<load_id>', methods=['DELETE'])
 def delete_load_endpoint(load_id):
@@ -1041,7 +940,6 @@ def delete_load_endpoint(load_id):
             "message": "Failed to delete load",
             "error": str(e)
         }), 500
-
 # Message endpoints
 @app.route('/api/messages', methods=['GET', 'POST'])
 def handle_messages():
@@ -1117,7 +1015,6 @@ def handle_messages():
             "message": "Message operation failed",
             "error": str(e)
         }), 500
-
 # User management (admin only)
 @app.route('/api/users', methods=['GET'])
 def get_users():
@@ -1154,7 +1051,6 @@ def get_users():
             "message": "Failed to retrieve users",
             "error": str(e)
         }), 500
-
 # Delete user endpoint
 @app.route('/api/users/<email>', methods=['DELETE'])
 def delete_user_endpoint(email):
@@ -1196,7 +1092,6 @@ def delete_user_endpoint(email):
             "message": "Failed to delete user",
             "error": str(e)
         }), 500
-
 # Reset password endpoint
 @app.route('/api/admin/reset-password', methods=['POST'])
 def reset_password_endpoint():
@@ -1242,12 +1137,10 @@ def reset_password_endpoint():
             "message": "Failed to reset password",
             "error": str(e)
         }), 500
-
 # Initialize data and run app
 print("Initializing application...")
 initialize_data()
 print("Application initialized")
-
 # Use a production WSGI server when running on Render
 if __name__ == '__main__':
     if os.environ.get('RENDER'):
