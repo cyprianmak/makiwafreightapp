@@ -757,7 +757,7 @@
         </div>
       </div>
     </section>
-    <div class="footer">Demo build – data stored locally in your browser. Replace with real API in production.</div>
+    <div class="footer">Demo build – data stored in PostgreSQL database.</div>
   </main>
   
   <!-- Notification Container -->
@@ -1945,9 +1945,9 @@
           return;
         }
         
-        // Check if user has access to the current page
+        // Check if user has access to current page
         if (u && !canAccessPage(u, page)) {
-          // If the user is an admin, they can access everything, so this shouldn't happen.
+          // If user is an admin, they can access everything, so this shouldn't happen.
           // For non-admin, redirect to their role's dashboard or index?
           if (u.role === 'shipper') {
             location.hash = '#shipper-dashboard';
@@ -2419,7 +2419,7 @@
         }
       };
       
-      // Initialize the app
+      // Initialize app
       const init = () => {
         // Set up hash change listener
         window.addEventListener('hashchange', () => show(location.hash));
@@ -2438,7 +2438,7 @@
         });
       };
       
-      // Start the app when DOM is ready
+      // Start app when DOM is ready
       if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);
       } else {
