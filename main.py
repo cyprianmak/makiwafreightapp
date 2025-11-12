@@ -43,6 +43,26 @@ else:
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
+# ✅ Add this route right after initializing the database
+from sqlalchemy import text
+
+@app.route("/api/debug/db")
+def debug_db():
+    try:
+        db.session.execute(text("SELECT 1"))
+        db.session.commit()
+        return jsonify({
+            "database_type": db.engine.name,
+            "status": "OK"
+        }), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            "database_type": db.engine.name,
+            "status": "ERROR",
+            "error": str(e)
+        }), 500
+
 
 # Define database models
 class User(db.Model):
@@ -2322,6 +2342,7 @@ def reset_password_endpoint():
 
 # Initialize data and run app
 print("Initializing application...")
+db.session.rollback()
 initialize_data()
 print("Application initialized")
 
