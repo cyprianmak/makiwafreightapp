@@ -351,7 +351,7 @@
           </div>
           <div>
             <label for="loginPassword">Password</label>
-            <input required type="password" id="loginPassword" name="password" placeholder="••••••••" autocomplete="current-password" />
+            <input required type="password" id="loginPassword" name="password" placeholder="•••••••" autocomplete="current-password" />
           </div>
         </div>
         <div class="toolbar" style="margin-top:12px">
@@ -919,19 +919,23 @@
         if (!email || !password) return null;
         
         email = email.trim().toLowerCase();
-        const response = await apiRequest('/auth/login', {
-          method: 'POST',
-          body: JSON.stringify({ email, password })
-        });
         
-        if (response.success && response.data) {
-          localStorage.setItem('authToken', response.data.token);
-          localStorage.setItem('currentUser', JSON.stringify(response.data.user));
-          showNotification(response.message, 'success');
-          return response.data.user;
-        } else {
-          showNotification(response.message, 'error');
-          return null;
+        try {
+          const response = await apiRequest('/auth/login', {
+            method: 'POST',
+            body: JSON.stringify({ email, password })
+          });
+          
+          if (response.success && response.data) {
+            localStorage.setItem('authToken', response.data.token);
+            localStorage.setItem('currentUser', JSON.stringify(response.data.user));
+            return response.data.user;
+          } else {
+            throw new Error(response.message || 'Login failed');
+          }
+        } catch (error) {
+          console.error('Login error:', error);
+          throw error;
         }
       };
       
@@ -1024,82 +1028,42 @@
         }
       };
       
-const postLoad = async (payload) => {
-  // Validate required fields
-  if (!payload.origin || !payload.destination || !payload.date || !payload.cargo_type || !payload.weight) {
-    throw new Error('All required fields must be filled');
-  }
-  
-  // Sanitize inputs
-  const sanitizedPayload = {
-    origin: sanitize(payload.origin),
-    destination: sanitize(payload.destination),
-    date: payload.date,
-    cargo_type: sanitize(payload.cargo_type),
-    weight: parseFloat(payload.weight),
-    notes: sanitize(payload.notes || '')
-  };
-  
-  console.log('Sending payload:', sanitizedPayload); // This will show us what we're sending
-  
-  try {
-    const response = await apiRequest('/loads', {
-      method: 'POST',
-      body: JSON.stringify(sanitizedPayload)
-    });
-    
-    if (response.success) {
-      showNotification(response.message, 'success');
-      return response.data;
-    } else {
-      showNotification(response.message, 'error');
-      throw new Error(response.error || 'Failed to post load');
-    }
-  } catch (error) {
-    console.error('Error posting load:', error);
-    throw error;
-  }
-};
-  
-  console.log('Sending payload:', sanitizedPayload); // This will show us what we're sending
-  
-  try {
-    const response = await apiRequest('/loads', {
-      method: 'POST',
-      body: JSON.stringify(sanitizedPayload)
-    });
-    
-    if (response.success) {
-      showNotification(response.message, 'success');
-      return response.data;
-    } else {
-      showNotification(response.message, 'error');
-      throw new Error(response.error || 'Failed to post load');
-    }
-  } catch (error) {
-    console.error('Error posting load:', error);
-    throw error;
-  }
-};
-  
-  try {
-    const response = await apiRequest('/loads', {
-      method: 'POST',
-      body: JSON.stringify(sanitizedPayload)
-    });
-    
-    if (response.success) {
-      showNotification(response.message, 'success');
-      return response.data;
-    } else {
-      showNotification(response.message, 'error');
-      throw new Error(response.error || 'Failed to post load');
-    }
-  } catch (error) {
-    console.error('Error posting load:', error);
-    throw error;
-  }
-};
+      const postLoad = async (payload) => {
+        // Validate required fields
+        if (!payload.origin || !payload.destination || !payload.date || !payload.cargo_type || !payload.weight) {
+          throw new Error('All required fields must be filled');
+        }
+        
+        // Sanitize inputs
+        const sanitizedPayload = {
+          origin: sanitize(payload.origin),
+          destination: sanitize(payload.destination),
+          date: payload.date,
+          cargo_type: sanitize(payload.cargo_type),
+          weight: parseFloat(payload.weight),
+          notes: sanitize(payload.notes || '')
+        };
+        
+        console.log('Sending payload:', sanitizedPayload); // This will show us what we're sending
+        
+        try {
+          const response = await apiRequest('/loads', {
+            method: 'POST',
+            body: JSON.stringify(sanitizedPayload)
+          });
+          
+          if (response.success) {
+            showNotification(response.message, 'success');
+            return response.data;
+          } else {
+            showNotification(response.message, 'error');
+            throw new Error(response.error || 'Failed to post load');
+          }
+        } catch (error) {
+          console.error('Error posting load:', error);
+          throw error;
+        }
+      };
       
       const updateLoad = async (loadId, patch) => {
         if (!loadId) throw new Error('Load ID is required');
@@ -2023,23 +1987,33 @@ const postLoad = async (payload) => {
         if (formLogin) {
           formLogin.onsubmit = async e => {
             e.preventDefault();
-            const fd = new FormData(e.target);
-            const email = fd.get('email');
-            const password = fd.get('password');
+            
+            // Get values directly from form fields
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
             
             if (!email || !password) {
               showNotification('Please enter both email and password', 'error');
               return;
             }
             
-            const user = await login(email, password);
-            if (!user) {
-              return;
+            try {
+              const user = await login(email, password);
+              if (user) {
+                showNotification('Login successful!', 'success');
+                
+                // Redirect based on role
+                if (user.role === 'shipper') {
+                  location.hash = '#shipper-dashboard';
+                } else if (user.role === 'transporter') {
+                  location.hash = '#transporter-dashboard';
+                } else if (isAdmin(user)) {
+                  location.hash = '#control';
+                }
+              }
+            } catch (error) {
+              showNotification('Login failed: ' + error.message, 'error');
             }
-            
-            if (user.role === 'shipper') location.hash = '#shipper-dashboard';
-            else if (user.role === 'transporter') location.hash = '#transporter-dashboard';
-            else if (isAdmin(user)) location.hash = '#control';
           };
         }
         
@@ -2090,51 +2064,69 @@ const postLoad = async (payload) => {
         
         // Post load form
         const formPostLoad = el('formPostLoad');
-if (formPostLoad) {
-  formPostLoad.onsubmit = async e => {
-    e.preventDefault();
+        if (formPostLoad) {
+          formPostLoad.onsubmit = async e => {
+            e.preventDefault();
     
-    const u = await getCurrentUser();
-    
-    if (!u) {
-      showNotification('Please log in to post a load', 'error');
-      return;
-    }
-    
-    // Get values directly from form fields
-    const origin = document.getElementById('loadOrigin').value;
-    const destination = document.getElementById('loadDestination').value;
-    const date = document.getElementById('loadDate').value;
-    const cargo_type = document.getElementById('loadCargo').value;
-    const weight = document.getElementById('loadWeight').value;
-    const notes = document.getElementById('loadNotes').value;
-    
-    // Check if all required fields are filled
-    if (!origin || !destination || !date || !cargo_type || !weight) {
-      showNotification('Please fill in all required fields', 'error');
-      return;
-    }
-    
-    try {
-      const result = await postLoad({
-        origin: origin,
-        destination: destination,
-        date: date,
-        cargo_type: cargo_type,
-        weight: weight,
-        notes: notes
-      });
-      
-      if (result) {
-        showNotification('Load posted successfully!', 'success');
-        e.target.reset();
-        location.hash = '#shipper-dashboard';
-      }
-    } catch (error) {
-      showNotification('Failed to post load: ' + error.message, 'error');
-    }
-  };
-}
+            const u = await getCurrentUser();
+            
+            if (!u) {
+              showNotification('Please log in to post a load', 'error');
+              return;
+            }
+            
+            // Get values directly from form fields
+            const origin = document.getElementById('loadOrigin').value;
+            const destination = document.getElementById('loadDestination').value;
+            const date = document.getElementById('loadDate').value;
+            const cargo_type = document.getElementById('loadCargo').value;
+            const weight = document.getElementById('loadWeight').value;
+            const notes = document.getElementById('loadNotes').value;
+            
+            // Check if all required fields are filled
+            if (!origin || !destination || !date || !cargo_type || !weight) {
+              showNotification('Please fill in all required fields', 'error');
+              return;
+            }
+            
+            try {
+              const result = await postLoad({
+                origin: origin,
+                destination: destination,
+                date: date,
+                cargo_type: cargo_type,
+                weight: weight,
+                notes: notes
+              });
+              
+              if (result) {
+                showNotification('Load posted successfully!', 'success');
+                e.target.reset();
+                location.hash = '#shipper-dashboard';
+              }
+            } catch (error) {
+              showNotification('Failed to post load: ' + error.message, 'error');
+            }
+          };
+        }
+        
+        // Save shipper profile
+        const saveProfileShipper = el('saveProfileShipper');
+        if (saveProfileShipper) {
+          saveProfileShipper.onclick = async () => {
+            const u = await getCurrentUser();
+            if (!u) return;
+            
+            const f = el('formProfileShipper');
+            if (!f) return;
+            
+            handleError(async () => {
+              const data = Object.fromEntries(new FormData(f).entries());
+              await updateUserProfile(u.id, data);
+              render();
+            }, 'Failed to save profile');
+          };
+        }
         
         // Save transporter profile
         const saveProfileTransporter = el('saveProfileTransporter');
@@ -2254,232 +2246,4 @@ if (formPostLoad) {
         // Save user access control
         const btnSaveUserAccess = el('btnSaveUserAccess');
         if (btnSaveUserAccess) {
-          btnSaveUserAccess.onclick = async () => {
-            const userId = btnSaveUserAccess.dataset.userId;
-            if (!userId) {
-              showNotification('No user selected', 'error');
-              return;
-            }
-            
-            try {
-              const acl = await getAccessControl();
-              
-              // Initialize user_access if not present
-              if (!acl.user_access) {
-                acl.user_access = {};
-              }
-              
-              // Update user settings
-              acl.user_access[userId] = {
-                can_post_loads: el('canPostLoadsToggle').checked,
-                can_access_market: el('canAccessMarketToggle').checked
-              };
-              
-              await updateAccessControl(acl);
-              showNotification('User access control updated successfully', 'success');
-              // Update global variable
-              accessControlData = acl;
-              // Re-render to update UI
-              render();
-            } catch (error) {
-              console.error('Failed to save user access control:', error);
-              showNotification('Failed to save user access control: ' + error.message, 'error');
-            }
-          };
-        }
-        
-        // Admin controls
-        const btnSaveBanners = el('btnSaveBanners');
-        if (btnSaveBanners) {
-          btnSaveBanners.onclick = async () => {
-            const banners = {
-              index: el('adminIndexBanner').value || '',
-              dashboard: el('adminDashBanner').value || ''
-            };
-            await updateBanners(banners);
-            render();
-          };
-        }
-        
-        const btnClearBanners = el('btnClearBanners');
-        if (btnClearBanners) {
-          btnClearBanners.onclick = async () => {
-            await updateBanners({ index: '', dashboard: '' });
-            render();
-          };
-        }
-        
-        // Save page access
-        const btnSavePageAccess = el('btnSavePageAccess');
-        if (btnSavePageAccess) {
-          btnSavePageAccess.onclick = async () => {
-            try {
-              const acl = await getAccessControl();
-              
-              // Initialize pages if not present
-              if (!acl.pages) acl.pages = {};
-              
-              // Get page access data from checkboxes
-              const pageSections = [
-                { id: 'post_load', name: 'Post Load' },
-                { id: 'market', name: 'Market' }
-              ];
-              
-              pageSections.forEach(page => {
-                if (!acl.pages[page.id]) {
-                  acl.pages[page.id] = { allowed_roles: [] };
-                }
-                
-                // Reset allowed roles
-                acl.pages[page.id].allowed_roles = [];
-                
-                // Get all checked roles for this page
-                ROLES.forEach(role => {
-                  const checkbox = el(`page_${page.id}_role_${role}`);
-                  if (checkbox && checkbox.checked) {
-                    acl.pages[page.id].allowed_roles.push(role);
-                  }
-                });
-              });
-              
-              await updateAccessControl(acl);
-              showNotification('Page access control updated successfully', 'success');
-            } catch (error) {
-              console.error('Failed to save page access:', error);
-              showNotification('Failed to save page access: ' + error.message, 'error');
-            }
-          };
-        }
-        
-        // Load management
-        const btnEditLoad = el('btnEditLoad');
-        if (btnEditLoad) {
-          btnEditLoad.onclick = async () => {
-            const loadId = el('selectLoad').value;
-            if (!loadId) {
-              showNotification('Please select a load to edit', 'error');
-              return;
-            }
-            
-            try {
-              const loads = await getLoads();
-              const load = loads.find(l => l.id === loadId);
-              if (!load) {
-                showNotification('Load not found', 'error');
-                return;
-              }
-              
-              const origin = prompt('Origin', load.origin);
-              if (origin === null) return;
-              
-              const destination = prompt('Destination', load.destination);
-              if (destination === null) return;
-              
-              const date = prompt('Date (YYYY-MM-DD)', load.date);
-              if (date === null) return;
-              
-              const cargo_type = prompt('Cargo', load.cargo_type);
-              if (cargo_type === null) return;
-              
-              const weight = prompt('Weight', load.weight);
-              if (weight === null) return;
-              
-              const notes = prompt('Notes', load.notes || '');
-              if (notes === null) return;
-              
-              handleError(async () => {
-                await updateLoad(load.id, { origin, destination, date, cargo_type, weight, notes });
-                render();
-              }, 'Failed to update load');
-            } catch (error) {
-              console.error('Failed to edit load:', error);
-            }
-          };
-        }
-        
-        const btnDeleteLoad = el('btnDeleteLoad');
-        if (btnDeleteLoad) {
-          btnDeleteLoad.onclick = async () => {
-            const loadId = el('selectLoad').value;
-            if (!loadId) {
-              showNotification('Please select a load to delete', 'error');
-              return;
-            }
-            
-            if (confirm('Are you sure you want to delete this load?')) {
-              handleError(async () => {
-                await deleteLoad(loadId);
-                render();
-              }, 'Failed to delete load');
-            }
-          };
-        }
-        
-        // Reset password
-        const btnResetPass = el('btnResetPass');
-        if (btnResetPass) {
-          btnResetPass.onclick = async () => {
-            const email = el('selectUserForPassword').value;
-            const newPass = el('resetPass').value;
-            
-            if (!email || !newPass) {
-              showNotification('Please select a user and enter a new password', 'error');
-              return;
-            }
-            
-            handleError(async () => {
-              await resetPassword(email, newPass);
-              el('resetPass').value = '';
-              showNotification('Password reset successfully', 'success');
-            }, 'Failed to reset password');
-          };
-        }
-        
-        // Refresh access control
-        const btnRefreshAccessControl = el('btnRefreshAccessControl');
-        if (btnRefreshAccessControl) {
-          btnRefreshAccessControl.onclick = async () => {
-            handleError(async () => {
-              render();
-            }, 'Failed to refresh access control');
-          };
-        }
-        
-        // Top nav buttons
-        const btnLoginNav = el('btnLoginNav');
-        if (btnLoginNav) {
-          btnLoginNav.onclick = () => {
-            location.hash = '#login';
-          };
-        }
-      };
-      
-      // Initialize app
-      const init = () => {
-        // Set up hash change listener
-        window.addEventListener('hashchange', () => show(location.hash));
-        
-        // Initialize event listeners
-        initEventListeners();
-        
-        // Initial render
-        show(location.hash);
-        
-        // Add error handler for uncaught errors
-        window.addEventListener('error', event => {
-          console.error('Uncaught error:', event.error);
-          // Prevent default error handling
-          event.preventDefault();
-        });
-      };
-      
-      // Start app when DOM is ready
-      if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', init);
-      } else {
-        init();
-      }
-    })();
-  </script>
-</body>
-</html>
+          btnSaveUserAccess.onclick = async ()
