@@ -2032,10 +2032,13 @@
         if (formLogin) {
           formLogin.onsubmit = async e => {
             e.preventDefault();
-            const form = document.getElementById('formPostLoad');
-const fd = new FormData(form);
-            const email = fd.get('email');
-            const password = fd.get('password');
+            
+            // FIX 1: Get the LOGIN form, not the POST LOAD form
+            const form = document.getElementById('formLogin');
+            
+            // FIX 2: Get values directly, don't use FormData
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
             
             if (!email || !password) {
               showNotification('Please enter both email and password', 'error');
