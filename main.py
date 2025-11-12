@@ -5,27 +5,45 @@ import uuid
 import json
 import os
 from werkzeug.security import generate_password_hash, check_password_hash
+
 app = Flask(__name__)
-# Configure the database with persistent storage
-# Check if we're running on Render
+
+# ✅ Configure the database properly for Render PostgreSQL
 if os.environ.get('RENDER'):
-    # Use Render's persistent storage
-    persistent_dir = '/opt/render/project/.render/data'
-    if not os.path.exists(persistent_dir):
-        os.makedirs(persistent_dir)
-    db_path = os.path.join(persistent_dir, 'makiwafreight.db')
-    print(f"Using persistent database at: {db_path}")
+    database_url = os.environ.get('DATABASE_URL')
+    if database_url:
+        # Fix old postgres:// URLs
+        if database_url.startswith("postgres://"):
+            database_url = database_url.replace("postgres://", "postgresql://", 1)
+        app.config['SQLALCHEMY_DATABASE_URI'] = database_url
+        print(f"✅ Using PostgreSQL database at: {database_url}")
+    else:
+        # Fallback to persistent SQLite if DATABASE_URL not found
+        persistent_dir = '/opt/render/project/.render/data'
+        os.makedirs(persistent_dir, exist_ok=True)
+        db_path = os.path.join(persistent_dir, 'makiwafreight.db')
+        app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
+        print(f"⚠️ DATABASE_URL not found, using SQLite fallback at: {db_path}")
 else:
-    # Local development - use data directory
-    basedir = os.path.abspath(os.path.dirname(__file__))
-    db_dir = os.path.join(basedir, 'data')
-    if not os.path.exists(db_dir):
-        os.makedirs(db_dir)
-    db_path = os.path.join(db_dir, 'makiwafreight.db')
-    print(f"Using local database at: {db_path}")
-app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
+    # Local development: check for DATABASE_URL first, else fallback to SQLite
+    database_url = os.environ.get('DATABASE_URL')
+    if database_url:
+        if database_url.startswith("postgres://"):
+            database_url = database_url.replace("postgres://", "postgresql://", 1)
+        app.config['SQLALCHEMY_DATABASE_URI'] = database_url
+        print(f"✅ Using local PostgreSQL database at: {database_url}")
+    else:
+        basedir = os.path.abspath(os.path.dirname(__file__))
+        db_dir = os.path.join(basedir, 'data')
+        os.makedirs(db_dir, exist_ok=True)
+        db_path = os.path.join(db_dir, 'makiwafreight.db')
+        app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
+        print(f"⚙️ Using local SQLite at: {db_path}")
+
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
+
+
 # Define database models
 class User(db.Model):
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
