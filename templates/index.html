@@ -309,7 +309,7 @@
       <div class="grid three">
         <div class="card"><h3>For Shippers</h3><p>Post loads, manage offers, and message carriers.</p></div>
         <div class="card"><h3>For Transporters</h3><p>Browse the live load board and message shippers.</p></div>
-        <div class="card"><h3>Secure & Simple</h3><p>Role-based access with PostgreSQL database storage.</p></div>
+        <div class="card"><h3>Secure & Simple</h3><p>Role-based access with client-side storage for demo use.</p></div>
       </div>
     </section>
     
@@ -351,7 +351,7 @@
           </div>
           <div>
             <label for="loginPassword">Password</label>
-            <input required type="password" id="loginPassword" name="password" placeholder="•••••" autocomplete="current-password" />
+            <input required type="password" id="loginPassword" name="password" placeholder="••••••••" autocomplete="current-password" />
           </div>
         </div>
         <div class="toolbar" style="margin-top:12px">
@@ -607,7 +607,8 @@
             </tr></thead><tbody></tbody></table>
           </div>
         </div>
-      </section>
+      </div>
+    </section>
     <!-- Admin Control Page -->
     <section id="page-control" class="hidden" aria-label="Admin control panel">
       <div class="toolbar">
@@ -906,8 +907,7 @@
         
         if (!response.ok) {
           const error = await response.json().catch(() => ({}));
-          console.error('API Error Response:', error); // This will show us exact error
-          throw new Error(error.message || error.error || `API error: ${response.status}`);
+          throw new Error(error.message || `API error: ${response.status}`);
         }
         
         return response.json();
@@ -918,23 +918,19 @@
         if (!email || !password) return null;
         
         email = email.trim().toLowerCase();
+        const response = await apiRequest('/auth/login', {
+          method: 'POST',
+          body: JSON.stringify({ email, password })
+        });
         
-        try {
-          const response = await apiRequest('/auth/login', {
-            method: 'POST',
-            body: JSON.stringify({ email, password })
-          });
-          
-          if (response.success && response.data) {
-            localStorage.setItem('authToken', response.data.token);
-            localStorage.setItem('currentUser', JSON.stringify(response.data.user));
-            return response.data.user;
-          } else {
-            throw new Error(response.message || 'Login failed');
-          }
-        } catch (error) {
-          console.error('Login error:', error);
-          throw error;
+        if (response.success && response.data) {
+          localStorage.setItem('authToken', response.data.token);
+          localStorage.setItem('currentUser', JSON.stringify(response.data.user));
+          showNotification(response.message, 'success');
+          return response.data.user;
+        } else {
+          showNotification(response.message, 'error');
+          return null;
         }
       };
       
@@ -1027,6 +1023,7 @@
         }
       };
       
+      // Load API functions
       const postLoad = async (payload) => {
         // Validate required fields
         if (!payload.origin || !payload.destination || !payload.date || !payload.cargo_type || !payload.weight) {
@@ -1043,24 +1040,34 @@
           notes: sanitize(payload.notes || '')
         };
         
-        console.log('Sending payload:', sanitizedPayload); // This will show us what we're sending
+        const response = await apiRequest('/loads', {
+          method: 'POST',
+          body: JSON.stringify(sanitizedPayload)
+        });
         
-        try {
-          const response = await apiRequest('/loads', {
-            method: 'POST',
-            body: JSON.stringify(sanitizedPayload)
-          });
-          
-          if (response.success) {
-            showNotification(response.message, 'success');
-            return response.data;
-          } else {
-            showNotification(response.message, 'error');
-            throw new Error(response.error || 'Failed to post load');
-          }
-        } catch (error) {
-          console.error('Error posting load:', error);
-          throw error;
+        if (response.success) {
+          showNotification(response.message, 'success');
+          return response.data;
+        } else {
+          showNotification(response.message, 'error');
+          throw new Error(response.error || 'Failed to post load');
+        }
+      };
+      
+      const getLoads = async (filters = {}) => {
+        const params = new URLSearchParams();
+        if (filters.origin) params.append('origin', filters.origin);
+        if (filters.destination) params.append('destination', filters.destination);
+        if (filters.shipper_id) params.append('shipper_id', filters.shipper_id);
+        
+        const endpoint = `/loads${params.toString() ? `?${params.toString()}` : ''}`;
+        const response = await apiRequest(endpoint);
+        
+        if (response.success) {
+          return response.data.loads;
+        } else {
+          showNotification(response.message, 'error');
+          throw new Error(response.error || 'Failed to get loads');
         }
       };
       
@@ -1287,8 +1294,8 @@
         'transporter-dashboard': 'page-transporter-dashboard',
         'transporter-profile': 'page-transporter-profile',
         'market': 'page-market',
-        'messages': 'page-messages',
-        'control': 'page-control'
+        messages: 'page-messages',
+        control: 'page-control'
       };
       
       const show = hash => {
@@ -1660,7 +1667,7 @@
           const base = `
             <div class="grid two">
               <div><label for="${role}Name">Contact Person (Name)</label><input required id="${role}Name" name="name" value="${sanitize(user.name || '')}" /></div>
-              <div><label for="${role}Phone">Phone</label><input required id="${role}Phone" name="phone" value="${sanitize(user.phone || '')}" /></div>
+              <div><label for="${role}Phone">Phone</label><input id="${role}Phone" name="phone" value="${sanitize(user.phone || '')}" /></div>
               <div class="two" style="grid-column:1/-1"><label for="${role}Address">Address</label><input id="${role}Address" name="address" value="${sanitize(user.address || '')}" /></div>
               <div><label for="${role}Password">Password</label><input id="${role}Password" name="password" type="password" value="${user.password || ''}" /></div>
             </div>`;
@@ -1713,12 +1720,10 @@
           
           tbody.querySelectorAll('[data-delmsg]').forEach(b => {
             b.onclick = () => {
-              if (confirm('Are you sure you want to delete this message?')) {
-                handleError(async () => {
-                  await deleteMessage(b.dataset.delmsg);
-                  render();
-                }, 'Failed to delete message');
-              }
+              handleError(async () => {
+                await deleteMessage(b.dataset.delmsg);
+                render();
+              }, 'Failed to delete message');
             };
           });
         } catch (error) {
@@ -1876,7 +1881,6 @@
           const adminDashBanner = el('adminDashBanner');
           if (adminIndexBanner) adminIndexBanner.value = acl.banners?.index || '';
           if (adminDashBanner) adminDashBanner.value = acl.banners?.dashboard || '';
-          }
           
           // Render user access control dropdown
           renderUserAccessControl();
@@ -1926,6 +1930,58 @@
         }
       };
       
+      const render = async () => {
+        await renderHeader();
+        await renderBanners();
+        
+        const u = await getCurrentUser();
+        
+        // Auth guard: if on restricted page and not logged in -> login
+        const restricted = ['shipper-dashboard', 'shipper-post', 'shipper-profile', 'transporter-dashboard', 'transporter-profile', 'market', 'messages', 'control'];
+        const page = (location.hash || '#').replace('#', '') || 'index';
+        
+        if (!u && restricted.includes(page)) {
+          location.hash = '#login';
+          return;
+        }
+        
+        // Check if user has access to current page
+        if (u && !canAccessPage(u, page)) {
+          // If user is an admin, they can access everything, so this shouldn't happen.
+          // For non-admin, redirect to their role's dashboard or index?
+          if (u.role === 'shipper') {
+            location.hash = '#shipper-dashboard';
+          } else if (u.role === 'transporter') {
+            location.hash = '#transporter-dashboard';
+          } else {
+            location.hash = '#index';
+          }
+          return;
+        }
+        
+        if (u) {
+          // Role routing
+          if (page === 'index') {
+            if (u.role === 'shipper') location.hash = '#shipper-dashboard';
+            else if (u.role === 'transporter') location.hash = '#transporter-dashboard';
+            else if (isAdmin(u)) location.hash = '#control';
+          }
+          
+          if (page.startsWith('shipper')) await renderShipper();
+          if (page.startsWith('transporter')) await renderTransporter();
+          if (page === 'market') await renderMarket();
+          if (page === 'messages') await renderMessages();
+          if (page === 'shipper-profile' || page === 'transporter-profile') await renderProfiles();
+          if (page === 'control') {
+            if (!isAdmin(u)) {
+              location.hash = '#login';
+              return;
+            }
+            await renderAdmin();
+          }
+        }
+      };
+      
       // Event bindings
       const initEventListeners = () => {
         // Logout
@@ -1937,33 +1993,23 @@
         if (formLogin) {
           formLogin.onsubmit = async e => {
             e.preventDefault();
-            
-            // Get values directly from form fields
-            const email = document.getElementById('loginEmail').value;
-            const password = document.getElementById('loginPassword').value;
+            const fd = new FormData(e.target);
+            const email = fd.get('email');
+            const password = fd.get('password');
             
             if (!email || !password) {
               showNotification('Please enter both email and password', 'error');
               return;
             }
             
-            try {
-              const user = await login(email, password);
-              if (user) {
-                showNotification('Login successful!', 'success');
-                
-                // Redirect based on role
-                if (user.role === 'shipper') {
-                  location.hash = '#shipper-dashboard';
-                } else if (user.role === 'transporter') {
-                  location.hash = '#transporter-dashboard';
-                } else if (isAdmin(user)) {
-                  location.hash = '#control';
-                }
-              }
-            } catch (error) {
-              showNotification('Login failed: ' + error.message, 'error');
+            const user = await login(email, password);
+            if (!user) {
+              return;
             }
+            
+            if (user.role === 'shipper') location.hash = '#shipper-dashboard';
+            else if (user.role === 'transporter') location.hash = '#transporter-dashboard';
+            else if (isAdmin(user)) location.hash = '#control';
           };
         }
         
@@ -2001,18 +2047,6 @@
                 name: fd.get('name'),
                 company: fd.get('company'),
                 email: fd.get('email'),
-                phone: {
-                  const option = document.createElement('option');
-                  option.value = fd.get('email');
-                  option.textContent = `${fd.get('name')} (${fd.get('email')})`;
-                  passwordSelect.appendChild(option);
-                }
-              }
-              
-              await registerUser({
-                name: fd.get('name'),
-                company: fd.get('company'),
-                email: fd.get('email'),
                 phone: fd.get('phone'),
                 password: fd.get('password'),
                 address: fd.get('address'),
@@ -2029,46 +2063,23 @@
         if (formPostLoad) {
           formPostLoad.onsubmit = async e => {
             e.preventDefault();
-    
+            const fd = new FormData(e.target);
             const u = await getCurrentUser();
             
-            if (!u) {
-              showNotification('Please log in to post a load', 'error');
-              return;
-            }
+            if (!u) return;
             
-            // Get values directly from form fields
-            const origin = document.getElementById('loadOrigin').value;
-            const destination = document.getElementById('loadDestination').value;
-            const date = document.getElementById('loadDate').value;
-            const cargo_type = document.getElementById('loadCargo').value;
-            const weight = document.getElementById('loadWeight').value;
-            const notes = document.getElementById('loadNotes').value;
-            
-            // Check if all required fields are filled
-            if (!origin || !destination || !date || !cargo_type || !weight) {
-              showNotification('Please fill in all required fields', 'error');
-              return;
-            }
-            
-            try {
-              const result = await postLoad({
-                origin: origin,
-                destination: destination,
-                date: date,
-                cargo_type: cargo_type,
-                weight: weight,
-                notes: notes
+            handleError(async () => {
+              await postLoad({
+                origin: fd.get('origin'),
+                destination: fd.get('destination'),
+                date: fd.get('date'),
+                cargo_type: fd.get('cargo_type'),
+                weight: fd.get('weight'),
+                notes: fd.get('notes')
               });
-              
-              if (result) {
-                showNotification('Load posted successfully!', 'success');
-                e.target.reset();
-                location.hash = '#shipper-dashboard';
-              }
-            } catch (error) {
-              showNotification('Failed to post load: ' + error.message, 'error');
-            }
+              e.target.reset();
+              location.hash = '#shipper-dashboard';
+            }, 'Failed to post load');
           };
         }
         
@@ -2090,6 +2101,24 @@
           };
         }
         
+        // Save transporter profile
+        const saveProfileTransporter = el('saveProfileTransporter');
+        if (saveProfileTransporter) {
+          saveProfileTransporter.onclick = async () => {
+            const u = await getCurrentUser();
+            if (!u) return;
+            
+            const f = el('formProfileTransporter');
+            if (!f) return;
+            
+            handleError(async () => {
+              const data = Object.fromEntries(new FormData(f).entries());
+              await updateUserProfile(u.id, data);
+              render();
+            }, 'Failed to save profile');
+          };
+        }
+        
         // Filter loads
         const btnFilterLoads = el('btnFilterLoads');
         if (btnFilterLoads) {
@@ -2097,6 +2126,7 @@
             e.preventDefault();
             renderTransporter();
           };
+        }
         
         // Filter market loads
         const btnMarketFilterLoads = el('btnMarketFilterLoads');
@@ -2105,6 +2135,7 @@
             e.preventDefault();
             renderMarket();
           };
+        }
         
         // Send message form
         const formSendMsg = el('formSendMsg');
@@ -2121,7 +2152,7 @@
           };
         }
         
-        // Admin controls
+        // Post loads control
         const btnSavePostLoadsControl = el('btnSavePostLoadsControl');
         if (btnSavePostLoadsControl) {
           btnSavePostLoadsControl.onclick = async () => {
@@ -2222,6 +2253,27 @@
           };
         }
         
+        // Admin controls
+        const btnSaveBanners = el('btnSaveBanners');
+        if (btnSaveBanners) {
+          btnSaveBanners.onclick = async () => {
+            const banners = {
+              index: el('adminIndexBanner').value || '',
+              dashboard: el('adminDashBanner').value || ''
+            };
+            await updateBanners(banners);
+            render();
+          };
+        }
+        
+        const btnClearBanners = el('btnClearBanners');
+        if (btnClearBanners) {
+          btnClearBanners.onclick = async () => {
+            await updateBanners({ index: '', dashboard: '' });
+            render();
+          };
+        }
+        
         // Save page access
         const btnSavePageAccess = el('btnSavePageAccess');
         if (btnSavePageAccess) {
@@ -2230,9 +2282,7 @@
               const acl = await getAccessControl();
               
               // Initialize pages if not present
-              if (!acl.pages) {
-                acl.pages = {};
-              }
+              if (!acl.pages) acl.pages = {};
               
               // Get page access data from checkboxes
               const pageSections = [
@@ -2241,57 +2291,130 @@
               ];
               
               pageSections.forEach(page => {
-                const pageItem = document.createElement('div');
-                pageItem.className = 'page-access-item';
+                if (!acl.pages[page.id]) {
+                  acl.pages[page.id] = { allowed_roles: [] };
+                }
                 
-                const pageHeader = document.createElement('div');
-                pageHeader.className = 'page-access-header';
+                // Reset allowed roles
+                acl.pages[page.id].allowed_roles = [];
                 
-                const pageTitle = document.createElement('div');
-                pageTitle.className = 'page-access-title';
-                pageTitle.textContent = page.name;
-                
-                pageHeader.appendChild(pageTitle);
-                pageItem.appendChild(pageHeader);
-                
-                const roleCheckboxes = document.createElement('div');
-                roleCheckboxes.className = 'role-checkboxes';
-                
-                // Add checkboxes for each role
+                // Get all checked roles for this page
                 ROLES.forEach(role => {
-                  const checkboxItem = document.createElement('div');
-                  checkboxItem.className = 'role-checkbox-item';
-                  
-                  const checkbox = document.createElement('input');
-                  checkbox.type = 'checkbox';
-                  checkbox.id = `page_${page.id}_role_${role}`;
-                  checkbox.value = role;
-                  
-                  // Check if this role has access to this page
-                  const pageAccess = pages[page.id] || {};
-                  const allowedRoles = pageAccess.allowed_roles || [];
-                  checkbox.checked = allowedRoles.includes(role);
-                  
-                  const label = document.createElement('label');
-                  label.htmlFor = `page_${page.id}_role_${role}`;
-                  label.textContent = role.charAt(0).toUpperCase() + role.slice(1);
-                  
-                  checkboxItem.appendChild(checkbox);
-                  checkboxItem.appendChild(label);
-                  roleCheckboxes.appendChild(checkboxItem);
+                  const checkbox = el(`page_${page.id}_role_${role}`);
+                  if (checkbox && checkbox.checked) {
+                    acl.pages[page.id].allowed_roles.push(role);
+                  }
                 });
-                
-                pageItem.appendChild(roleCheckboxes);
-                container.appendChild(pageItem);
               });
-            });
-            
-            container.appendChild(pageItem);
-          });
-        } catch (error) {
-              console.error('Failed to render page access control:', error);
+              
+              await updateAccessControl(acl);
+              showNotification('Page access control updated successfully', 'success');
+            } catch (error) {
+              console.error('Failed to save page access:', error);
               showNotification('Failed to save page access: ' + error.message, 'error');
             }
+          };
+        }
+        
+        // Load management
+        const btnEditLoad = el('btnEditLoad');
+        if (btnEditLoad) {
+          btnEditLoad.onclick = async () => {
+            const loadId = el('selectLoad').value;
+            if (!loadId) {
+              showNotification('Please select a load to edit', 'error');
+              return;
+            }
+            
+            try {
+              const loads = await getLoads();
+              const load = loads.find(l => l.id === loadId);
+              if (!load) {
+                showNotification('Load not found', 'error');
+                return;
+              }
+              
+              const origin = prompt('Origin', load.origin);
+              if (origin === null) return;
+              
+              const destination = prompt('Destination', load.destination);
+              if (destination === null) return;
+              
+              const date = prompt('Date (YYYY-MM-DD)', load.date);
+              if (date === null) return;
+              
+              const cargo_type = prompt('Cargo', load.cargo_type);
+              if (cargo_type === null) return;
+              
+              const weight = prompt('Weight', load.weight);
+              if (weight === null) return;
+              
+              const notes = prompt('Notes', load.notes || '');
+              if (notes === null) return;
+              
+              handleError(async () => {
+                await updateLoad(load.id, { origin, destination, date, cargo_type, weight, notes });
+                render();
+              }, 'Failed to update load');
+            } catch (error) {
+              console.error('Failed to edit load:', error);
+            }
+          };
+        }
+        
+        const btnDeleteLoad = el('btnDeleteLoad');
+        if (btnDeleteLoad) {
+          btnDeleteLoad.onclick = async () => {
+            const loadId = el('selectLoad').value;
+            if (!loadId) {
+              showNotification('Please select a load to delete', 'error');
+              return;
+            }
+            
+            if (confirm('Are you sure you want to delete this load?')) {
+              handleError(async () => {
+                await deleteLoad(loadId);
+                render();
+              }, 'Failed to delete load');
+            }
+          };
+        }
+        
+        // Reset password
+        const btnResetPass = el('btnResetPass');
+        if (btnResetPass) {
+          btnResetPass.onclick = async () => {
+            const email = el('selectUserForPassword').value;
+            const newPass = el('resetPass').value;
+            
+            if (!email || !newPass) {
+              showNotification('Please select a user and enter a new password', 'error');
+              return;
+            }
+            
+            handleError(async () => {
+              await resetPassword(email, newPass);
+              el('resetPass').value = '';
+              showNotification('Password reset successfully', 'success');
+            }, 'Failed to reset password');
+          };
+        }
+        
+        // Refresh access control
+        const btnRefreshAccessControl = el('btnRefreshAccessControl');
+        if (btnRefreshAccessControl) {
+          btnRefreshAccessControl.onclick = async () => {
+            handleError(async () => {
+              render();
+            }, 'Failed to refresh access control');
+          };
+        }
+        
+        // Top nav buttons
+        const btnLoginNav = el('btnLoginNav');
+        if (btnLoginNav) {
+          btnLoginNav.onclick = () => {
+            location.hash = '#login';
           };
         }
       };
