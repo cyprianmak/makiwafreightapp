@@ -1099,9 +1099,8 @@
     loadLoads(); // Refresh the loads list
   } catch (error) {
     console.error('Error posting load:', error);
-    alert('Error posting load: ' + error.message);
+    alert('Error posting load: ' + (error.message || 'Unknown error'));
   }
-}
       
       const getLoads = async (filters = {}) => {
         const params = new URLSearchParams();
