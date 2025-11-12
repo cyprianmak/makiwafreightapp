@@ -49,20 +49,86 @@ from sqlalchemy import text
 @app.route("/api/debug/db")
 def debug_db():
     try:
+        # First, test the basic database connection
         db.session.execute(text("SELECT 1"))
         db.session.commit()
-        return jsonify({
-            "database_type": db.engine.name,
-            "status": "OK"
-        }), 200
+        connection_status = "OK"
     except Exception as e:
         db.session.rollback()
+        connection_status = "ERROR"
+        connection_error = str(e)
+
+    # Now gather detailed database information
+    try:
+        # Check if database file exists (only for SQLite)
+        db_exists = False
+        file_stats = {}
+        db_path = None
+        
+        if 'sqlite' in app.config['SQLALCHEMY_DATABASE_URI']:
+            db_path = app.config['SQLALCHEMY_DATABASE_URI'].replace('sqlite:///', '')
+            db_exists = os.path.exists(db_path)
+            
+            # Get file stats
+            if db_exists:
+                stat = os.stat(db_path)
+                file_stats = {
+                    "size": stat.st_size,
+                    "created": datetime.fromtimestamp(stat.st_ctime).isoformat(),
+                    "modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
+                    "accessed": datetime.fromtimestamp(stat.st_atime).isoformat()
+                }
+        
+        # Count records in each table
+        user_count = User.query.count()
+        load_count = Load.query.count()
+        message_count = Message.query.count()
+        access_control_count = AccessControl.query.count()
+        banner_count = Banner.query.count()
+        
+        # List users
+        users = []
+        for user in User.query.all():
+            users.append({
+                "id": user.id,
+                "name": user.name,
+                "email": user.email,
+                "role": user.role,
+                "created_at": user.created_at.isoformat()
+            })
+        
+        # Get database type
+        database_type = "PostgreSQL" if 'postgresql' in app.config['SQLALCHEMY_DATABASE_URI'] else "SQLite"
+        
+        # Prepare response
+        response = {
+            "database_type": database_type,
+            "database_uri": app.config['SQLALCHEMY_DATABASE_URI'],
+            "database_path": db_path,
+            "database_exists": db_exists,
+            "file_stats": file_stats,
+            "connection_status": connection_status,
+            "user_count": user_count,
+            "load_count": load_count,
+            "message_count": message_count,
+            "access_control_count": access_control_count,
+            "banner_count": banner_count,
+            "users": users,
+            "environment": os.environ.get('RENDER', 'local')
+        }
+        
+        # Add connection error if there was one
+        if connection_status == "ERROR":
+            response["connection_error"] = connection_error
+        
+        return jsonify(response), 200
+        
+    except Exception as e:
         return jsonify({
-            "database_type": db.engine.name,
-            "status": "ERROR",
+            "database_type": db.engine.name if hasattr(db, 'engine') else "Unknown",
+            "connection_status": "ERROR",
             "error": str(e)
         }), 500
-
 
 # Define database models
 class User(db.Model):
@@ -273,58 +339,7 @@ def initialize_data():
             print("Access control data created")
         else:
             print("Access control data already exists")
-# Debug route to check database status
-@app.route('/api/debug/db')
-def debug_db():
-    try:
-        # Check if database file exists
-        db_exists = os.path.exists(db_path)
-        
-        # Get file stats
-        file_stats = {}
-        if db_exists:
-            stat = os.stat(db_path)
-            file_stats = {
-                "size": stat.st_size,
-                "created": datetime.fromtimestamp(stat.st_ctime).isoformat(),
-                "modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
-                "accessed": datetime.fromtimestamp(stat.st_atime).isoformat()
-            }
-        
-        # Count users
-        user_count = User.query.count()
-        
-        # Count loads
-        load_count = Load.query.count()
-        
-        # Count messages
-        message_count = Message.query.count()
-        
-        # List users
-        users = []
-        for user in User.query.all():
-            users.append({
-                "id": user.id,
-                "name": user.name,
-                "email": user.email,
-                "role": user.role,
-                "created_at": user.created_at.isoformat()
-            })
-        
-        return jsonify({
-            "database_path": db_path,
-            "database_exists": db_exists,
-            "file_stats": file_stats,
-            "user_count": user_count,
-            "load_count": load_count,
-            "message_count": message_count,
-            "users": users,
-            "environment": os.environ.get('RENDER', 'local')
-        })
-    except Exception as e:
-        return jsonify({
-            "error": str(e)
-        }), 500
+
 # Backup and restore endpoints
 @app.route('/api/admin/backup', methods=['POST'])
 def backup_data():
@@ -1393,62 +1408,6 @@ def initialize_data():
             print("Access control data already exists")
 
 # Debug route to check database status
-@app.route('/api/debug/db')
-def debug_db():
-    try:
-        # Check if database file exists (only for SQLite)
-        db_exists = False
-        file_stats = {}
-        
-        if 'sqlite' in app.config['SQLALCHEMY_DATABASE_URI']:
-            db_path = app.config['SQLALCHEMY_DATABASE_URI'].replace('sqlite:///', '')
-            db_exists = os.path.exists(db_path)
-            
-            # Get file stats
-            if db_exists:
-                stat = os.stat(db_path)
-                file_stats = {
-                    "size": stat.st_size,
-                    "created": datetime.fromtimestamp(stat.st_ctime).isoformat(),
-                    "modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
-                    "accessed": datetime.fromtimestamp(stat.st_atime).isoformat()
-                }
-        
-        # Count users
-        user_count = User.query.count()
-        
-        # Count loads
-        load_count = Load.query.count()
-        
-        # Count messages
-        message_count = Message.query.count()
-        
-        # List users
-        users = []
-        for user in User.query.all():
-            users.append({
-                "id": user.id,
-                "name": user.name,
-                "email": user.email,
-                "role": user.role,
-                "created_at": user.created_at.isoformat()
-            })
-        
-        return jsonify({
-            "database_type": "PostgreSQL" if 'postgresql' in app.config['SQLALCHEMY_DATABASE_URI'] else "SQLite",
-            "database_uri": app.config['SQLALCHEMY_DATABASE_URI'],
-            "database_exists": db_exists,
-            "file_stats": file_stats,
-            "user_count": user_count,
-            "load_count": load_count,
-            "message_count": message_count,
-            "users": users,
-            "environment": os.environ.get('RENDER', 'local')
-        })
-    except Exception as e:
-        return jsonify({
-            "error": str(e)
-        }), 500
 
 # Backup and restore endpoints
 @app.route('/api/admin/backup', methods=['POST'])
