@@ -967,7 +967,7 @@ const login = async (email, password) => {
           showNotification(response.message, 'error');
           return null;
         }
-      };
+      }
       
       const logout = () => {
         localStorage.removeItem('authToken');
