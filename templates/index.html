@@ -2030,7 +2030,8 @@
         if (formLogin) {
           formLogin.onsubmit = async e => {
             e.preventDefault();
-            const fd = new FormData(e.target);
+            const form = document.getElementById('formPostLoad');
+const fd = new FormData(form);
             const email = fd.get('email');
             const password = fd.get('password');
             
