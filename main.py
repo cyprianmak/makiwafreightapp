@@ -2295,7 +2295,7 @@ def reset_password_endpoint():
             "message": "Password reset successfully",
             "data": {"email": email}
         })
-except Exception as e:
+    except Exception as e:
         return jsonify({
             "success": False,
             "message": "Failed to reset password",
