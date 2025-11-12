@@ -309,7 +309,7 @@
       <div class="grid three">
         <div class="card"><h3>For Shippers</h3><p>Post loads, manage offers, and message carriers.</p></div>
         <div class="card"><h3>For Transporters</h3><p>Browse the live load board and message shippers.</p></div>
-        <div class="card"><h3>Secure & Simple</h3><p>Role-based access with client-side storage for demo use.</p></div>
+        <div class="card"><h3>Secure & Simple</h3><p>Role-based access with PostgreSQL database storage.</p></div>
       </div>
     </section>
     
@@ -351,7 +351,7 @@
           </div>
           <div>
             <label for="loginPassword">Password</label>
-            <input required type="password" id="loginPassword" name="password" placeholder="•••••••" autocomplete="current-password" />
+            <input required type="password" id="loginPassword" name="password" placeholder="•••••" autocomplete="current-password" />
           </div>
         </div>
         <div class="toolbar" style="margin-top:12px">
@@ -607,8 +607,7 @@
             </tr></thead><tbody></tbody></table>
           </div>
         </div>
-      </div>
-    </section>
+      </section>
     <!-- Admin Control Page -->
     <section id="page-control" class="hidden" aria-label="Admin control panel">
       <div class="toolbar">
@@ -1288,8 +1287,8 @@
         'transporter-dashboard': 'page-transporter-dashboard',
         'transporter-profile': 'page-transporter-profile',
         'market': 'page-market',
-        messages: 'page-messages',
-        control: 'page-control'
+        'messages': 'page-messages',
+        'control': 'page-control'
       };
       
       const show = hash => {
@@ -1661,7 +1660,7 @@
           const base = `
             <div class="grid two">
               <div><label for="${role}Name">Contact Person (Name)</label><input required id="${role}Name" name="name" value="${sanitize(user.name || '')}" /></div>
-              <div><label for="${role}Phone">Phone</label><input id="${role}Phone" name="phone" value="${sanitize(user.phone || '')}" /></div>
+              <div><label for="${role}Phone">Phone</label><input required id="${role}Phone" name="phone" value="${sanitize(user.phone || '')}" /></div>
               <div class="two" style="grid-column:1/-1"><label for="${role}Address">Address</label><input id="${role}Address" name="address" value="${sanitize(user.address || '')}" /></div>
               <div><label for="${role}Password">Password</label><input id="${role}Password" name="password" type="password" value="${user.password || ''}" /></div>
             </div>`;
@@ -1714,10 +1713,12 @@
           
           tbody.querySelectorAll('[data-delmsg]').forEach(b => {
             b.onclick = () => {
-              handleError(async () => {
-                await deleteMessage(b.dataset.delmsg);
-                render();
-              }, 'Failed to delete message');
+              if (confirm('Are you sure you want to delete this message?')) {
+                handleError(async () => {
+                  await deleteMessage(b.dataset.delmsg);
+                  render();
+                }, 'Failed to delete message');
+              }
             };
           });
         } catch (error) {
@@ -1875,6 +1876,7 @@
           const adminDashBanner = el('adminDashBanner');
           if (adminIndexBanner) adminIndexBanner.value = acl.banners?.index || '';
           if (adminDashBanner) adminDashBanner.value = acl.banners?.dashboard || '';
+          }
           
           // Render user access control dropdown
           renderUserAccessControl();
@@ -1921,58 +1923,6 @@
           renderUserDropdowns();
         } catch (error) {
           console.error('Failed to render admin panel:', error);
-        }
-      };
-      
-      const render = async () => {
-        await renderHeader();
-        await renderBanners();
-        
-        const u = await getCurrentUser();
-        
-        // Auth guard: if on restricted page and not logged in -> login
-        const restricted = ['shipper-dashboard', 'shipper-post', 'shipper-profile', 'transporter-dashboard', 'transporter-profile', 'market', 'messages', 'control'];
-        const page = (location.hash || '#').replace('#', '') || 'index';
-        
-        if (!u && restricted.includes(page)) {
-          location.hash = '#login';
-          return;
-        }
-        
-        // Check if user has access to current page
-        if (u && !canAccessPage(u, page)) {
-          // If user is an admin, they can access everything, so this shouldn't happen.
-          // For non-admin, redirect to their role's dashboard or index?
-          if (u.role === 'shipper') {
-            location.hash = '#shipper-dashboard';
-          } else if (u.role === 'transporter') {
-            location.hash = '#transporter-dashboard';
-          } else {
-            location.hash = '#index';
-          }
-          return;
-        }
-        
-        if (u) {
-          // Role routing
-          if (page === 'index') {
-            if (u.role === 'shipper') location.hash = '#shipper-dashboard';
-            else if (u.role === 'transporter') location.hash = '#transporter-dashboard';
-            else if (isAdmin(u)) location.hash = '#control';
-          }
-          
-          if (page.startsWith('shipper')) await renderShipper();
-          if (page.startsWith('transporter')) await renderTransporter();
-          if (page === 'market') await renderMarket();
-          if (page === 'messages') await renderMessages();
-          if (page === 'shipper-profile' || page === 'transporter-profile') await renderProfiles();
-          if (page === 'control') {
-            if (!isAdmin(u)) {
-              location.hash = '#login';
-              return;
-            }
-            await renderAdmin();
-          }
         }
       };
       
@@ -2047,6 +1997,18 @@
             const fd = new FormData(e.target);
             
             handleError(async () => {
+              await registerUser({
+                name: fd.get('name'),
+                company: fd.get('company'),
+                email: fd.get('email'),
+                phone: {
+                  const option = document.createElement('option');
+                  option.value = fd.get('email');
+                  option.textContent = `${fd.get('name')} (${fd.get('email')})`;
+                  passwordSelect.appendChild(option);
+                }
+              }
+              
               await registerUser({
                 name: fd.get('name'),
                 company: fd.get('company'),
@@ -2128,24 +2090,6 @@
           };
         }
         
-        // Save transporter profile
-        const saveProfileTransporter = el('saveProfileTransporter');
-        if (saveProfileTransporter) {
-          saveProfileTransporter.onclick = async () => {
-            const u = await getCurrentUser();
-            if (!u) return;
-            
-            const f = el('formProfileTransporter');
-            if (!f) return;
-            
-            handleError(async () => {
-              const data = Object.fromEntries(new FormData(f).entries());
-              await updateUserProfile(u.id, data);
-              render();
-            }, 'Failed to save profile');
-          };
-        }
-        
         // Filter loads
         const btnFilterLoads = el('btnFilterLoads');
         if (btnFilterLoads) {
@@ -2153,7 +2097,6 @@
             e.preventDefault();
             renderTransporter();
           };
-        }
         
         // Filter market loads
         const btnMarketFilterLoads = el('btnMarketFilterLoads');
@@ -2162,7 +2105,6 @@
             e.preventDefault();
             renderMarket();
           };
-        }
         
         // Send message form
         const formSendMsg = el('formSendMsg');
@@ -2179,7 +2121,7 @@
           };
         }
         
-        // Post loads control
+        // Admin controls
         const btnSavePostLoadsControl = el('btnSavePostLoadsControl');
         if (btnSavePostLoadsControl) {
           btnSavePostLoadsControl.onclick = async () => {
@@ -2246,4 +2188,140 @@
         // Save user access control
         const btnSaveUserAccess = el('btnSaveUserAccess');
         if (btnSaveUserAccess) {
-          btnSaveUserAccess.onclick = async ()
+          btnSaveUserAccess.onclick = async () => {
+            const userId = btnSaveUserAccess.dataset.userId;
+            if (!userId) {
+              showNotification('No user selected', 'error');
+              return;
+            }
+            
+            try {
+              const acl = await getAccessControl();
+              
+              // Initialize user_access if not present
+              if (!acl.user_access) {
+                acl.user_access = {};
+              }
+              
+              // Update user settings
+              acl.user_access[userId] = {
+                can_post_loads: el('canPostLoadsToggle').checked,
+                can_access_market: el('canAccessMarketToggle').checked
+              };
+              
+              await updateAccessControl(acl);
+              showNotification('User access control updated successfully', 'success');
+              // Update global variable
+              accessControlData = acl;
+              // Re-render to update UI
+              render();
+            } catch (error) {
+              console.error('Failed to save user access control:', error);
+              showNotification('Failed to save user access control: ' + error.message, 'error');
+            }
+          };
+        }
+        
+        // Save page access
+        const btnSavePageAccess = el('btnSavePageAccess');
+        if (btnSavePageAccess) {
+          btnSavePageAccess.onclick = async () => {
+            try {
+              const acl = await getAccessControl();
+              
+              // Initialize pages if not present
+              if (!acl.pages) {
+                acl.pages = {};
+              }
+              
+              // Get page access data from checkboxes
+              const pageSections = [
+                { id: 'post_load', name: 'Post Load' },
+                { id: 'market', name: 'Market' }
+              ];
+              
+              pageSections.forEach(page => {
+                const pageItem = document.createElement('div');
+                pageItem.className = 'page-access-item';
+                
+                const pageHeader = document.createElement('div');
+                pageHeader.className = 'page-access-header';
+                
+                const pageTitle = document.createElement('div');
+                pageTitle.className = 'page-access-title';
+                pageTitle.textContent = page.name;
+                
+                pageHeader.appendChild(pageTitle);
+                pageItem.appendChild(pageHeader);
+                
+                const roleCheckboxes = document.createElement('div');
+                roleCheckboxes.className = 'role-checkboxes';
+                
+                // Add checkboxes for each role
+                ROLES.forEach(role => {
+                  const checkboxItem = document.createElement('div');
+                  checkboxItem.className = 'role-checkbox-item';
+                  
+                  const checkbox = document.createElement('input');
+                  checkbox.type = 'checkbox';
+                  checkbox.id = `page_${page.id}_role_${role}`;
+                  checkbox.value = role;
+                  
+                  // Check if this role has access to this page
+                  const pageAccess = pages[page.id] || {};
+                  const allowedRoles = pageAccess.allowed_roles || [];
+                  checkbox.checked = allowedRoles.includes(role);
+                  
+                  const label = document.createElement('label');
+                  label.htmlFor = `page_${page.id}_role_${role}`;
+                  label.textContent = role.charAt(0).toUpperCase() + role.slice(1);
+                  
+                  checkboxItem.appendChild(checkbox);
+                  checkboxItem.appendChild(label);
+                  roleCheckboxes.appendChild(checkboxItem);
+                });
+                
+                pageItem.appendChild(roleCheckboxes);
+                container.appendChild(pageItem);
+              });
+            });
+            
+            container.appendChild(pageItem);
+          });
+        } catch (error) {
+              console.error('Failed to render page access control:', error);
+              showNotification('Failed to save page access: ' + error.message, 'error');
+            }
+          };
+        }
+      };
+      
+      // Initialize app
+      const init = () => {
+        // Set up hash change listener
+        window.addEventListener('hashchange', () => show(location.hash));
+        
+        // Initialize event listeners
+        initEventListeners();
+        
+        // Initial render
+        show(location.hash);
+        
+        // Add error handler for uncaught errors
+        window.addEventListener('error', event => {
+          console.error('Uncaught error:', event.error);
+          // Prevent default error handling
+          event.preventDefault();
+        });
+      };
+      
+      // Start app when DOM is ready
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+      } else {
+        init();
+      }
+    })();
+  </script>
+</body>
+</html>
