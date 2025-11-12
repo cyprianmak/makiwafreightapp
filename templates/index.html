@@ -907,7 +907,8 @@
         
         if (!response.ok) {
           const error = await response.json().catch(() => ({}));
-          throw new Error(error.message || `API error: ${response.status}`);
+          console.error('API Error Response:', error); // This will show us exact error
+          throw new Error(error.message || error.error || `API error: ${response.status}`);
         }
         
         return response.json();
@@ -1038,6 +1039,48 @@ const postLoad = async (payload) => {
     weight: parseFloat(payload.weight),
     notes: sanitize(payload.notes || '')
   };
+  
+  console.log('Sending payload:', sanitizedPayload); // This will show us what we're sending
+  
+  try {
+    const response = await apiRequest('/loads', {
+      method: 'POST',
+      body: JSON.stringify(sanitizedPayload)
+    });
+    
+    if (response.success) {
+      showNotification(response.message, 'success');
+      return response.data;
+    } else {
+      showNotification(response.message, 'error');
+      throw new Error(response.error || 'Failed to post load');
+    }
+  } catch (error) {
+    console.error('Error posting load:', error);
+    throw error;
+  }
+};
+  
+  console.log('Sending payload:', sanitizedPayload); // This will show us what we're sending
+  
+  try {
+    const response = await apiRequest('/loads', {
+      method: 'POST',
+      body: JSON.stringify(sanitizedPayload)
+    });
+    
+    if (response.success) {
+      showNotification(response.message, 'success');
+      return response.data;
+    } else {
+      showNotification(response.message, 'error');
+      throw new Error(response.error || 'Failed to post load');
+    }
+  } catch (error) {
+    console.error('Error posting load:', error);
+    throw error;
+  }
+};
   
   try {
     const response = await apiRequest('/loads', {
