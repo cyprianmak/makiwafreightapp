@@ -1090,7 +1090,10 @@
   }
   
   try {
-    const response = await apiRequest('/api/loads', 'POST', load);
+    const response = await apiRequest('/api/loads', {
+      method: 'POST',
+      body: JSON.stringify(load)
+    });
     alert('Load posted successfully!');
     form.reset(); // Clear the form
     loadLoads(); // Refresh the loads list
