@@ -2098,11 +2098,15 @@ const fd = new FormData(form);
         
         // Post load form
        const formPostLoad = el('formPostLoad');
+        console.log('Form element found:', formPostLoad); // ADD THIS LINE
+        
         if (formPostLoad) {
           formPostLoad.onsubmit = async e => {
             e.preventDefault();
             
-            // Get form data directly without FormData
+            // Check if elements exist
+            console.log('loadRef element:', document.getElementById('loadRef')); // ADD THIS LINE
+            
             const load = {
               ref: document.getElementById('loadRef').value,
               origin: document.getElementById('loadOrigin').value,
@@ -2113,7 +2117,6 @@ const fd = new FormData(form);
               notes: document.getElementById('loadNotes').value
             };
             
-            // Debug: Log what we're sending
             console.log('Load data:', load);
             
             const u = await getCurrentUser();
