@@ -1052,9 +1052,11 @@
       };
       
       // Load API functions
-      async function postLoad() {
-  const form = document.getElementById('postLoadForm');
-  const formData = new FormData(form);
+      async function postLoad(load) {
+        // NO FormData - just send the load object directly
+        const response = await apiRequest('/api/loads', 'POST', load);
+        return response;
+      }
   
   // Get all form values
   const load = {
