@@ -2047,46 +2047,51 @@ const postLoad = async (payload) => {
         
         // Post load form
         const formPostLoad = el('formPostLoad');
-        if (formPostLoad) {
-          formPostLoad.onsubmit = async e => {
-            e.preventDefault();
-            const fd = new FormData(e.target);
-            const u = await getCurrentUser();
-            
-            if (!u) return;
-            
-            handleError(async () => {
-              await postLoad({
-                origin: fd.get('origin'),
-                destination: fd.get('destination'),
-                date: fd.get('date'),
-                cargo_type: fd.get('cargo_type'),
-                weight: fd.get('weight'),
-                notes: fd.get('notes')
-              });
-              e.target.reset();
-              location.hash = '#shipper-dashboard';
-            }, 'Failed to post load');
-          };
-        }
-        
-        // Save shipper profile
-        const saveProfileShipper = el('saveProfileShipper');
-        if (saveProfileShipper) {
-          saveProfileShipper.onclick = async () => {
-            const u = await getCurrentUser();
-            if (!u) return;
-            
-            const f = el('formProfileShipper');
-            if (!f) return;
-            
-            handleError(async () => {
-              const data = Object.fromEntries(new FormData(f).entries());
-              await updateUserProfile(u.id, data);
-              render();
-            }, 'Failed to save profile');
-          };
-        }
+if (formPostLoad) {
+  formPostLoad.onsubmit = async e => {
+    e.preventDefault();
+    
+    const u = await getCurrentUser();
+    
+    if (!u) {
+      showNotification('Please log in to post a load', 'error');
+      return;
+    }
+    
+    // Get values directly from form fields
+    const origin = document.getElementById('loadOrigin').value;
+    const destination = document.getElementById('loadDestination').value;
+    const date = document.getElementById('loadDate').value;
+    const cargo_type = document.getElementById('loadCargo').value;
+    const weight = document.getElementById('loadWeight').value;
+    const notes = document.getElementById('loadNotes').value;
+    
+    // Check if all required fields are filled
+    if (!origin || !destination || !date || !cargo_type || !weight) {
+      showNotification('Please fill in all required fields', 'error');
+      return;
+    }
+    
+    try {
+      const result = await postLoad({
+        origin: origin,
+        destination: destination,
+        date: date,
+        cargo_type: cargo_type,
+        weight: weight,
+        notes: notes
+      });
+      
+      if (result) {
+        showNotification('Load posted successfully!', 'success');
+        e.target.reset();
+        location.hash = '#shipper-dashboard';
+      }
+    } catch (error) {
+      showNotification('Failed to post load: ' + error.message, 'error');
+    }
+  };
+}
         
         // Save transporter profile
         const saveProfileTransporter = el('saveProfileTransporter');
