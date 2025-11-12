@@ -949,33 +949,33 @@
           return response.json();
         };
 
-// Authentication functions
-const login = async (email, password) => {
-  if (!email || !password) return null;
-  
-  email = email.trim().toLowerCase();
-  const response = await apiRequest('/auth/login', 'POST', { email, password });
-  return response.data.user;
-};
+        // Authentication functions
+        const login = async (email, password) => {
+          if (!email || !password) return null;
+          email = email.trim().toLowerCase();
+          const response = await apiRequest('/auth/login', {
+            method: 'POST',
+            body: JSON.stringify({ email, password })
+          });
         
-        if (response.success && response.data) {
-          localStorage.setItem('authToken', response.data.token);
-          localStorage.setItem('currentUser', JSON.stringify(response.data.user));
-          showNotification(response.message, 'success');
-          return response.data.user;
-        } else {
-          showNotification(response.message, 'error');
-          return null;
-        }
-      }
-      
-      const logout = () => {
-        localStorage.removeItem('authToken');
-        localStorage.removeItem('currentUser');
-        showNotification('Logged out successfully', 'info');
-        location.hash = '#login';
-        render();
-      };
+          if (response.success && response.data) {
+            localStorage.setItem('authToken', response.data.token);
+            localStorage.setItem('currentUser', JSON.stringify(response.data.user));
+            showNotification(response.message, 'success');
+            return response.data.user;
+          } else {
+            showNotification(response.message, 'error');
+            return null;
+          }
+        };
+        
+        const logout = () => {
+          localStorage.removeItem('authToken');
+          localStorage.removeItem('currentUser');
+          showNotification('Logged out successfully', 'info');
+          location.hash = '#login';
+          render();
+        };  
       
       const getCurrentUser = async () => {
         try {
