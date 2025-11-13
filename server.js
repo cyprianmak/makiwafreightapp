@@ -9,14 +9,24 @@ const app = express();
 const PORT = process.env.PORT || 10000;
 
 // Database connection
-const pool = new Pool({
-  user: process.env.DB_USER,
-  host: process.env.DB_HOST,
-  database: process.env.DB_DATABASE,
-  password: process.env.DB_PASSWORD,
-  port: process.env.DB_PORT,
-  ssl: { rejectUnauthorized: false } // Required for Render
-});
+let pool;
+if (process.env.DATABASE_URL) {
+  // Use DATABASE_URL when provided (preferred for managed DBs)
+  pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: { rejectUnauthorized: false } // required for many hosted Postgres providers like Render
+  });
+} else {
+  // Fallback to individual environment variables
+  pool = new Pool({
+    user: process.env.DB_USER,
+    host: process.env.DB_HOST,
+    database: process.env.DB_DATABASE,
+    password: process.env.DB_PASSWORD,
+    port: process.env.DB_PORT ? parseInt(process.env.DB_PORT, 10) : 5432,
+    ssl: { rejectUnauthorized: false }
+  });
+}
 
 // Middleware
 app.use(cors());
