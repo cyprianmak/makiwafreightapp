@@ -796,23 +796,10 @@
       'use strict';
       
       // Configuration
-      const API_BASE = '/api'; // Base URL for your API endpoints
+      const API_BASE = ''; // Use relative URL since frontend and backend are on same domain
       const ADMIN_EMAIL = 'cyprianmak@gmail.com';
       const ADMIN_PASS = 'Muchandida@1';
       const LOAD_EXPIRY_DAYS = 7;
-      
-      // Database configuration for PostgreSQL
-      const DB_CONFIG = {
-        host: 'localhost',
-        port: 5432,
-        database: 'makiwafreight',
-        user: 'postgres',
-        password: 'password',
-        // Connection pooling configuration
-        max: 20,
-        idleTimeoutMillis: 30000,
-        connectionTimeoutMillis: 2000,
-      };
       
       // Page definitions for access control
       const PAGES = {
@@ -999,346 +986,7 @@
         }, 5000);
       }
       
-      // PostgreSQL Database Helper Functions
-      // These would be implemented on server-side, but we're defining structure here
-      
-      /**
-       * PostgreSQL Query Builder
-       * This helps construct safe SQL queries to prevent SQL injection
-       */
-      const queryBuilder = {
-        select: (table, fields = '*', conditions = '', params = []) => {
-          return {
-            sql: `SELECT ${fields} FROM ${table}${conditions ? ' WHERE ' + conditions : ''}`,
-            params
-          };
-        },
-        
-        insert: (table, data) => {
-          const fields = Object.keys(data).join(', ');
-          const placeholders = Object.keys(data).map((_, i) => `$${i + 1}`).join(', ');
-          const values = Object.values(data);
-          
-          return {
-            sql: `INSERT INTO ${table} (${fields}) VALUES (${placeholders}) RETURNING *`,
-            params: values
-          };
-        },
-        
-        update: (table, data, conditions, conditionParams = []) => {
-          const setClause = Object.keys(data).map((key, i) => `${key} = $${i + 1}`).join(', ');
-          const values = Object.values(data);
-          const allParams = [...values, ...conditionParams];
-          
-          return {
-            sql: `UPDATE ${table} SET ${setClause} WHERE ${conditions} RETURNING *`,
-            params: allParams
-          };
-        },
-        
-        delete: (table, conditions, params = []) => {
-          return {
-            sql: `DELETE FROM ${table} WHERE ${conditions} RETURNING *`,
-            params
-          };
-        }
-      };
-      
-      /**
-       * PostgreSQL Database Connection Pool
-       * In a real implementation, this would be a connection pool to PostgreSQL
-       */
-      const dbPool = {
-        // This would be initialized with pg library in a real Node.js backend
-        // For now, we'll simulate it with API calls
-        query: async (sql, params = []) => {
-          // In a real implementation, this would execute SQL query against PostgreSQL
-          // For now, we'll make an API call to backend
-          try {
-            const response = await fetch(`${API_BASE}/db/query`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${sessionStorage.getItem('authToken')}`
-              },
-              body: JSON.stringify({ sql, params })
-            });
-            
-            if (!response.ok) {
-              throw new Error(`Database error: ${response.status}`);
-            }
-            
-            return await response.json();
-          } catch (error) {
-            console.error('Database query error:', error);
-            throw error;
-          }
-        }
-      };
-      
-      // PostgreSQL Data Access Objects (DAOs)
-      const userDao = {
-        // Find user by email for authentication
-        findByEmail: async (email) => {
-          const query = queryBuilder.select('users', '*', 'email = $1', [email]);
-          const result = await dbPool.query(query.sql, query.params);
-          return result.rows[0] || null;
-        },
-        
-        // Find admin by email for authentication
-        findAdminByEmail: async (email) => {
-          const query = queryBuilder.select('admins', '*', 'email = $1', [email]);
-          const result = await dbPool.query(query.sql, query.params);
-          return result.rows[0] || null;
-        },
-        
-        // Find user by ID
-        findById: async (id) => {
-          const query = queryBuilder.select('users', '*', 'id = $1', [id]);
-          const result = await dbPool.query(query.sql, query.params);
-          return result.rows[0] || null;
-        },
-        
-        // Create new user
-        create: async (userData) => {
-          // Hash password before storing (this would be done on server)
-          const hashedPassword = await hashPassword(userData.password);
-          const userToInsert = { ...userData, password: hashedPassword };
-          
-          const query = queryBuilder.insert('users', userToInsert);
-          const result = await dbPool.query(query.sql, query.params);
-          return result.rows[0];
-        },
-        
-        // Update user
-        update: async (id, userData) => {
-          // If password is being updated, hash it
-          if (userData.password) {
-            userData.password = await hashPassword(userData.password);
-          }
-          
-          const query = queryBuilder.update('users', userData, 'id = $' + (Object.keys(userData).length + 1), [id]);
-          const result = await dbPool.query(query.sql, query.params);
-          return result.rows[0];
-        },
-        
-        // Delete user
-        delete: async (id) => {
-          const query = queryBuilder.delete('users', 'id = $1', [id]);
-          const result = await dbPool.query(query.sql, query.params);
-          return result.rows[0];
-        },
-        
-        // Get all users (for admin)
-        findAll: async () => {
-          const query = queryBuilder.select('users');
-          const result = await dbPool.query(query.sql, query.params);
-          return result.rows;
-        }
-      };
-      
-      const loadDao = {
-        // Find load by ID
-        findById: async (id) => {
-          const query = queryBuilder.select('loads', '*', 'id = $1', [id]);
-          const result = await dbPool.query(query.sql, query.params);
-          return result.rows[0] || null;
-        },
-        
-        // Create new load
-        create: async (loadData) => {
-          const query = queryBuilder.insert('loads', {
-            ...loadData,
-            created_at: now(),
-            expires_at: calculateExpiryDate()
-          });
-          const result = await dbPool.query(query.sql, query.params);
-          return result.rows[0];
-        },
-        
-        // Update load
-        update: async (id, loadData) => {
-          const query = queryBuilder.update('loads', loadData, 'id = $' + (Object.keys(loadData).length + 1), [id]);
-          const result = await dbPool.query(query.sql, query.params);
-          return result.rows[0];
-        },
-        
-        // Delete load
-        delete: async (id) => {
-          const query = queryBuilder.delete('loads', 'id = $1', [id]);
-          const result = await dbPool.query(query.sql, query.params);
-          return result.rows[0];
-        },
-        
-        // Get loads with optional filters
-        findWithFilters: async (filters = {}) => {
-          let conditions = [];
-          let params = [];
-          let paramIndex = 1;
-          
-          if (filters.origin) {
-            conditions.push(`origin ILIKE $${paramIndex++}`);
-            params.push(`%${filters.origin}%`);
-          }
-          
-          if (filters.destination) {
-            conditions.push(`destination ILIKE $${paramIndex++}`);
-            params.push(`%${filters.destination}%`);
-          }
-          
-          if (filters.shipper_id) {
-            conditions.push(`shipper_id = $${paramIndex++}`);
-            params.push(filters.shipper_id);
-          }
-          
-          // Filter out expired loads
-          conditions.push(`expires_at > NOW()`);
-          
-          const whereClause = conditions.join(' AND ');
-          const query = queryBuilder.select('loads', '*', whereClause, params);
-          
-          // Join with users to get shipper name
-          const fullQuery = {
-            sql: `
-              SELECT loads.*, users.name as shipper_name, users.email as shipper_email 
-              FROM ${query.sql.replace('SELECT * FROM', 'LEFT JOIN users ON loads.shipper_id = users.id WHERE')}
-            `,
-            params: query.params
-          };
-          
-          const result = await dbPool.query(fullQuery.sql, fullQuery.params);
-          return result.rows;
-        },
-        
-        // Get all loads (for admin)
-        findAll: async () => {
-          const query = queryBuilder.select('loads');
-          const result = await dbPool.query(query.sql, query.params);
-          return result.rows;
-        }
-      };
-      
-      const messageDao = {
-        // Create new message
-        create: async (messageData) => {
-          const query = queryBuilder.insert('messages', {
-            ...messageData,
-            created_at: now()
-          });
-          const result = await dbPool.query(query.sql, query.params);
-          return result.rows[0];
-        },
-        
-        // Get messages for current user
-        findByRecipient: async (recipientEmail) => {
-          const query = queryBuilder.select('messages', '*', 'recipient_email = $1 ORDER BY created_at DESC', [recipientEmail]);
-          const result = await dbPool.query(query.sql, query.params);
-          return result.rows;
-        },
-        
-        // Delete message
-        delete: async (id) => {
-          const query = queryBuilder.delete('messages', 'id = $1', [id]);
-          const result = await dbPool.query(query.sql, query.params);
-          return result.rows[0];
-        }
-      };
-      
-      const accessControlDao = {
-        // Get access control settings
-        get: async () => {
-          const query = queryBuilder.select('access_control');
-          const result = await dbPool.query(query.sql, query.params);
-          
-          // Transform the result into the expected format
-          const accessControl = {};
-          result.rows.forEach(row => {
-            if (row.key === 'post_loads_enabled') {
-              accessControl.post_loads_enabled = row.value === 'true';
-            } else if (row.key.startsWith('banner_')) {
-              if (!accessControl.banners) accessControl.banners = {};
-              accessControl.banners[row.key.replace('banner_', '')] = row.value;
-            } else if (row.key.startsWith('page_access_')) {
-              if (!accessControl.pages) accessControl.pages = {};
-              const pageKey = row.key.replace('page_access_', '');
-              accessControl.pages[pageKey] = JSON.parse(row.value);
-            } else if (row.key.startsWith('user_access_')) {
-              if (!accessControl.user_access) accessControl.user_access = {};
-              const userId = row.key.replace('user_access_', '');
-              accessControl.user_access[userId] = JSON.parse(row.value);
-            }
-          });
-          
-          return accessControl;
-        },
-        
-        // Update access control setting
-        update: async (key, value) => {
-          const query = queryBuilder.update('access_control', { value }, 'key = $2', [key]);
-          await dbPool.query(query.sql, query.params);
-        },
-        
-        // Create access control setting
-        create: async (key, value) => {
-          const query = queryBuilder.insert('access_control', { key, value });
-          await dbPool.query(query.sql, query.params);
-        }
-      };
-      
-      // Password hashing utility (would be implemented on server-side with bcrypt)
-      const hashPassword = async (password) => {
-        // In a real implementation, this would use bcrypt on the server
-        // For now, we'll simulate it
-        try {
-          // This would be done on the server with bcrypt
-          const response = await fetch(`${API_BASE}/auth/hash`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ password })
-          });
-          
-          if (!response.ok) {
-            throw new Error('Failed to hash password');
-          }
-          
-          const result = await response.json();
-          return result.hashedPassword;
-        } catch (error) {
-          console.error('Error hashing password:', error);
-          // Fallback to simple base64 encoding for demo purposes
-          return btoa(password + 'salt');
-        }
-      };
-      
-      // Verify password utility (would be implemented on server-side with bcrypt)
-      const verifyPassword = async (password, hashedPassword) => {
-        // In a real implementation, this would use bcrypt.compare on the server
-        try {
-          // This would be done on the server with bcrypt
-          const response = await fetch(`${API_BASE}/auth/verify`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ password, hashedPassword })
-          });
-          
-          if (!response.ok) {
-            throw new Error('Failed to verify password');
-          }
-          
-          const result = await response.json();
-          return result.valid;
-        } catch (error) {
-          console.error('Error verifying password:', error);
-          // Fallback to simple comparison for demo purposes
-          return btoa(password + 'salt') === hashedPassword;
-        }
-      };
-      
-      // API helper functions that use PostgreSQL DAOs
+      // API helper functions that use specific endpoints
       const apiRequest = async (endpoint, options = {}) => {
         const token = sessionStorage.getItem('authToken');
         const headers = {
@@ -1355,7 +1003,7 @@
           
           if (!response.ok) {
             const error = await response.json().catch(() => ({}));
-            throw new Error(error.message || `API error: ${response.status}`);
+            throw new Error(error.error || `API error: ${response.status}`);
           }
           
           return response.json();
@@ -1375,49 +1023,27 @@
         email = email.trim().toLowerCase();
         
         try {
-          // First try to authenticate as admin
-          let user = await userDao.findAdminByEmail(email);
-          let isAdminUser = true;
-          
-          // If not found in admins table, try users table
-          if (!user) {
-            user = await userDao.findByEmail(email);
-            isAdminUser = false;
-          }
-          
-          if (!user) {
-            showNotification('Invalid email or password', 'error');
-            return null;
-          }
-          
-          // Verify password
-          const isValidPassword = await verifyPassword(password, user.password);
-          if (!isValidPassword) {
-            showNotification('Invalid email or password', 'error');
-            return null;
-          }
-          
-          // Generate token (this would be done on the server)
-          const tokenResponse = await fetch(`${API_BASE}/auth/token`, {
+          const response = await fetch(`${API_BASE}/api/users/login`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ userId: user.id, isAdmin: isAdminUser })
+            body: JSON.stringify({ email, password })
           });
           
-          if (!tokenResponse.ok) {
-            throw new Error('Failed to generate authentication token');
+          if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new Error(error.error || 'Login failed');
           }
           
-          const tokenData = await tokenResponse.json();
+          const data = await response.json();
           
           // Store token and user data
-          sessionStorage.setItem('authToken', tokenData.token);
-          sessionStorage.setItem('currentUser', JSON.stringify(user));
+          sessionStorage.setItem('authToken', data.token);
+          sessionStorage.setItem('currentUser', JSON.stringify(data.user));
           
           showNotification('Login successful', 'success');
-          return user;
+          return data.user;
         } catch (error) {
           console.error('Login error:', error);
           showNotification('Login failed: ' + error.message, 'error');
@@ -1441,7 +1067,7 @@
           }
           
           // Verify token with server
-          const response = await fetch(`${API_BASE}/auth/verify-token`, {
+          const response = await fetch(`${API_BASE}/api/auth/verify-token`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -1492,14 +1118,20 @@
         };
         
         try {
-          // Check if user already exists
-          const existingUser = await userDao.findByEmail(sanitizedData.email);
-          if (existingUser) {
-            throw new Error('A user with this email already exists');
+          const response = await fetch(`${API_BASE}/api/users/register`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(sanitizedData)
+          });
+          
+          if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new Error(error.error || 'Registration failed');
           }
           
-          // Create user in database
-          const user = await userDao.create(sanitizedData);
+          const user = await response.json();
           
           showNotification('Registration successful', 'success');
           return user;
@@ -1528,8 +1160,21 @@
         }
         
         try {
-          // Update user in database
-          const user = await userDao.update(userId, sanitizedData);
+          const response = await fetch(`${API_BASE}/api/users/${userId}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${sessionStorage.getItem('authToken')}`
+            },
+            body: JSON.stringify(sanitizedData)
+          });
+          
+          if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new Error(error.error || 'Profile update failed');
+          }
+          
+          const user = await response.json();
           
           // Update stored user data
           const currentUser = getCurrentUserSync();
@@ -1567,8 +1212,21 @@
         };
         
         try {
-          // Create load in database
-          const load = await loadDao.create(sanitizedPayload);
+          const response = await fetch(`${API_BASE}/api/loads`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${sessionStorage.getItem('authToken')}`
+            },
+            body: JSON.stringify(sanitizedPayload)
+          });
+          
+          if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new Error(error.error || 'Failed to post load');
+          }
+          
+          const load = await response.json();
           
           showNotification('Load posted successfully', 'success');
           return load;
@@ -1581,9 +1239,32 @@
       
       const getLoads = async (filters = {}) => {
         try {
-          // Get loads from database
-          const loads = await loadDao.findWithFilters(filters);
-          return loads;
+          // Build query string for filters
+          const queryParams = new URLSearchParams();
+          
+          if (filters.origin) queryParams.append('origin', filters.origin);
+          if (filters.destination) queryParams.append('destination', filters.destination);
+          if (filters.shipper_id) queryParams.append('shipper_id', filters.shipper_id);
+          
+          const queryString = queryParams.toString();
+          const endpoint = queryString ? `/api/loads?${queryString}` : '/api/loads';
+          
+          const response = await fetch(`${API_BASE}${endpoint}`, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${sessionStorage.getItem('authToken')}`
+            }
+          });
+          
+          if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new Error(error.error || 'Failed to get loads');
+          }
+          
+          const loads = await response.json();
+          
+          // Filter out expired loads
+          return loads.filter(l => !isLoadExpired(l));
         } catch (error) {
           console.error('Get loads error:', error);
           showNotification('Failed to get loads: ' + error.message, 'error');
@@ -1605,8 +1286,21 @@
         }
         
         try {
-          // Update load in database
-          const load = await loadDao.update(loadId, sanitizedPatch);
+          const response = await fetch(`${API_BASE}/api/loads/${loadId}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${sessionStorage.getItem('authToken')}`
+            },
+            body: JSON.stringify(sanitizedPatch)
+          });
+          
+          if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new Error(error.error || 'Failed to update load');
+          }
+          
+          const load = await response.json();
           
           showNotification('Load updated successfully', 'success');
           return load;
@@ -1621,11 +1315,22 @@
         if (!loadId) throw new Error('Load ID is required');
         
         try {
-          // Delete load from database
-          const load = await loadDao.delete(loadId);
+          const response = await fetch(`${API_BASE}/api/loads/${loadId}`, {
+            method: 'DELETE',
+            headers: {
+              'Authorization': `Bearer ${sessionStorage.getItem('authToken')}`
+            }
+          });
+          
+          if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new Error(error.error || 'Failed to delete load');
+          }
+          
+          const result = await response.json();
           
           showNotification('Load deleted successfully', 'success');
-          return load;
+          return result;
         } catch (error) {
           console.error('Delete load error:', error);
           showNotification('Failed to delete load: ' + error.message, 'error');
@@ -1646,12 +1351,30 @@
         const sanitizedBody = sanitize(body);
         
         try {
-          // Create message in database
-          const message = await messageDao.create({
-            recipient_email: toEmail,
-            body: sanitizedBody,
-            created_at: now()
+          const currentUser = getCurrentUserSync();
+          if (!currentUser) {
+            throw new Error('User not logged in');
+          }
+          
+          const response = await fetch(`${API_BASE}/api/messages`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${sessionStorage.getItem('authToken')}`
+            },
+            body: JSON.stringify({
+              sender_id: currentUser.id,
+              receiver_email: toEmail,
+              body: sanitizedBody
+            })
           });
+          
+          if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new Error(error.error || 'Failed to send message');
+          }
+          
+          const message = await response.json();
           
           showNotification('Message sent successfully', 'success');
           return message;
@@ -1669,8 +1392,19 @@
             throw new Error('User not logged in');
           }
           
-          // Get messages from database
-          const messages = await messageDao.findByRecipient(currentUser.email);
+          const response = await fetch(`${API_BASE}/api/messages/${currentUser.id}`, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${sessionStorage.getItem('authToken')}`
+            }
+          });
+          
+          if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new Error(error.error || 'Failed to get messages');
+          }
+          
+          const messages = await response.json();
           return messages;
         } catch (error) {
           console.error('Get messages error:', error);
@@ -1683,11 +1417,22 @@
         if (!messageId) throw new Error('Message ID is required');
         
         try {
-          // Delete message from database
-          const message = await messageDao.delete(messageId);
+          const response = await fetch(`${API_BASE}/api/messages/${messageId}`, {
+            method: 'DELETE',
+            headers: {
+              'Authorization': `Bearer ${sessionStorage.getItem('authToken')}`
+            }
+          });
+          
+          if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new Error(error.error || 'Failed to delete message');
+          }
+          
+          const result = await response.json();
           
           showNotification('Message deleted successfully', 'success');
-          return message;
+          return result;
         } catch (error) {
           console.error('Delete message error:', error);
           showNotification('Failed to delete message: ' + error.message, 'error');
@@ -1700,8 +1445,19 @@
       
       const getUsers = async () => {
         try {
-          // Get all users from database
-          const users = await userDao.findAll();
+          const response = await fetch(`${API_BASE}/api/admin/users`, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${sessionStorage.getItem('authToken')}`
+            }
+          });
+          
+          if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new Error(error.error || 'Failed to get users');
+          }
+          
+          const users = await response.json();
           return users;
         } catch (error) {
           console.error('Get users error:', error);
@@ -1714,17 +1470,22 @@
         if (!email) throw new Error('Email is required');
         
         try {
-          // Find user by email first
-          const user = await userDao.findByEmail(email);
-          if (!user) {
-            throw new Error('User not found');
+          const response = await fetch(`${API_BASE}/api/admin/users/${encodeURIComponent(email)}`, {
+            method: 'DELETE',
+            headers: {
+              'Authorization': `Bearer ${sessionStorage.getItem('authToken')}`
+            }
+          });
+          
+          if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new Error(error.error || 'Failed to delete user');
           }
           
-          // Delete user from database
-          const deletedUser = await userDao.delete(user.id);
+          const result = await response.json();
           
           showNotification('User deleted successfully', 'success');
-          return deletedUser;
+          return result;
         } catch (error) {
           console.error('Delete user error:', error);
           showNotification('Failed to delete user: ' + error.message, 'error');
@@ -1736,17 +1497,24 @@
         if (!email || !newPass) throw new Error('Email and password are required');
         
         try {
-          // Find user by email first
-          const user = await userDao.findByEmail(email);
-          if (!user) {
-            throw new Error('User not found');
+          const response = await fetch(`${API_BASE}/api/admin/reset-password`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${sessionStorage.getItem('authToken')}`
+            },
+            body: JSON.stringify({ email, newPassword: newPass })
+          });
+          
+          if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new Error(error.error || 'Failed to reset password');
           }
           
-          // Update password in database
-          const updatedUser = await userDao.update(user.id, { password: newPass });
+          const result = await response.json();
           
           showNotification('Password reset successfully', 'success');
-          return updatedUser;
+          return result;
         } catch (error) {
           console.error('Reset password error:', error);
           showNotification('Failed to reset password: ' + error.message, 'error');
@@ -1756,9 +1524,20 @@
       
       const getBanners = async () => {
         try {
-          // Get banners from database
-          const acl = await accessControlDao.get();
-          return acl.banners || {};
+          const response = await fetch(`${API_BASE}/api/admin/banners`, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${sessionStorage.getItem('authToken')}`
+            }
+          });
+          
+          if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new Error(error.error || 'Failed to get banners');
+          }
+          
+          const banners = await response.json();
+          return banners;
         } catch (error) {
           console.error('Get banners error:', error);
           showNotification('Failed to get banners: ' + error.message, 'error');
@@ -1768,13 +1547,24 @@
       
       const updateBanners = async (banners) => {
         try {
-          // Update banners in database
-          for (const key in banners) {
-            await accessControlDao.update(`banner_${key}`, banners[key]);
+          const response = await fetch(`${API_BASE}/api/admin/banners`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${sessionStorage.getItem('authToken')}`
+            },
+            body: JSON.stringify(banners)
+          });
+          
+          if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new Error(error.error || 'Failed to update banners');
           }
           
+          const result = await response.json();
+          
           showNotification('Banners updated successfully', 'success');
-          return banners;
+          return result;
         } catch (error) {
           console.error('Update banners error:', error);
           showNotification('Failed to update banners: ' + error.message, 'error');
@@ -1784,8 +1574,19 @@
       
       const getAccessControl = async () => {
         try {
-          // Get access control settings from database
-          const acl = await accessControlDao.get();
+          const response = await fetch(`${API_BASE}/api/access-control`, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${sessionStorage.getItem('authToken')}`
+            }
+          });
+          
+          if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new Error(error.error || 'Failed to get access control');
+          }
+          
+          const acl = await response.json();
           return acl;
         } catch (error) {
           console.error('Get access control error:', error);
@@ -1796,27 +1597,24 @@
       
       const updateAccessControl = async (acl) => {
         try {
-          // Update access control settings in database
-          for (const key in acl) {
-            if (key === 'post_loads_enabled') {
-              await accessControlDao.update(key, acl[key].toString());
-            } else if (key === 'banners') {
-              for (const bannerKey in acl[key]) {
-                await accessControlDao.update(`banner_${bannerKey}`, acl[key][bannerKey]);
-              }
-            } else if (key === 'pages') {
-              for (const pageKey in acl[key]) {
-                await accessControlDao.update(`page_access_${pageKey}`, JSON.stringify(acl[key][pageKey]));
-              }
-            } else if (key === 'user_access') {
-              for (const userId in acl[key]) {
-                await accessControlDao.update(`user_access_${userId}`, JSON.stringify(acl[key][userId]));
-              }
-            }
+          const response = await fetch(`${API_BASE}/api/access-control`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${sessionStorage.getItem('authToken')}`
+            },
+            body: JSON.stringify(acl)
+          });
+          
+          if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new Error(error.error || 'Failed to update access control');
           }
           
+          const result = await response.json();
+          
           showNotification('Access control updated successfully', 'success');
-          return acl;
+          return result;
         } catch (error) {
           console.error('Update access control error:', error);
           showNotification('Failed to update access control: ' + error.message, 'error');
