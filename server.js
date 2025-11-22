@@ -2,6 +2,7 @@ const express = require('express');
 const path = require('path');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
 const { Pool } = require('pg');
@@ -33,10 +34,36 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static('.'));
 
+// Authentication middleware
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+
+  if (!token) {
+    return res.status(401).json({ error: 'Access token required' });
+  }
+
+  jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret', (err, user) => {
+    if (err) {
+      return res.status(403).json({ error: 'Invalid or expired token' });
+    }
+    req.user = user;
+    next();
+  });
+};
+
+// Admin authorization middleware
+const requireAdmin = (req, res, next) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Admin access required' });
+  }
+  next();
+};
+
 // API Routes
 
-// Generic database query endpoint
-app.post('/api/db/query', async (req, res) => {
+// Generic database query endpoint with authentication and validation
+app.post('/api/db/query', authenticateToken, requireAdmin, async (req, res) => {
   const { sql, params = [] } = req.body;
 
   try {
@@ -46,6 +73,185 @@ app.post('/api/db/query', async (req, res) => {
   } catch (err) {
     console.error('Database query error:', err);
     res.status(500).json({ error: err.message });
+  }
+});
+
+// Token generation endpoint
+app.post('/api/auth/token', async (req, res) => {
+  const { userId, isAdmin } = req.body;
+
+  try {
+    const user = await pool.query('SELECT id, email, role FROM users WHERE id = $1', [userId]);
+    
+    if (user.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const userData = user.rows[0];
+    
+    // Create JWT token
+    const token = jwt.sign(
+      { 
+        id: userData.id, 
+        email: userData.email, 
+        role: userData.role,
+        isAdmin: userData.role === 'admin'
+      },
+      process.env.JWT_SECRET || 'fallback_secret',
+      { expiresIn: '24h' }
+    );
+
+    res.json({ token, user: userData });
+  } catch (err) {
+    console.error('Token generation error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Verify token endpoint
+app.post('/api/auth/verify-token', authenticateToken, async (req, res) => {
+  try {
+    // Get fresh user data
+    const user = await pool.query('SELECT id, name, email, role FROM users WHERE id = $1', [req.user.id]);
+    
+    if (user.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({ user: user.rows[0] });
+  } catch (err) {
+    console.error('Token verification error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Password hashing endpoint (server-side only)
+app.post('/api/auth/hash', async (req, res) => {
+  const { password } = req.body;
+
+  try {
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+    res.json({ hashedPassword });
+  } catch (err) {
+    console.error('Password hashing error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Password verification endpoint (server-side only)
+app.post('/api/auth/verify', async (req, res) => {
+  const { password, hashedPassword } = req.body;
+
+  try {
+    const valid = await bcrypt.compare(password, hashedPassword);
+    res.json({ valid });
+  } catch (err) {
+    console.error('Password verification error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Get access control settings
+app.get('/api/access-control', authenticateToken, async (req, res) => {
+  try {
+    // Only admins can get all access control settings
+    if (req.user.role !== 'admin') {
+      // Non-admin users can only get their own access settings
+      const userResult = await pool.query('SELECT email FROM users WHERE id = $1', [req.user.id]);
+      if (userResult.rows.length === 0) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      
+      const userEmail = userResult.rows[0].email;
+      const aclResult = await pool.query('SELECT * FROM acl WHERE user_email = $1', [userEmail]);
+      
+      return res.json({
+        user_access: {
+          [req.user.id]: aclResult.rows[0] || { post: true, market: true }
+        }
+      });
+    }
+    
+    // Admin can get all settings
+    const aclResult = await pool.query('SELECT * FROM acl');
+    const bannerResult = await pool.query('SELECT * FROM banners');
+    
+    // Transform the result into the expected format
+    const accessControl = {
+      post_loads_enabled: true, // Default value
+      user_access: {},
+      pages: {},
+      banners: {
+        index: bannerResult.rows[0]?.index || '',
+        dashboard: bannerResult.rows[0]?.dashboard || ''
+      }
+    };
+    
+    // Process ACL rows
+    for (const row of aclResult.rows) {
+      // Get user ID from email
+      const userResult = await pool.query('SELECT id FROM users WHERE email = $1', [row.user_email]);
+      if (userResult.rows.length > 0) {
+        const userId = userResult.rows[0].id;
+        accessControl.user_access[userId] = {
+          can_post_loads: row.post,
+          can_access_market: row.market
+        };
+      }
+    }
+    
+    res.json(accessControl);
+  } catch (err) {
+    console.error('Get access control error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Update access control settings
+app.put('/api/access-control', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const acl = req.body;
+    
+    // Update post_loads_enabled setting
+    if (acl.post_loads_enabled !== undefined) {
+      // This would typically be stored in a settings table
+      // For now, we'll just acknowledge the update
+    }
+    
+    // Update banners
+    if (acl.banners) {
+      await pool.query(
+        'UPDATE banners SET index = $1, dashboard = $2 WHERE id = 1',
+        [acl.banners.index || '', acl.banners.dashboard || '']
+      );
+    }
+    
+    // Update user access settings
+    if (acl.user_access) {
+      for (const userId in acl.user_access) {
+        // Get user email from ID
+        const userResult = await pool.query('SELECT email FROM users WHERE id = $1', [userId]);
+        if (userResult.rows.length > 0) {
+          const userEmail = userResult.rows[0].email;
+          const userAccess = acl.user_access[userId];
+          
+          // Update or insert ACL
+          await pool.query(
+            `INSERT INTO acl (user_email, post, market) 
+             VALUES ($1, $2, $3) 
+             ON CONFLICT (user_email) 
+             DO UPDATE SET post = $2, market = $3`,
+            [userEmail, userAccess.can_post_loads, userAccess.can_access_market]
+          );
+        }
+      }
+    }
+    
+    res.json({ message: 'Access control updated successfully' });
+  } catch (err) {
+    console.error('Update access control error:', err);
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
@@ -85,7 +291,7 @@ app.post('/api/users/register', async (req, res) => {
   }
 });
 
-// User login
+// User login (updated version)
 app.post('/api/users/login', async (req, res) => {
   const { email, password } = req.body;
 
@@ -105,9 +311,24 @@ app.post('/api/users/login', async (req, res) => {
     const aclResult = await pool.query('SELECT * FROM acl WHERE user_email = $1', [email]);
     const acl = aclResult.rows[0] || {};
 
+    // Create JWT token
+    const token = jwt.sign(
+      { 
+        id: user.id, 
+        email: user.email, 
+        role: user.role,
+        isAdmin: user.role === 'admin'
+      },
+      process.env.JWT_SECRET || 'fallback_secret',
+      { expiresIn: '24h' }
+    );
+
     // Remove password from response
     const { password: _, ...userWithoutPassword } = user;
-    res.json({ ...userWithoutPassword, acl });
+    res.json({ 
+      user: { ...userWithoutPassword, acl }, 
+      token 
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
