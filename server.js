@@ -35,6 +35,20 @@ app.use(express.static('.'));
 
 // API Routes
 
+// Generic database query endpoint
+app.post('/api/db/query', async (req, res) => {
+  const { sql, params = [] } = req.body;
+
+  try {
+    // Execute the query against PostgreSQL
+    const result = await pool.query(sql, params);
+    res.json(result);
+  } catch (err) {
+    console.error('Database query error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // User registration
 app.post('/api/users/register', async (req, res) => {
   const { name, email, password, phone, company, address, role, vehicle_info } = req.body;
