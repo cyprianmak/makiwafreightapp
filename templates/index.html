@@ -861,6 +861,12 @@
           ...options.headers
         };
         
+        // Add authorization header if user is logged in
+        const user = getCurrentUserSync();
+        if (user && user.data && user.data.token) {
+          headers['Authorization'] = `Bearer ${user.data.token}`;
+        }
+        
         try {
           const response = await fetch(`${API_BASE}${endpoint}`, {
             ...options,
@@ -888,7 +894,8 @@
         email = email.trim().toLowerCase();
         
         try {
-          const user = await apiRequest('/users/login', {
+          // Fixed: Changed from '/users/login' to '/auth/login'
+          const user = await apiRequest('/auth/login', {
             method: 'POST',
             body: JSON.stringify({ email, password })
           });
@@ -935,7 +942,8 @@
         };
         
         try {
-          const user = await apiRequest('/users/register', {
+          // Fixed: Changed from '/users/register' to '/auth/register'
+          const user = await apiRequest('/auth/register', {
             method: 'POST',
             body: JSON.stringify(sanitizedData)
           });
@@ -960,7 +968,8 @@
         }
         
         try {
-          const user = await apiRequest(`/users/${userId}`, {
+          // Fixed: Changed from `/users/${userId}` to `/users/me`
+          const user = await apiRequest('/users/me', {
             method: 'PUT',
             body: JSON.stringify(sanitizedData)
           });
@@ -1016,13 +1025,16 @@
       
       const getLoads = async (filters = {}) => {
         try {
-          let loads;
+          // Fixed: Get all loads and filter on client side
+          const response = await apiRequest('/loads');
+          let loads = response.data ? response.data.loads : response;
+          
+          // Filter by shipper if specified
           if (filters.shipper_id) {
-            loads = await apiRequest(`/loads/shipper/${filters.shipper_id}`);
-          } else {
-            loads = await apiRequest('/loads');
+            loads = loads.filter(l => l.shipper_id === filters.shipper_id);
           }
           
+          // Apply other filters
           if (filters.origin) {
             loads = loads.filter(l => l.origin.toLowerCase().includes(filters.origin.toLowerCase()));
           }
@@ -1092,9 +1104,14 @@
         }
         
         try {
+          // Fixed: Changed sender_id to sender_email to match the backend
           const message = await apiRequest('/messages', {
             method: 'POST',
-            body: JSON.stringify({ sender_id: user.id, receiver_email: toEmail, body: sanitize(body) })
+            body: JSON.stringify({ 
+              sender_email: user.data.user.email, 
+              recipient_email: toEmail, 
+              body: sanitize(body) 
+            })
           });
           
           showNotification('Message sent successfully', 'success');
@@ -1111,8 +1128,15 @@
         if (!user) throw new Error('User not logged in');
         
         try {
-          const messages = await apiRequest(`/messages/${user.id}`);
-          return messages;
+          // Fixed: Changed from '/messages/${user.id}' to '/messages'
+          const response = await apiRequest('/messages');
+          const messages = response.data ? response.data.messages : response;
+          
+          // Filter messages for current user
+          const userEmail = user.data.user.email;
+          return messages.filter(m => 
+            m.sender_email === userEmail || m.recipient_email === userEmail
+          );
         } catch (error) {
           console.error('Get messages error:', error);
           showNotification('Failed to get messages: ' + error.message, 'error');
@@ -1134,12 +1158,12 @@
       };
       
       // Admin API functions
-      const isAdmin = u => u && u.role === 'admin';
+      const isAdmin = u => u && u.data && u.data.user && u.data.user.role === 'admin';
       
       const getUsers = async () => {
         try {
-          const users = await apiRequest('/admin/users');
-          return users;
+          const response = await apiRequest('/users');
+          return response.data ? response.data.users : response;
         } catch (error) {
           console.error('Get users error:', error);
           showNotification('Failed to get users: ' + error.message, 'error');
@@ -1166,7 +1190,7 @@
         try {
           await apiRequest('/admin/reset-password', {
             method: 'POST',
-            body: JSON.stringify({ email, newPassword: newPass })
+            body: JSON.stringify({ email, new_password: newPass })
           });
           showNotification('Password reset successfully', 'success');
         } catch (error) {
@@ -1178,8 +1202,8 @@
       
       const getBanners = async () => {
         try {
-          const banners = await apiRequest('/admin/banners');
-          return banners;
+          const response = await apiRequest('/admin/banners');
+          return response.data || response;
         } catch (error) {
           console.error('Get banners error:', error);
           showNotification('Failed to get banners: ' + error.message, 'error');
@@ -1204,8 +1228,8 @@
       
       const getAccessControl = async () => {
         try {
-          const acl = await apiRequest('/admin/acl');
-          return acl;
+          const response = await apiRequest('/admin/access-control');
+          return response.data || response;
         } catch (error) {
           console.error('Get access control error:', error);
           showNotification('Failed to get access control: ' + error.message, 'error');
@@ -1215,7 +1239,7 @@
       
       const updateAccessControl = async (acl) => {
         try {
-          await apiRequest('/admin/acl', {
+          await apiRequest('/admin/access-control', {
             method: 'PUT',
             body: JSON.stringify(acl)
           });
@@ -1234,7 +1258,7 @@
         if (isAdmin(user)) return true;
         
         const page = PAGES[pageId];
-        if (page && page.roles.includes(user.role)) {
+        if (page && page.roles.includes(user.data.user.role)) {
           return true;
         }
         
@@ -1278,11 +1302,16 @@
         const u = getCurrentUserSync();
         setHidden('btnLogout', !u);
         setHidden('btnLoginNav', !!u);
-        setText('authUser', u ? `${sanitize(u.name)} · ${u.role}` : '');
+        
+        if (u && u.data && u.data.user) {
+          setText('authUser', `${sanitize(u.data.user.name)} · ${u.data.user.role}`);
+        } else {
+          setText('authUser', '');
+        }
         
         const chip = el('roleChip');
-        if (u) {
-          chip.textContent = u.role.toUpperCase();
+        if (u && u.data && u.data.user) {
+          chip.textContent = u.data.user.role.toUpperCase();
           chip.classList.remove('hidden');
         } else {
           chip.classList.add('hidden');
