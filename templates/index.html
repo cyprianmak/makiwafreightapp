@@ -853,7 +853,7 @@
         }, 5000);
       }
       
-      // API helper functions that call the correct backend endpoints
+      // API helper functions that call correct backend endpoints
       
       const apiRequest = async (endpoint, options = {}) => {
         const headers = {
@@ -957,8 +957,8 @@
         }
       };
       
-      const updateUserProfile = async (userId, profileData) => {
-        if (!userId || !profileData) throw new Error('User ID and profile data are required');
+      const updateUserProfile = async (profileData) => {
+        if (!profileData) throw new Error('Profile data is required');
         
         const sanitizedData = {};
         for (const key in profileData) {
@@ -998,14 +998,19 @@
         const user = getCurrentUserSync();
         if (!user) throw new Error('User not logged in');
         
+        // Generate a reference number
+        const ref = 'LD' + Date.now().toString().slice(-6);
+        
+        // Fixed: Removed shipper_id from payload as backend will determine it from auth
+        // Fixed: Added ref field with generated reference number
         const sanitizedPayload = {
+          ref: ref,
           origin: sanitize(payload.origin),
           destination: sanitize(payload.destination),
           date: payload.date,
           cargo_type: sanitize(payload.cargo_type),
           weight: parseFloat(payload.weight),
-          notes: sanitize(payload.notes || ''),
-          shipper_id: user.id
+          notes: sanitize(payload.notes || '')
         };
         
         try {
@@ -1105,10 +1110,12 @@
         
         try {
           // Fixed: Changed sender_id to sender_email to match the backend
+          // Fixed: Correctly extract email from user object
+          const userEmail = user.data.user.email;
           const message = await apiRequest('/messages', {
             method: 'POST',
             body: JSON.stringify({ 
-              sender_email: user.data.user.email, 
+              sender_email: userEmail, 
               recipient_email: toEmail, 
               body: sanitize(body) 
             })
@@ -1303,6 +1310,7 @@
         setHidden('btnLogout', !u);
         setHidden('btnLoginNav', !!u);
         
+        // Fixed: Correctly extract user data from nested structure
         if (u && u.data && u.data.user) {
           setText('authUser', `${sanitize(u.data.user.name)} · ${u.data.user.role}`);
         } else {
