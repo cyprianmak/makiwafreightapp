@@ -379,7 +379,7 @@
           </div>
           <div>
             <label for="loginPassword">Password</label>
-            <input required type="password" id="loginPassword" name="password" placeholder="••••••••" autocomplete="current-password" />
+            <input required type="password" id="loginPassword" name="password" placeholder="•••••••" autocomplete="current-password" />
           </div>
         </div>
         <div class="toolbar" style="margin-top:12px">
@@ -1125,7 +1125,12 @@
           return message;
         } catch (error) {
           console.error('Send message error:', error);
-          showNotification('Failed to send message: ' + error.message, 'error');
+          // Enhanced error message to be more specific
+          if (error.message.includes('not being sent to user with the specified email')) {
+            showNotification('Failed to send message: Recipient email not found in the system', 'error');
+          } else {
+            showNotification('Failed to send message: ' + error.message, 'error');
+          }
           throw error;
         }
       };
@@ -1372,7 +1377,9 @@
         if (!u) return;
         
         try {
-          const rows = await getLoads({ shipper_id: u.id });
+          // Fixed: Use correct user ID from nested structure
+          const userId = u.data.user.id;
+          const rows = await getLoads({ shipper_id: userId });
           const tb = el('tableMyLoads');
           if (!tb) return;
           
@@ -1499,7 +1506,7 @@
               <td>${sanitize(l.cargo_type)}</td>
               <td>${sanitize(l.weight)}</td>
               <td>${sanitize(l.notes || '')}</td>
-              <td>${sanitize(l.shipper_name || '')}</td>`;
+              <td>${sanitize(l.shipper || '')}</td>`;
             tbody.appendChild(tr);
           }
         } catch (error) {
@@ -1550,7 +1557,7 @@
               <td>${sanitize(l.cargo_type)}</td>
               <td>${sanitize(l.weight)}</td>
               <td>${sanitize(l.notes || '')}</td>
-              <td>${sanitize(l.shipper_name || '')}</td>`;
+              <td>${sanitize(l.shipper || '')}</td>`;
             tbody.appendChild(tr);
           }
         } catch (error) {
@@ -1562,35 +1569,38 @@
         const u = getCurrentUserSync();
         if (!u) return;
         
-        if (u.role === 'shipper') {
+        // Fixed: Extract user data from nested structure
+        const userData = u.data.user;
+        
+        if (userData.role === 'shipper') {
           const avatar = el('shipperProfileAvatar');
           const name = el('shipperProfileName');
           const since = el('shipperProfileSince');
           
-          if (avatar) avatar.textContent = u.name.charAt(0).toUpperCase();
-          if (name) name.textContent = u.name;
-          if (since) since.textContent = new Date(u.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
+          if (avatar) avatar.textContent = userData.name.charAt(0).toUpperCase();
+          if (name) name.textContent = userData.name;
+          if (since) since.textContent = new Date(userData.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
           
-          setText('shipperProfileEmail', u.email);
-          setText('shipperProfileCompany', u.company || 'Not provided');
-          setText('shipperProfileRole', u.role.charAt(0).toUpperCase() + u.role.slice(1));
-          setText('shipperProfileCreated', new Date(u.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long' }));
+          setText('shipperProfileEmail', userData.email);
+          setText('shipperProfileCompany', userData.company || 'Not provided');
+          setText('shipperProfileRole', userData.role.charAt(0).toUpperCase() + userData.role.slice(1));
+          setText('shipperProfileCreated', new Date(userData.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long' }));
         }
         
-        if (u.role === 'transporter') {
+        if (userData.role === 'transporter') {
           const avatar = el('transporterProfileAvatar');
           const name = el('transporterProfileName');
           const since = el('transporterProfileSince');
           
-          if (avatar) avatar.textContent = u.name.charAt(0).toUpperCase();
-          if (name) name.textContent = u.name;
-          if (since) since.textContent = new Date(u.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
+          if (avatar) avatar.textContent = userData.name.charAt(0).toUpperCase();
+          if (name) name.textContent = userData.name;
+          if (since) since.textContent = new Date(userData.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
           
-          setText('transporterProfileEmail', u.email);
-          setText('transporterProfileCompany', u.company || 'Not provided');
-          setText('transporterProfileVehicle', u.vehicle_info || 'Not provided');
-          setText('transporterProfileRole', u.role.charAt(0).toUpperCase() + u.role.slice(1));
-          setText('transporterProfileCreated', new Date(u.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long' }));
+          setText('transporterProfileEmail', userData.email);
+          setText('transporterProfileCompany', userData.company || 'Not provided');
+          setText('transporterProfileVehicle', userData.vehicle_info || 'Not provided');
+          setText('transporterProfileRole', userData.role.charAt(0).toUpperCase() + userData.role.slice(1));
+          setText('transporterProfileCreated', new Date(userData.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long' }));
         }
         
         const fields = (user, role) => {
@@ -1604,14 +1614,14 @@
           return base;
         };
         
-        if (u.role === 'shipper') {
+        if (userData.role === 'shipper') {
           const form = el('formProfileShipper');
-          if (form) form.innerHTML = fields(u, 'shipper');
+          if (form) form.innerHTML = fields(userData, 'shipper');
         }
         
-        if (u.role === 'transporter') {
+        if (userData.role === 'transporter') {
           const form = el('formProfileTransporter');
-          if (form) form.innerHTML = fields(u, 'transporter');
+          if (form) form.innerHTML = fields(userData, 'transporter');
         }
       };
       
@@ -1769,16 +1779,17 @@
         }
         
         if (u && !canAccessPage(u, page)) {
-          if (u.role === 'shipper') location.hash = '#shipper-dashboard';
-          else if (u.role === 'transporter') location.hash = '#transporter-dashboard';
+          if (u.data.user.role === 'shipper') location.hash = '#shipper-dashboard';
+          else if (u.data.user.role === 'transporter') location.hash = '#transporter-dashboard';
+          else if (isAdmin(u)) location.hash = '#control';
           else location.hash = '#index';
           return;
         }
         
         if (u) {
           if (page === 'index') {
-            if (u.role === 'shipper') location.hash = '#shipper-dashboard';
-            else if (u.role === 'transporter') location.hash = '#transporter-dashboard';
+            if (u.data.user.role === 'shipper') location.hash = '#shipper-dashboard';
+            else if (u.data.user.role === 'transporter') location.hash = '#transporter-dashboard';
             else if (isAdmin(u)) location.hash = '#control';
           }
           
@@ -1819,8 +1830,8 @@
                 return;
               }
               
-              if (user.role === 'shipper') location.hash = '#shipper-dashboard';
-              else if (user.role === 'transporter') location.hash = '#transporter-dashboard';
+              if (user.data.user.role === 'shipper') location.hash = '#shipper-dashboard';
+              else if (user.data.user.role === 'transporter') location.hash = '#transporter-dashboard';
               else if (isAdmin(user)) location.hash = '#control';
             } catch (error) {
               console.error('Login error:', error);
