@@ -998,8 +998,13 @@
         const user = getCurrentUserSync();
         if (!user) throw new Error('User not logged in');
         
+        // Generate a reference number
+        const ref = 'LD' + Date.now().toString().slice(-6);
+        
         // Fixed: Removed shipper_id from payload as backend will determine it from auth
+        // Fixed: Added ref field with generated reference number
         const sanitizedPayload = {
+          ref: ref,
           origin: sanitize(payload.origin),
           destination: sanitize(payload.destination),
           date: payload.date,
@@ -1016,6 +1021,108 @@
           
           showNotification('Load posted successfully', 'success');
           return load;
+        } catch (error) {
+          console.error('Post load error:', error);
+          showNotification('Failed to post load: ' + error.message, 'error');
+          throw error;
+        }
+      };
+      
+      const getLoads = async (filters = {}) => {
+        try {
+          // Fixed: Get all loads and filter on client side
+          const response = await apiRequest('/loads');
+          let loads = response.data ? response.data.loads : response;
+          
+          // Filter by shipper if specified
+          if (filters.shipper_id) {
+            loads = loads.filter(l => l.shipper_id === filters.shipper_id);
+          }
+          
+          // Apply other filters
+          if (filters.origin) {
+            loads = loads.filter(l => l.origin.toLowerCase().includes(filters.origin.toLowerCase()));
+          }
+          if (filters.destination) {
+            loads = loads.filter(l => l.destination.toLowerCase().includes(filters.destination.toLowerCase()));
+          }
+          
+          return loads;
+        } catch (error) {
+          console.error('Get loads error:', error);
+          showNotification('Failed to get loads: ' + error.message, 'error');
+          throw error;
+        }
+      };
+      
+      const updateLoad = async (loadId, patch) => {
+        if (!loadId) throw new Error('Load ID is required');
+        
+        const sanitizedPatch = {};
+        for (const key in patch) {
+          if (key === 'weight') {
+            sanitizedPatch[key] = parseFloat(patch[key]);
+          } else {
+            sanitizedPatch[key] = sanitize(patch[key]);
+          }
+        }
+        
+        try {
+          const load = await apiRequest(`/loads/${loadId}`, {
+            method: 'PUT',
+            body: JSON.stringify(sanitizedPatch)
+          });
+          
+          showNotification('Load updated successfully', 'success');
+          return load;
+        } catch (error) {
+          console.error('Update load error:', error);
+          showNotification('Failed to update load: ' + error.message, 'error');
+          throw error;
+        }
+      };
+      
+      const deleteLoad = async (loadId) => {
+        if (!loadId) throw new Error('Load ID is required');
+        
+        try {
+          await apiRequest(`/loads/${loadId}`, { method: 'DELETE' });
+          showNotification('Load deleted successfully', 'success');
+        } catch (error) {
+          console.error('Delete load error:', error);
+          showNotification('Failed to delete load: ' + error.message, 'error');
+          throw error;
+        }
+      };
+      
+      // Message API functions
+      const sendMessage = async (toEmail, body) => {
+        if (!toEmail || !body) {
+          throw new Error('Recipient and message are required');
+        }
+        
+        const user = getCurrentUserSync();
+        if (!user) throw new Error('User not logged in');
+        
+        if (!isValidEmail(toEmail)) {
+          throw new Error('Please enter a valid recipient email');
+        }
+        
+        try {
+          // Fixed: Changed sender_id to sender_email to match the backend
+          // Fixed: Correctly extract email from user object
+          const userEmail = user.data.user.email;
+          const message = await apiRequest('/messages', {
+            method: 'POST',
+            body: JSON.stringify({ 
+              sender_email: userEmail, 
+              recipient_email: toEmail, 
+              body: sanitize(body) 
+            })
+          });
+          
+          showNotification('Message sent successfully', 'success');
+          return message;
         } catch (error) {
           console.error('Post load error:', error);
           showNotification('Failed to post load: ' + error.message, 'error');
@@ -2202,3 +2309,4 @@
    </script>
 </body>
 </html>
+
