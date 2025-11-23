@@ -853,7 +853,7 @@
         }, 5000);
       }
       
-      // API helper functions that call the correct backend endpoints
+      // API helper functions that call correct backend endpoints
       
       const apiRequest = async (endpoint, options = {}) => {
         const headers = {
@@ -957,8 +957,8 @@
         }
       };
       
-      const updateUserProfile = async (userId, profileData) => {
-        if (!userId || !profileData) throw new Error('User ID and profile data are required');
+      const updateUserProfile = async (profileData) => {
+        if (!profileData) throw new Error('Profile data is required');
         
         const sanitizedData = {};
         for (const key in profileData) {
@@ -998,14 +998,14 @@
         const user = getCurrentUserSync();
         if (!user) throw new Error('User not logged in');
         
+        // Fixed: Removed shipper_id from payload as backend will determine it from auth
         const sanitizedPayload = {
           origin: sanitize(payload.origin),
           destination: sanitize(payload.destination),
           date: payload.date,
           cargo_type: sanitize(payload.cargo_type),
           weight: parseFloat(payload.weight),
-          notes: sanitize(payload.notes || ''),
-          shipper_id: user.id
+          notes: sanitize(payload.notes || '')
         };
         
         try {
@@ -1105,10 +1105,12 @@
         
         try {
           // Fixed: Changed sender_id to sender_email to match the backend
+          // Fixed: Correctly extract email from user object
+          const userEmail = user.data.user.email;
           const message = await apiRequest('/messages', {
             method: 'POST',
             body: JSON.stringify({ 
-              sender_email: user.data.user.email, 
+              sender_email: userEmail, 
               recipient_email: toEmail, 
               body: sanitize(body) 
             })
@@ -1303,6 +1305,7 @@
         setHidden('btnLogout', !u);
         setHidden('btnLoginNav', !!u);
         
+        // Fixed: Correctly extract user data from the nested structure
         if (u && u.data && u.data.user) {
           setText('authUser', `${sanitize(u.data.user.name)} · ${u.data.user.role}`);
         } else {
@@ -1364,7 +1367,9 @@
         if (!u) return;
         
         try {
-          const rows = await getLoads({ shipper_id: u.id });
+          // Fixed: Use correct user ID from nested structure
+          const userId = u.data.user.id;
+          const rows = await getLoads({ shipper_id: userId });
           const tb = el('tableMyLoads');
           if (!tb) return;
           
@@ -1491,7 +1496,7 @@
               <td>${sanitize(l.cargo_type)}</td>
               <td>${sanitize(l.weight)}</td>
               <td>${sanitize(l.notes || '')}</td>
-              <td>${sanitize(l.shipper_name || '')}</td>`;
+              <td>${sanitize(l.shipper || '')}</td>`;
             tbody.appendChild(tr);
           }
         } catch (error) {
@@ -1542,7 +1547,7 @@
               <td>${sanitize(l.cargo_type)}</td>
               <td>${sanitize(l.weight)}</td>
               <td>${sanitize(l.notes || '')}</td>
-              <td>${sanitize(l.shipper_name || '')}</td>`;
+              <td>${sanitize(l.shipper || '')}</td>`;
             tbody.appendChild(tr);
           }
         } catch (error) {
@@ -1554,18 +1559,21 @@
         const u = getCurrentUserSync();
         if (!u) return;
         
-        if (u.role === 'shipper') {
+        // Fixed: Extract user data from nested structure
+        const userData = u.data.user;
+        
+        if (userData.role === 'shipper') {
           const avatar = el('shipperProfileAvatar');
           const name = el('shipperProfileName');
           const since = el('shipperProfileSince');
           
-          if (avatar) avatar.textContent = u.name.charAt(0).toUpperCase();
-          if (name) name.textContent = u.name;
-          if (since) since.textContent = new Date(u.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
+          if (avatar) avatar.textContent = userData.name.charAt(0).toUpperCase();
+          if (name) name.textContent = userData.name;
+          if (since) since.textContent = new Date(userData.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
           
-          setText('shipperProfileEmail', u.email);
-          setText('shipperProfileCompany', u.company || 'Not provided');
-          setText('shipperProfileRole', u.role.charAt(0).toUpperCase() + u.role.slice(1));
+          setText('shipperProfileEmail', userData.email);
+          setText('shipperProfileCompany', userData.company || 'Not provided');
+          setText('shipperProfileRole', userData.role.charAt(0).toUpperCase() + userData.role.slice(1));
           setText('shipperProfileCreated', new Date(u.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long' }));
         }
         
