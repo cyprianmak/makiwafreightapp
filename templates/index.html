@@ -646,76 +646,6 @@
         </div>
       </div>
       
-      <!-- Post Loads Control Panel -->
-      <div class="control-panel">
-        <div class="control-panel-header">
-          <h3 class="control-panel-title">Post Loads Control</h3>
-        </div>
-        <div class="control-panel-body">
-          <div class="control-panel-description">
-            Enable or disable the ability for users to post new loads. When disabled, only administrators can post loads.
-          </div>
-          <div class="control-panel-action">
-            <label class="toggle-switch">
-              <input type="checkbox" id="postLoadsToggle">
-              <span class="toggle-slider"></span>
-            </label>
-          </div>
-        </div>
-        <div class="toolbar" style="margin-top:15px">
-          <button id="btnSavePostLoadsControl" class="btn primary">Save Setting</button>
-        </div>
-      </div>
-      
-      <!-- User Access Control Panel -->
-      <div class="control-panel">
-        <div class="control-panel-header">
-          <h3 class="control-panel-title">User Access Control</h3>
-        </div>
-        <div class="control-panel-body">
-          <div class="control-panel-description">
-            Select a user to control their access to posting loads and accessing the market.
-          </div>
-          <div class="select-with-actions">
-            <select id="userAccessSelect">
-              <option value="">-- Select User --</option>
-            </select>
-            <button id="btnLoadUserAccess" class="btn">Load</button>
-          </div>
-        </div>
-        
-        <div id="userAccessControls" class="user-access-control hidden">
-          <div class="user-access-row">
-            <div class="user-info">
-              <div class="user-avatar" id="selectedUserAvatar">U</div>
-              <div class="user-details">
-                <div class="user-name" id="selectedUserName">User Name</div>
-                <div class="user-email" id="selectedUserEmail">user@example.com</div>
-              </div>
-            </div>
-            <div class="access-controls">
-              <div class="access-control-item">
-                <label class="toggle-switch">
-                  <input type="checkbox" id="canPostLoadsToggle">
-                  <span class="toggle-slider"></span>
-                </label>
-                <span class="access-control-label">Can Post Loads</span>
-              </div>
-              <div class="access-control-item">
-                <label class="toggle-switch">
-                  <input type="checkbox" id="canAccessMarketToggle">
-                  <span class="toggle-slider"></span>
-                </label>
-                <span class="access-control-label">Can Access Market</span>
-              </div>
-            </div>
-          </div>
-          <div class="toolbar" style="margin-top:15px">
-            <button id="btnSaveUserAccess" class="btn primary">Save User Access</button>
-          </div>
-        </div>
-      </div>
-      
       <!-- Unified Access Control Section -->
       <div class="card">
         <div class="access-control-header">
@@ -791,28 +721,13 @@
   <!-- Notification Container -->
   <div id="notificationContainer"></div>
   <script>
-    // PostgreSQL-based implementation for MakiwaFreight App
+    // MakiwaFreight App Frontend
     (function() {
       'use strict';
       
       // Configuration
       const API_BASE = '/api'; // Base URL for your API endpoints
-      const ADMIN_EMAIL = 'cyprianmak@gmail.com';
-      const ADMIN_PASS = 'Muchandida@1';
       const LOAD_EXPIRY_DAYS = 7;
-      
-      // Database configuration for PostgreSQL
-      const DB_CONFIG = {
-        host: 'localhost',
-        port: 5432,
-        database: 'makiwafreight',
-        user: 'postgres',
-        password: 'password',
-        // Connection pooling configuration
-        max: 20,
-        idleTimeoutMillis: 30000,
-        connectionTimeoutMillis: 2000,
-      };
       
       // Page definitions for access control
       const PAGES = {
@@ -855,31 +770,6 @@
         return re.test(email);
       };
       
-      // Validate form fields
-      const validateForm = (form) => {
-        const requiredFields = form.querySelectorAll('[required]');
-        let isValid = true;
-        
-        requiredFields.forEach(field => {
-          if (!field.value.trim()) {
-            field.classList.add('error');
-            isValid = false;
-          } else {
-            field.classList.remove('error');
-          }
-          
-          // Special validation for email fields
-          if (field.type === 'email' && field.value.trim()) {
-            if (!isValidEmail(field.value.trim())) {
-              field.classList.add('error');
-              isValid = false;
-            }
-          }
-        });
-        
-        return isValid;
-      };
-      
       // Error handling wrapper
       const handleError = (fn, fallbackMsg = 'An error occurred') => {
         try {
@@ -904,42 +794,10 @@
         return new Date(load.expires_at) < new Date();
       };
       
-      // Check if post loads is enabled globally
-      const isPostLoadsEnabled = () => {
-        return accessControlData.post_loads_enabled !== false;
-      };
-      
-      // Check if user can post loads
-      const canUserPostLoads = (userId) => {
-        // Check global setting first
-        if (!isPostLoadsEnabled()) {
-          return false;
-        }
-        
-        // Check user-specific setting if available
-        if (accessControlData.user_access && accessControlData.user_access[userId]) {
-          return accessControlData.user_access[userId].can_post_loads !== false;
-        }
-        
-        // Default to true for all users
-        return true;
-      };
-      
-      // Check if user can access market
-      const canUserAccessMarket = (userId) => {
-        // Check user-specific setting if available
-        if (accessControlData.user_access && accessControlData.user_access[userId]) {
-          return accessControlData.user_access[userId].can_access_market !== false;
-        }
-        
-        // Default to true for all users
-        return true;
-      };
-      
       // Get current user synchronously (from stored data)
       const getCurrentUserSync = () => {
         try {
-          const userData = sessionStorage.getItem('currentUser'); // Using sessionStorage for better security
+          const userData = sessionStorage.getItem('currentUser');
           if (userData) {
             return JSON.parse(userData);
           }
@@ -959,7 +817,6 @@
           button.classList.add('loading');
           button.disabled = true;
           
-          // Add loading spinner if not already present
           if (!button.querySelector('.loading')) {
             const spinner = document.createElement('span');
             spinner.className = 'loading';
@@ -969,7 +826,6 @@
           button.classList.remove('loading');
           button.disabled = false;
           
-          // Remove loading spinner if present
           const spinner = button.querySelector('.loading');
           if (spinner) {
             spinner.remove();
@@ -985,12 +841,10 @@
         
         document.getElementById('notificationContainer').appendChild(notification);
         
-        // Show notification
         setTimeout(() => {
           notification.classList.add('show');
         }, 10);
         
-        // Hide and remove notification after 5 seconds
         setTimeout(() => {
           notification.classList.remove('show');
           setTimeout(() => {
@@ -999,351 +853,11 @@
         }, 5000);
       }
       
-      // PostgreSQL Database Helper Functions
-      // These would be implemented on server-side, but we're defining structure here
+      // API helper functions that call the correct backend endpoints
       
-      /**
-       * PostgreSQL Query Builder
-       * This helps construct safe SQL queries to prevent SQL injection
-       */
-      const queryBuilder = {
-        select: (table, fields = '*', conditions = '', params = []) => {
-          return {
-            sql: `SELECT ${fields} FROM ${table}${conditions ? ' WHERE ' + conditions : ''}`,
-            params
-          };
-        },
-        
-        insert: (table, data) => {
-          const fields = Object.keys(data).join(', ');
-          const placeholders = Object.keys(data).map((_, i) => `$${i + 1}`).join(', ');
-          const values = Object.values(data);
-          
-          return {
-            sql: `INSERT INTO ${table} (${fields}) VALUES (${placeholders}) RETURNING *`,
-            params: values
-          };
-        },
-        
-        update: (table, data, conditions, conditionParams = []) => {
-          const setClause = Object.keys(data).map((key, i) => `${key} = $${i + 1}`).join(', ');
-          const values = Object.values(data);
-          const allParams = [...values, ...conditionParams];
-          
-          return {
-            sql: `UPDATE ${table} SET ${setClause} WHERE ${conditions} RETURNING *`,
-            params: allParams
-          };
-        },
-        
-        delete: (table, conditions, params = []) => {
-          return {
-            sql: `DELETE FROM ${table} WHERE ${conditions} RETURNING *`,
-            params
-          };
-        }
-      };
-      
-      /**
-       * PostgreSQL Database Connection Pool
-       * In a real implementation, this would be a connection pool to PostgreSQL
-       */
-      const dbPool = {
-        // This would be initialized with pg library in a real Node.js backend
-        // For now, we'll simulate it with API calls
-        query: async (sql, params = []) => {
-          // In a real implementation, this would execute SQL query against PostgreSQL
-          // For now, we'll make an API call to backend
-          try {
-            const response = await fetch(`${API_BASE}/db/query`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${sessionStorage.getItem('authToken')}`
-              },
-              body: JSON.stringify({ sql, params })
-            });
-            
-            if (!response.ok) {
-              throw new Error(`Database error: ${response.status}`);
-            }
-            
-            return await response.json();
-          } catch (error) {
-            console.error('Database query error:', error);
-            throw error;
-          }
-        }
-      };
-      
-      // PostgreSQL Data Access Objects (DAOs)
-      const userDao = {
-        // Find user by email for authentication
-        findByEmail: async (email) => {
-          const query = queryBuilder.select('users', '*', 'email = $1', [email]);
-          const result = await dbPool.query(query.sql, query.params);
-          return result.rows[0] || null;
-        },
-        
-        // Find admin by email for authentication
-        findAdminByEmail: async (email) => {
-          const query = queryBuilder.select('admins', '*', 'email = $1', [email]);
-          const result = await dbPool.query(query.sql, query.params);
-          return result.rows[0] || null;
-        },
-        
-        // Find user by ID
-        findById: async (id) => {
-          const query = queryBuilder.select('users', '*', 'id = $1', [id]);
-          const result = await dbPool.query(query.sql, query.params);
-          return result.rows[0] || null;
-        },
-        
-        // Create new user
-        create: async (userData) => {
-          // Hash password before storing (this would be done on server)
-          const hashedPassword = await hashPassword(userData.password);
-          const userToInsert = { ...userData, password: hashedPassword };
-          
-          const query = queryBuilder.insert('users', userToInsert);
-          const result = await dbPool.query(query.sql, query.params);
-          return result.rows[0];
-        },
-        
-        // Update user
-        update: async (id, userData) => {
-          // If password is being updated, hash it
-          if (userData.password) {
-            userData.password = await hashPassword(userData.password);
-          }
-          
-          const query = queryBuilder.update('users', userData, 'id = $' + (Object.keys(userData).length + 1), [id]);
-          const result = await dbPool.query(query.sql, query.params);
-          return result.rows[0];
-        },
-        
-        // Delete user
-        delete: async (id) => {
-          const query = queryBuilder.delete('users', 'id = $1', [id]);
-          const result = await dbPool.query(query.sql, query.params);
-          return result.rows[0];
-        },
-        
-        // Get all users (for admin)
-        findAll: async () => {
-          const query = queryBuilder.select('users');
-          const result = await dbPool.query(query.sql, query.params);
-          return result.rows;
-        }
-      };
-      
-      const loadDao = {
-        // Find load by ID
-        findById: async (id) => {
-          const query = queryBuilder.select('loads', '*', 'id = $1', [id]);
-          const result = await dbPool.query(query.sql, query.params);
-          return result.rows[0] || null;
-        },
-        
-        // Create new load
-        create: async (loadData) => {
-          const query = queryBuilder.insert('loads', {
-            ...loadData,
-            created_at: now(),
-            expires_at: calculateExpiryDate()
-          });
-          const result = await dbPool.query(query.sql, query.params);
-          return result.rows[0];
-        },
-        
-        // Update load
-        update: async (id, loadData) => {
-          const query = queryBuilder.update('loads', loadData, 'id = $' + (Object.keys(loadData).length + 1), [id]);
-          const result = await dbPool.query(query.sql, query.params);
-          return result.rows[0];
-        },
-        
-        // Delete load
-        delete: async (id) => {
-          const query = queryBuilder.delete('loads', 'id = $1', [id]);
-          const result = await dbPool.query(query.sql, query.params);
-          return result.rows[0];
-        },
-        
-        // Get loads with optional filters
-        findWithFilters: async (filters = {}) => {
-          let conditions = [];
-          let params = [];
-          let paramIndex = 1;
-          
-          if (filters.origin) {
-            conditions.push(`origin ILIKE $${paramIndex++}`);
-            params.push(`%${filters.origin}%`);
-          }
-          
-          if (filters.destination) {
-            conditions.push(`destination ILIKE $${paramIndex++}`);
-            params.push(`%${filters.destination}%`);
-          }
-          
-          if (filters.shipper_id) {
-            conditions.push(`shipper_id = $${paramIndex++}`);
-            params.push(filters.shipper_id);
-          }
-          
-          // Filter out expired loads
-          conditions.push(`expires_at > NOW()`);
-          
-          const whereClause = conditions.join(' AND ');
-          const query = queryBuilder.select('loads', '*', whereClause, params);
-          
-          // Join with users to get shipper name
-          const fullQuery = {
-            sql: `
-              SELECT loads.*, users.name as shipper_name, users.email as shipper_email 
-              FROM ${query.sql.replace('SELECT * FROM', 'LEFT JOIN users ON loads.shipper_id = users.id WHERE')}
-            `,
-            params: query.params
-          };
-          
-          const result = await dbPool.query(fullQuery.sql, fullQuery.params);
-          return result.rows;
-        },
-        
-        // Get all loads (for admin)
-        findAll: async () => {
-          const query = queryBuilder.select('loads');
-          const result = await dbPool.query(query.sql, query.params);
-          return result.rows;
-        }
-      };
-      
-      const messageDao = {
-        // Create new message
-        create: async (messageData) => {
-          const query = queryBuilder.insert('messages', {
-            ...messageData,
-            created_at: now()
-          });
-          const result = await dbPool.query(query.sql, query.params);
-          return result.rows[0];
-        },
-        
-        // Get messages for current user
-        findByRecipient: async (recipientEmail) => {
-          const query = queryBuilder.select('messages', '*', 'recipient_email = $1 ORDER BY created_at DESC', [recipientEmail]);
-          const result = await dbPool.query(query.sql, query.params);
-          return result.rows;
-        },
-        
-        // Delete message
-        delete: async (id) => {
-          const query = queryBuilder.delete('messages', 'id = $1', [id]);
-          const result = await dbPool.query(query.sql, query.params);
-          return result.rows[0];
-        }
-      };
-      
-      const accessControlDao = {
-        // Get access control settings
-        get: async () => {
-          const query = queryBuilder.select('access_control');
-          const result = await dbPool.query(query.sql, query.params);
-          
-          // Transform the result into the expected format
-          const accessControl = {};
-          result.rows.forEach(row => {
-            if (row.key === 'post_loads_enabled') {
-              accessControl.post_loads_enabled = row.value === 'true';
-            } else if (row.key.startsWith('banner_')) {
-              if (!accessControl.banners) accessControl.banners = {};
-              accessControl.banners[row.key.replace('banner_', '')] = row.value;
-            } else if (row.key.startsWith('page_access_')) {
-              if (!accessControl.pages) accessControl.pages = {};
-              const pageKey = row.key.replace('page_access_', '');
-              accessControl.pages[pageKey] = JSON.parse(row.value);
-            } else if (row.key.startsWith('user_access_')) {
-              if (!accessControl.user_access) accessControl.user_access = {};
-              const userId = row.key.replace('user_access_', '');
-              accessControl.user_access[userId] = JSON.parse(row.value);
-            }
-          });
-          
-          return accessControl;
-        },
-        
-        // Update access control setting
-        update: async (key, value) => {
-          const query = queryBuilder.update('access_control', { value }, 'key = $2', [key]);
-          await dbPool.query(query.sql, query.params);
-        },
-        
-        // Create access control setting
-        create: async (key, value) => {
-          const query = queryBuilder.insert('access_control', { key, value });
-          await dbPool.query(query.sql, query.params);
-        }
-      };
-      
-      // Password hashing utility (would be implemented on server-side with bcrypt)
-      const hashPassword = async (password) => {
-        // In a real implementation, this would use bcrypt on the server
-        // For now, we'll simulate it
-        try {
-          // This would be done on the server with bcrypt
-          const response = await fetch(`${API_BASE}/auth/hash`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ password })
-          });
-          
-          if (!response.ok) {
-            throw new Error('Failed to hash password');
-          }
-          
-          const result = await response.json();
-          return result.hashedPassword;
-        } catch (error) {
-          console.error('Error hashing password:', error);
-          // Fallback to simple base64 encoding for demo purposes
-          return btoa(password + 'salt');
-        }
-      };
-      
-      // Verify password utility (would be implemented on server-side with bcrypt)
-      const verifyPassword = async (password, hashedPassword) => {
-        // In a real implementation, this would use bcrypt.compare on the server
-        try {
-          // This would be done on the server with bcrypt
-          const response = await fetch(`${API_BASE}/auth/verify`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ password, hashedPassword })
-          });
-          
-          if (!response.ok) {
-            throw new Error('Failed to verify password');
-          }
-          
-          const result = await response.json();
-          return result.valid;
-        } catch (error) {
-          console.error('Error verifying password:', error);
-          // Fallback to simple comparison for demo purposes
-          return btoa(password + 'salt') === hashedPassword;
-        }
-      };
-      
-      // API helper functions that use PostgreSQL DAOs
       const apiRequest = async (endpoint, options = {}) => {
-        const token = sessionStorage.getItem('authToken');
         const headers = {
           'Content-Type': 'application/json',
-          ...(token && { Authorization: `Bearer ${token}` }),
           ...options.headers
         };
         
@@ -1355,12 +869,11 @@
           
           if (!response.ok) {
             const error = await response.json().catch(() => ({}));
-            throw new Error(error.message || `API error: ${response.status}`);
+            throw new Error(error.error || `API error: ${response.status}`);
           }
           
-          return response.json();
+          return await response.json();
         } catch (error) {
-          // Handle network errors
           if (error instanceof TypeError && error.message.includes('fetch')) {
             throw new Error('Network error. Please check your connection and try again.');
           }
@@ -1375,49 +888,17 @@
         email = email.trim().toLowerCase();
         
         try {
-          // First try to authenticate as admin
-          let user = await userDao.findAdminByEmail(email);
-          let isAdminUser = true;
-          
-          // If not found in admins table, try users table
-          if (!user) {
-            user = await userDao.findByEmail(email);
-            isAdminUser = false;
-          }
-          
-          if (!user) {
-            showNotification('Invalid email or password', 'error');
-            return null;
-          }
-          
-          // Verify password
-          const isValidPassword = await verifyPassword(password, user.password);
-          if (!isValidPassword) {
-            showNotification('Invalid email or password', 'error');
-            return null;
-          }
-          
-          // Generate token (this would be done on the server)
-          const tokenResponse = await fetch(`${API_BASE}/auth/token`, {
+          const user = await apiRequest('/users/login', {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ userId: user.id, isAdmin: isAdminUser })
+            body: JSON.stringify({ email, password })
           });
           
-          if (!tokenResponse.ok) {
-            throw new Error('Failed to generate authentication token');
+          if (user) {
+            sessionStorage.setItem('currentUser', JSON.stringify(user));
+            showNotification('Login successful', 'success');
+            return user;
           }
-          
-          const tokenData = await tokenResponse.json();
-          
-          // Store token and user data
-          sessionStorage.setItem('authToken', tokenData.token);
-          sessionStorage.setItem('currentUser', JSON.stringify(user));
-          
-          showNotification('Login successful', 'success');
-          return user;
+          return null;
         } catch (error) {
           console.error('Login error:', error);
           showNotification('Login failed: ' + error.message, 'error');
@@ -1426,50 +907,14 @@
       };
       
       const logout = () => {
-        sessionStorage.removeItem('authToken');
         sessionStorage.removeItem('currentUser');
         showNotification('Logged out successfully', 'info');
         location.hash = '#login';
         render();
       };
       
-      const getCurrentUser = async () => {
-        try {
-          const token = sessionStorage.getItem('authToken');
-          if (!token) {
-            return null;
-          }
-          
-          // Verify token with server
-          const response = await fetch(`${API_BASE}/auth/verify-token`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            }
-          });
-          
-          if (!response.ok) {
-            // Token is invalid, remove it
-            sessionStorage.removeItem('authToken');
-            sessionStorage.removeItem('currentUser');
-            return null;
-          }
-          
-          const result = await response.json();
-          
-          // Update stored user data
-          sessionStorage.setItem('currentUser', JSON.stringify(result.user));
-          return result.user;
-        } catch (error) {
-          console.error('Error getting current user:', error);
-          return null;
-        }
-      };
-      
       // User API functions
       const registerUser = async (data) => {
-        // Validate required fields
         if (!data.name || !data.email || !data.password || !data.phone) {
           throw new Error('All required fields must be filled');
         }
@@ -1478,28 +923,22 @@
           throw new Error('Please enter a valid email address');
         }
         
-        // Sanitize inputs
         const sanitizedData = {
           name: sanitize(data.name),
           company: sanitize(data.company || ''),
           email: data.email.trim().toLowerCase(),
           phone: sanitize(data.phone),
-          password: data.password, // Don't sanitize password
+          password: data.password,
           address: sanitize(data.address || ''),
           role: data.role,
-          vehicle_info: sanitize(data.vehicle_info || ''),
-          created_at: now()
+          vehicle_info: sanitize(data.vehicle_info || '')
         };
         
         try {
-          // Check if user already exists
-          const existingUser = await userDao.findByEmail(sanitizedData.email);
-          if (existingUser) {
-            throw new Error('A user with this email already exists');
-          }
-          
-          // Create user in database
-          const user = await userDao.create(sanitizedData);
+          const user = await apiRequest('/users/register', {
+            method: 'POST',
+            body: JSON.stringify(sanitizedData)
+          });
           
           showNotification('Registration successful', 'success');
           return user;
@@ -1513,25 +952,19 @@
       const updateUserProfile = async (userId, profileData) => {
         if (!userId || !profileData) throw new Error('User ID and profile data are required');
         
-        // Only allow updating specific fields: name, phone, address, and password
-        const allowedFields = ['name', 'phone', 'address', 'password'];
         const sanitizedData = {};
-        
         for (const key in profileData) {
-          if (allowedFields.includes(key)) {
-            if (key === 'password') {
-              sanitizedData[key] = profileData[key]; // Don't sanitize password
-            } else {
-              sanitizedData[key] = sanitize(profileData[key]);
-            }
+          if (['name', 'phone', 'address', 'password'].includes(key)) {
+            sanitizedData[key] = profileData[key];
           }
         }
         
         try {
-          // Update user in database
-          const user = await userDao.update(userId, sanitizedData);
+          const user = await apiRequest(`/users/${userId}`, {
+            method: 'PUT',
+            body: JSON.stringify(sanitizedData)
+          });
           
-          // Update stored user data
           const currentUser = getCurrentUserSync();
           if (currentUser) {
             const updatedUser = { ...currentUser, ...sanitizedData };
@@ -1549,12 +982,13 @@
       
       // Load API functions
       const postLoad = async (payload) => {
-        // Validate required fields
         if (!payload.origin || !payload.destination || !payload.date || !payload.cargo_type || !payload.weight) {
           throw new Error('All required fields must be filled');
         }
         
-        // Sanitize inputs
+        const user = getCurrentUserSync();
+        if (!user) throw new Error('User not logged in');
+        
         const sanitizedPayload = {
           origin: sanitize(payload.origin),
           destination: sanitize(payload.destination),
@@ -1562,13 +996,14 @@
           cargo_type: sanitize(payload.cargo_type),
           weight: parseFloat(payload.weight),
           notes: sanitize(payload.notes || ''),
-          created_at: now(),
-          expires_at: calculateExpiryDate()
+          shipper_id: user.id
         };
         
         try {
-          // Create load in database
-          const load = await loadDao.create(sanitizedPayload);
+          const load = await apiRequest('/loads', {
+            method: 'POST',
+            body: JSON.stringify(sanitizedPayload)
+          });
           
           showNotification('Load posted successfully', 'success');
           return load;
@@ -1581,8 +1016,21 @@
       
       const getLoads = async (filters = {}) => {
         try {
-          // Get loads from database
-          const loads = await loadDao.findWithFilters(filters);
+          let loads;
+          if (filters.shipper_id) {
+            loads = await apiRequest(`/loads/shipper/${filters.shipper_id}`);
+          } else {
+            loads = await apiRequest('/loads');
+          }
+          
+          // Client-side filtering for origin/destination if needed
+          if (filters.origin) {
+            loads = loads.filter(l => l.origin.toLowerCase().includes(filters.origin.toLowerCase()));
+          }
+          if (filters.destination) {
+            loads = loads.filter(l => l.destination.toLowerCase().includes(filters.destination.toLowerCase()));
+          }
+          
           return loads;
         } catch (error) {
           console.error('Get loads error:', error);
@@ -1594,7 +1042,6 @@
       const updateLoad = async (loadId, patch) => {
         if (!loadId) throw new Error('Load ID is required');
         
-        // Sanitize patch values
         const sanitizedPatch = {};
         for (const key in patch) {
           if (key === 'weight') {
@@ -1605,8 +1052,10 @@
         }
         
         try {
-          // Update load in database
-          const load = await loadDao.update(loadId, sanitizedPatch);
+          const load = await apiRequest(`/loads/${loadId}`, {
+            method: 'PUT',
+            body: JSON.stringify(sanitizedPatch)
+          });
           
           showNotification('Load updated successfully', 'success');
           return load;
@@ -1621,11 +1070,8 @@
         if (!loadId) throw new Error('Load ID is required');
         
         try {
-          // Delete load from database
-          const load = await loadDao.delete(loadId);
-          
+          await apiRequest(`/loads/${loadId}`, { method: 'DELETE' });
           showNotification('Load deleted successfully', 'success');
-          return load;
         } catch (error) {
           console.error('Delete load error:', error);
           showNotification('Failed to delete load: ' + error.message, 'error');
@@ -1639,18 +1085,17 @@
           throw new Error('Recipient and message are required');
         }
         
+        const user = getCurrentUserSync();
+        if (!user) throw new Error('User not logged in');
+        
         if (!isValidEmail(toEmail)) {
           throw new Error('Please enter a valid recipient email');
         }
         
-        const sanitizedBody = sanitize(body);
-        
         try {
-          // Create message in database
-          const message = await messageDao.create({
-            recipient_email: toEmail,
-            body: sanitizedBody,
-            created_at: now()
+          const message = await apiRequest('/messages', {
+            method: 'POST',
+            body: JSON.stringify({ sender_id: user.id, receiver_email: toEmail, body: sanitize(body) })
           });
           
           showNotification('Message sent successfully', 'success');
@@ -1663,14 +1108,11 @@
       };
       
       const getMessages = async () => {
+        const user = getCurrentUserSync();
+        if (!user) throw new Error('User not logged in');
+        
         try {
-          const currentUser = getCurrentUserSync();
-          if (!currentUser) {
-            throw new Error('User not logged in');
-          }
-          
-          // Get messages from database
-          const messages = await messageDao.findByRecipient(currentUser.email);
+          const messages = await apiRequest(`/messages/${user.id}`);
           return messages;
         } catch (error) {
           console.error('Get messages error:', error);
@@ -1683,11 +1125,8 @@
         if (!messageId) throw new Error('Message ID is required');
         
         try {
-          // Delete message from database
-          const message = await messageDao.delete(messageId);
-          
+          await apiRequest(`/messages/${messageId}`, { method: 'DELETE' });
           showNotification('Message deleted successfully', 'success');
-          return message;
         } catch (error) {
           console.error('Delete message error:', error);
           showNotification('Failed to delete message: ' + error.message, 'error');
@@ -1700,8 +1139,7 @@
       
       const getUsers = async () => {
         try {
-          // Get all users from database
-          const users = await userDao.findAll();
+          const users = await apiRequest('/admin/users');
           return users;
         } catch (error) {
           console.error('Get users error:', error);
@@ -1714,17 +1152,8 @@
         if (!email) throw new Error('Email is required');
         
         try {
-          // Find user by email first
-          const user = await userDao.findByEmail(email);
-          if (!user) {
-            throw new Error('User not found');
-          }
-          
-          // Delete user from database
-          const deletedUser = await userDao.delete(user.id);
-          
+          await apiRequest(`/admin/users/${encodeURIComponent(email)}`, { method: 'DELETE' });
           showNotification('User deleted successfully', 'success');
-          return deletedUser;
         } catch (error) {
           console.error('Delete user error:', error);
           showNotification('Failed to delete user: ' + error.message, 'error');
@@ -1736,17 +1165,11 @@
         if (!email || !newPass) throw new Error('Email and password are required');
         
         try {
-          // Find user by email first
-          const user = await userDao.findByEmail(email);
-          if (!user) {
-            throw new Error('User not found');
-          }
-          
-          // Update password in database
-          const updatedUser = await userDao.update(user.id, { password: newPass });
-          
+          await apiRequest('/admin/reset-password', {
+            method: 'POST',
+            body: JSON.stringify({ email, newPassword: newPass })
+          });
           showNotification('Password reset successfully', 'success');
-          return updatedUser;
         } catch (error) {
           console.error('Reset password error:', error);
           showNotification('Failed to reset password: ' + error.message, 'error');
@@ -1756,9 +1179,8 @@
       
       const getBanners = async () => {
         try {
-          // Get banners from database
-          const acl = await accessControlDao.get();
-          return acl.banners || {};
+          const banners = await apiRequest('/admin/banners');
+          return banners;
         } catch (error) {
           console.error('Get banners error:', error);
           showNotification('Failed to get banners: ' + error.message, 'error');
@@ -1768,11 +1190,10 @@
       
       const updateBanners = async (banners) => {
         try {
-          // Update banners in database
-          for (const key in banners) {
-            await accessControlDao.update(`banner_${key}`, banners[key]);
-          }
-          
+          await apiRequest('/admin/banners', {
+            method: 'PUT',
+            body: JSON.stringify(banners)
+          });
           showNotification('Banners updated successfully', 'success');
           return banners;
         } catch (error) {
@@ -1784,8 +1205,7 @@
       
       const getAccessControl = async () => {
         try {
-          // Get access control settings from database
-          const acl = await accessControlDao.get();
+          const acl = await apiRequest('/admin/acl');
           return acl;
         } catch (error) {
           console.error('Get access control error:', error);
@@ -1796,25 +1216,10 @@
       
       const updateAccessControl = async (acl) => {
         try {
-          // Update access control settings in database
-          for (const key in acl) {
-            if (key === 'post_loads_enabled') {
-              await accessControlDao.update(key, acl[key].toString());
-            } else if (key === 'banners') {
-              for (const bannerKey in acl[key]) {
-                await accessControlDao.update(`banner_${bannerKey}`, acl[key][bannerKey]);
-              }
-            } else if (key === 'pages') {
-              for (const pageKey in acl[key]) {
-                await accessControlDao.update(`page_access_${pageKey}`, JSON.stringify(acl[key][pageKey]));
-              }
-            } else if (key === 'user_access') {
-              for (const userId in acl[key]) {
-                await accessControlDao.update(`user_access_${userId}`, JSON.stringify(acl[key][userId]));
-              }
-            }
-          }
-          
+          await apiRequest('/admin/acl', {
+            method: 'PUT',
+            body: JSON.stringify(acl)
+          });
           showNotification('Access control updated successfully', 'success');
           return acl;
         } catch (error) {
@@ -1827,11 +1232,8 @@
       // Check if user can access a specific page
       const canAccessPage = (user, pageId) => {
         if (!user) return false;
-        
-        // Admin can access all pages
         if (isAdmin(user)) return true;
         
-        // Check if page is in user's default role pages
         const page = PAGES[pageId];
         if (page && page.roles.includes(user.role)) {
           return true;
@@ -1866,7 +1268,6 @@
         const activePage = el(pages[key]);
         if (activePage) {
           activePage.classList.remove('hidden');
-          // Set focus to the main heading for accessibility
           const heading = activePage.querySelector('h1, h2');
           if (heading) heading.focus();
         }
@@ -1875,7 +1276,7 @@
       
       // Rendering functions
       const renderHeader = async () => {
-        const u = await getCurrentUser();
+        const u = getCurrentUserSync();
         setHidden('btnLogout', !u);
         setHidden('btnLoginNav', !!u);
         setText('authUser', u ? `${sanitize(u.name)} · ${u.role}` : '');
@@ -1888,13 +1289,11 @@
           chip.classList.add('hidden');
         }
         
-        // Render navigation links
         const navLinksContainer = el('navLinks');
         if (navLinksContainer) {
           navLinksContainer.innerHTML = '';
           
           if (u) {
-            // Add navigation links based on user access
             Object.keys(PAGES).forEach(pageId => {
               if (canAccessPage(u, pageId)) {
                 const link = document.createElement('a');
@@ -1910,10 +1309,7 @@
       
       const renderBanners = async () => {
         try {
-          const acl = await getAccessControl();
-          accessControlData = acl; // Store globally
-          
-          const banners = acl.banners || {};
+          const banners = await getBanners();
           
           const i = el('indexBanner');
           if (i) {
@@ -1921,7 +1317,7 @@
             setHidden('indexBanner', !banners.index);
           }
           
-          const u = await getCurrentUser();
+          const u = getCurrentUserSync();
           const d1 = el('dashBannerShipper');
           const d2 = el('dashBannerTransporter');
           const m = el('marketBanner');
@@ -1941,7 +1337,6 @@
             setHidden('marketBanner', !banners.dashboard);
           }
           
-          // Preload admin form fields
           if (isAdmin(u)) {
             const adminIndexBanner = el('adminIndexBanner');
             const adminDashBanner = el('adminDashBanner');
@@ -1954,25 +1349,10 @@
       };
       
       const renderShipper = async () => {
-        const u = await getCurrentUser();
+        const u = getCurrentUserSync();
         if (!u) return;
         
         try {
-          // Check if user can post loads
-          const canPost = canUserPostLoads(u.id);
-          const postLoadBtn = el('shipperDashboardPostLoadBtn');
-          if (postLoadBtn) {
-            setHidden('shipperDashboardPostLoadBtn', !canPost);
-          }
-          
-          // Check if user can access market
-          const canAccessMarket = canUserAccessMarket(u.id);
-          const marketBtn = el('shipperDashboardMarketBtn');
-          if (marketBtn) {
-            setHidden('shipperDashboardMarketBtn', !canAccessMarket);
-          }
-          
-          // My loads table
           const rows = await getLoads({ shipper_id: u.id });
           const tb = el('tableMyLoads');
           if (!tb) return;
@@ -2012,7 +1392,6 @@
             tbody.appendChild(tr);
           }
           
-          // Action handlers
           tbody.querySelectorAll('[data-del]').forEach(b => {
             b.onclick = () => {
               if (confirm('Are you sure you want to delete this load?')) {
@@ -2059,24 +1438,10 @@
       };
       
       const renderTransporter = async () => {
-        const u = await getCurrentUser();
+        const u = getCurrentUserSync();
         if (!u) return;
         
         try {
-          // Check if user can post loads
-          const canPost = canUserPostLoads(u.id);
-          const postLoadBtn = el('transporterDashboardPostLoadBtn');
-          if (postLoadBtn) {
-            setHidden('transporterDashboardPostLoadBtn', !canPost);
-          }
-          
-          // Check if user can access market
-          const canAccessMarket = canUserAccessMarket(u.id);
-          const marketBtn = el('transporterDashboardMarketBtn');
-          if (marketBtn) {
-            setHidden('transporterDashboardMarketBtn', !canAccessMarket);
-          }
-          
           const tb = el('tableLoads');
           if (!tb) return;
           
@@ -2085,18 +1450,14 @@
           
           tbody.innerHTML = '';
           
-          // Get filters
           const fo = el('filterOrigin');
           const fd = el('filterDest');
           
-          // Only show non-expired loads
           const filters = {};
           if (fo && fo.value.trim()) filters.origin = fo.value.trim();
           if (fd && fd.value.trim()) filters.destination = fd.value.trim();
           
           let rows = await getLoads(filters);
-          
-          // Filter out expired loads
           rows = rows.filter(l => !isLoadExpired(l));
           
           if (rows.length === 0) {
@@ -2128,18 +1489,10 @@
       };
       
       const renderMarket = async () => {
-        const u = await getCurrentUser();
+        const u = getCurrentUserSync();
         if (!u) return;
         
         try {
-          // Check if user can post loads
-          const canPost = canUserPostLoads(u.id);
-          const postLoadBtn = el('marketPostLoadBtn');
-          if (postLoadBtn) {
-            setHidden('marketPostLoadBtn', !canPost);
-          }
-          
-          // Get filters
           const fo = el('marketFilterOrigin');
           const fd = el('marketFilterDest');
           
@@ -2148,8 +1501,6 @@
           if (fd && fd.value.trim()) filters.destination = fd.value.trim();
           
           let rows = await getLoads(filters);
-          
-          // Filter out expired loads
           rows = rows.filter(l => !isLoadExpired(l));
           
           const tb = el('tableMarketLoads');
@@ -2189,10 +1540,9 @@
       };
       
       const renderProfiles = async () => {
-        const u = await getCurrentUser();
+        const u = getCurrentUserSync();
         if (!u) return;
         
-        // Update profile header
         if (u.role === 'shipper') {
           const avatar = el('shipperProfileAvatar');
           const name = el('shipperProfileName');
@@ -2202,7 +1552,6 @@
           if (name) name.textContent = u.name;
           if (since) since.textContent = new Date(u.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
           
-          // Update profile details
           setText('shipperProfileEmail', u.email);
           setText('shipperProfileCompany', u.company || 'Not provided');
           setText('shipperProfileRole', u.role.charAt(0).toUpperCase() + u.role.slice(1));
@@ -2218,7 +1567,6 @@
           if (name) name.textContent = u.name;
           if (since) since.textContent = new Date(u.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
           
-          // Update profile details
           setText('transporterProfileEmail', u.email);
           setText('transporterProfileCompany', u.company || 'Not provided');
           setText('transporterProfileVehicle', u.vehicle_info || 'Not provided');
@@ -2249,7 +1597,7 @@
       };
       
       const renderMessages = async () => {
-        const u = await getCurrentUser();
+        const u = getCurrentUserSync();
         if (!u) return;
         
         try {
@@ -2274,7 +1622,7 @@
             const tr = document.createElement('tr');
             const d = new Date(m.created_at).toLocaleString();
             tr.innerHTML = `
-              <td>${sanitize(m.sender_email || 'Unknown')}</td>
+              <td>${sanitize(m.sender_name || 'Unknown')}</td>
               <td>${sanitize(m.body)}</td>
               <td>${sanitize(d)}</td>
               <td><button class="btn" data-delmsg="${m.id}" aria-label="Delete message">Delete</button></td>`;
@@ -2294,94 +1642,27 @@
         }
       };
       
-      // Render user access control dropdown
-      const renderUserAccessControl = async () => {
-        const userSelect = el('userAccessSelect');
-        if (!userSelect) return;
+      const renderUserDropdowns = async () => {
+        const passwordSelect = el('selectUserForPassword');
         
         try {
           const users = await getUsers();
           
-          userSelect.innerHTML = '<option value="">-- Select User --</option>';
-          
-          users.forEach(user => {
-            const option = document.createElement('option');
-            option.value = user.id;
-            option.textContent = `${user.name} (${user.email})`;
-            userSelect.appendChild(option);
-          });
-        } catch (error) {
-          console.error('Failed to render user access control dropdown:', error);
-        }
-      };
-      
-      // Render role-based page access checkboxes
-      const renderRoleBasedPageAccess = async () => {
-        const container = el('pageAccessContainer');
-        if (!container) return;
-        
-        try {
-          const acl = await getAccessControl();
-          const pages = acl.pages || {};
-          
-          container.innerHTML = '';
-          
-          // Create sections for post_load and market pages
-          const pageSections = [
-            { id: 'post_load', name: 'Post Load' },
-            { id: 'market', name: 'Market' }
-          ];
-          
-          pageSections.forEach(page => {
-            const pageItem = document.createElement('div');
-            pageItem.className = 'page-access-item';
+          if (passwordSelect) {
+            passwordSelect.innerHTML = '<option value="">-- Select User --</option>';
             
-            const pageHeader = document.createElement('div');
-            pageHeader.className = 'page-access-header';
-            
-            const pageTitle = document.createElement('div');
-            pageTitle.className = 'page-access-title';
-            pageTitle.textContent = page.name;
-            
-            pageHeader.appendChild(pageTitle);
-            pageItem.appendChild(pageHeader);
-            
-            const roleCheckboxes = document.createElement('div');
-            roleCheckboxes.className = 'role-checkboxes';
-            
-            // Add checkboxes for each role
-            ROLES.forEach(role => {
-              const checkboxItem = document.createElement('div');
-              checkboxItem.className = 'role-checkbox-item';
-              
-              const checkbox = document.createElement('input');
-              checkbox.type = 'checkbox';
-              checkbox.id = `page_${page.id}_role_${role}`;
-              checkbox.value = role;
-              
-              // Check if this role has access to this page
-              const pageAccess = pages[page.id] || {};
-              const allowedRoles = pageAccess.allowed_roles || [];
-              checkbox.checked = allowedRoles.includes(role);
-              
-              const label = document.createElement('label');
-              label.htmlFor = `page_${page.id}_role_${role}`;
-              label.textContent = role.charAt(0).toUpperCase() + role.slice(1);
-              
-              checkboxItem.appendChild(checkbox);
-              checkboxItem.appendChild(label);
-              roleCheckboxes.appendChild(checkboxItem);
+            users.forEach(user => {
+              const option = document.createElement('option');
+              option.value = user.email;
+              option.textContent = `${user.name} (${user.email})`;
+              passwordSelect.appendChild(option);
             });
-            
-            pageItem.appendChild(roleCheckboxes);
-            container.appendChild(pageItem);
-          });
+          }
         } catch (error) {
-          console.error('Failed to render page access control:', error);
+          console.error('Failed to render user dropdowns:', error);
         }
       };
       
-      // Render load dropdown
       const renderLoadDropdown = async () => {
         const select = el('selectLoad');
         if (!select) return;
@@ -2402,56 +1683,17 @@
         }
       };
       
-      // Render user dropdowns
-      const renderUserDropdowns = async () => {
-        const passwordSelect = el('selectUserForPassword');
-        
-        try {
-          const users = await getUsers();
-          
-          // Password reset user dropdown
-          if (passwordSelect) {
-            passwordSelect.innerHTML = '<option value="">-- Select User --</option>';
-            
-            users.forEach(user => {
-              const option = document.createElement('option');
-              option.value = user.email;
-              option.textContent = `${user.name} (${user.email})`;
-              passwordSelect.appendChild(option);
-            });
-          }
-        } catch (error) {
-          console.error('Failed to render user dropdowns:', error);
-        }
-      };
-      
       const renderAdmin = async () => {
-        const u = await getCurrentUser();
+        const u = getCurrentUserSync();
         if (!isAdmin(u)) return;
         
         try {
-          // Get access control data
-          const acl = await getAccessControl();
-          
-          // Set post loads toggle
-          const postLoadsToggle = el('postLoadsToggle');
-          if (postLoadsToggle) {
-            postLoadsToggle.checked = acl.post_loads_enabled !== false;
-          }
-          
-          // Update banners form
+          const banners = await getBanners();
           const adminIndexBanner = el('adminIndexBanner');
           const adminDashBanner = el('adminDashBanner');
-          if (adminIndexBanner) adminIndexBanner.value = acl.banners?.index || '';
-          if (adminDashBanner) adminDashBanner.value = acl.banners?.dashboard || '';
+          if (adminIndexBanner) adminIndexBanner.value = banners.index || '';
+          if (adminDashBanner) adminDashBanner.value = banners.dashboard || '';
           
-          // Render user access control dropdown
-          renderUserAccessControl();
-          
-          // Render role-based page access checkboxes
-          renderRoleBasedPageAccess();
-          
-          // Users table
           const tbU = el('tableUsers');
           if (tbU) {
             const users = await getUsers();
@@ -2485,7 +1727,6 @@
             }
           }
           
-          // Render dropdowns
           renderLoadDropdown();
           renderUserDropdowns();
         } catch (error) {
@@ -2497,9 +1738,8 @@
         await renderHeader();
         await renderBanners();
         
-        const u = await getCurrentUser();
+        const u = getCurrentUserSync();
         
-        // Auth guard: if on restricted page and not logged in -> login
         const restricted = ['shipper-dashboard', 'shipper-post', 'shipper-profile', 'transporter-dashboard', 'transporter-profile', 'market', 'messages', 'control'];
         const page = (location.hash || '#').replace('#', '') || 'index';
         
@@ -2508,10 +1748,7 @@
           return;
         }
         
-        // Check if user has access to current page
         if (u && !canAccessPage(u, page)) {
-          // If user is an admin, they can access everything, so this shouldn't happen.
-          // For non-admin, redirect to their role's dashboard or index?
           if (u.role === 'shipper') {
             location.hash = '#shipper-dashboard';
           } else if (u.role === 'transporter') {
@@ -2523,7 +1760,6 @@
         }
         
         if (u) {
-          // Role routing
           if (page === 'index') {
             if (u.role === 'shipper') location.hash = '#shipper-dashboard';
             else if (u.role === 'transporter') location.hash = '#transporter-dashboard';
@@ -2547,17 +1783,13 @@
       
       // Event bindings
       const initEventListeners = () => {
-        // Logout
         const btnLogout = el('btnLogout');
         if (btnLogout) btnLogout.onclick = logout;
         
-        // Login form
         const formLogin = el('formLogin');
         if (formLogin) {
           formLogin.onsubmit = async e => {
             e.preventDefault();
-            
-            // Show loading state
             setButtonLoading('formLogin button[type="submit"]', true);
             
             const fd = new FormData(e.target);
@@ -2573,584 +1805,4 @@
             try {
               const user = await login(email, password);
               if (!user) {
-                setButtonLoading('formLogin button[type="submit"]', false);
-                return;
-              }
-              
-              if (user.role === 'shipper') location.hash = '#shipper-dashboard';
-              else if (user.role === 'transporter') location.hash = '#transporter-dashboard';
-              else if (isAdmin(user)) location.hash = '#control';
-            } catch (error) {
-              console.error('Login error:', error);
-              showNotification('Login failed: ' + error.message, 'error');
-              setButtonLoading('formLogin button[type="submit"]', false);
-            }
-          };
-        }
-        
-        // Shipper registration form
-        const formRegShipper = el('formRegShipper');
-        if (formRegShipper) {
-          formRegShipper.onsubmit = async e => {
-            e.preventDefault();
-            
-            // Show loading state
-            setButtonLoading('formRegShipper button[type="submit"]', true);
-            
-            const fd = new FormData(e.target);
-            
-            try {
-              await registerUser({
-                name: fd.get('name'),
-                company: fd.get('company'),
-                email: fd.get('email'),
-                phone: fd.get('phone'),
-                password: fd.get('password'),
-                address: fd.get('address'),
-                role: 'shipper'
-              });
-              location.hash = '#login';
-            } catch (error) {
-              console.error('Registration error:', error);
-              showNotification('Registration failed: ' + error.message, 'error');
-            } finally {
-              setButtonLoading('formRegShipper button[type="submit"]', false);
-            }
-          };
-        }
-        
-        // Transporter registration form
-        const formRegTransporter = el('formRegTransporter');
-        if (formRegTransporter) {
-          formRegTransporter.onsubmit = async e => {
-            e.preventDefault();
-            
-            // Show loading state
-            setButtonLoading('formRegTransporter button[type="submit"]', true);
-            
-            const fd = new FormData(e.target);
-            
-            try {
-              await registerUser({
-                name: fd.get('name'),
-                company: fd.get('company'),
-                email: fd.get('email'),
-                phone: fd.get('phone'),
-                password: fd.get('password'),
-                address: fd.get('address'),
-                vehicle_info: fd.get('vehicle_info'),
-                role: 'transporter'
-              });
-              location.hash = '#login';
-            } catch (error) {
-              console.error('Registration error:', error);
-              showNotification('Registration failed: ' + error.message, 'error');
-            } finally {
-              setButtonLoading('formRegTransporter button[type="submit"]', false);
-            }
-          };
-        }
-        
-        // Post load form
-        const formPostLoad = el('formPostLoad');
-        if (formPostLoad) {
-          formPostLoad.onsubmit = async e => {
-            e.preventDefault();
-            
-            // Show loading state
-            setButtonLoading('formPostLoad button[type="submit"]', true);
-            
-            const fd = new FormData(e.target);
-            const u = await getCurrentUser();
-            
-            if (!u) {
-              setButtonLoading('formPostLoad button[type="submit"]', false);
-              return;
-            }
-            
-            try {
-              await postLoad({
-                origin: fd.get('origin'),
-                destination: fd.get('destination'),
-                date: fd.get('date'),
-                cargo_type: fd.get('cargo_type'),
-                weight: fd.get('weight'),
-                notes: fd.get('notes')
-              });
-              e.target.reset();
-              location.hash = '#shipper-dashboard';
-            } catch (error) {
-              console.error('Post load error:', error);
-              showNotification('Failed to post load: ' + error.message, 'error');
-            } finally {
-              setButtonLoading('formPostLoad button[type="submit"]', false);
-            }
-          };
-        }
-        
-        // Save shipper profile
-        const saveProfileShipper = el('saveProfileShipper');
-        if (saveProfileShipper) {
-          saveProfileShipper.onclick = async () => {
-            const u = await getCurrentUser();
-            if (!u) return;
-            
-            // Show loading state
-            setButtonLoading('saveProfileShipper', true);
-            
-            const f = el('formProfileShipper');
-            if (!f) {
-              setButtonLoading('saveProfileShipper', false);
-              return;
-            }
-            
-            try {
-              const data = Object.fromEntries(new FormData(f).entries());
-              await updateUserProfile(u.id, data);
-              render();
-            } catch (error) {
-              console.error('Profile update error:', error);
-              showNotification('Failed to save profile: ' + error.message, 'error');
-            } finally {
-              setButtonLoading('saveProfileShipper', false);
-            }
-          };
-        }
-        
-        // Save transporter profile
-        const saveProfileTransporter = el('saveProfileTransporter');
-        if (saveProfileTransporter) {
-          saveProfileTransporter.onclick = async () => {
-            const u = await getCurrentUser();
-            if (!u) return;
-            
-            // Show loading state
-            setButtonLoading('saveProfileTransporter', true);
-            
-            const f = el('formProfileTransporter');
-            if (!f) {
-              setButtonLoading('saveProfileTransporter', false);
-              return;
-            }
-            
-            try {
-              const data = Object.fromEntries(new FormData(f).entries());
-              await updateUserProfile(u.id, data);
-              render();
-            } catch (error) {
-              console.error('Profile update error:', error);
-              showNotification('Failed to save profile: ' + error.message, 'error');
-            } finally {
-              setButtonLoading('saveProfileTransporter', false);
-            }
-          };
-        }
-        
-        // Filter loads
-        const btnFilterLoads = el('btnFilterLoads');
-        if (btnFilterLoads) {
-          btnFilterLoads.onclick = e => {
-            e.preventDefault();
-            renderTransporter();
-          };
-        }
-        
-        // Filter market loads
-        const btnMarketFilterLoads = el('btnMarketFilterLoads');
-        if (btnMarketFilterLoads) {
-          btnMarketFilterLoads.onclick = e => {
-            e.preventDefault();
-            renderMarket();
-          };
-        }
-        
-        // Send message form
-        const formSendMsg = el('formSendMsg');
-        if (formSendMsg) {
-          formSendMsg.onsubmit = async e => {
-            e.preventDefault();
-            
-            // Show loading state
-            setButtonLoading('formSendMsg button[type="submit"]', true);
-            
-            const fd = new FormData(e.target);
-            
-            try {
-              await sendMessage(fd.get('to').trim(), fd.get('body').trim());
-              e.target.reset();
-              renderMessages();
-            } catch (error) {
-              console.error('Send message error:', error);
-              showNotification('Failed to send message: ' + error.message, 'error');
-            } finally {
-              setButtonLoading('formSendMsg button[type="submit"]', false);
-            }
-          };
-        }
-        
-        // Post loads control
-        const btnSavePostLoadsControl = el('btnSavePostLoadsControl');
-        if (btnSavePostLoadsControl) {
-          btnSavePostLoadsControl.onclick = async () => {
-            // Show loading state
-            setButtonLoading('btnSavePostLoadsControl', true);
-            
-            try {
-              const acl = await getAccessControl();
-              acl.post_loads_enabled = el('postLoadsToggle').checked;
-              await updateAccessControl(acl);
-              showNotification('Post loads control updated successfully', 'success');
-              // Update global variable
-              accessControlData = acl;
-              // Re-render to update UI
-              render();
-            } catch (error) {
-              console.error('Failed to save post loads control:', error);
-              showNotification('Failed to save post loads control: ' + error.message, 'error');
-            } finally {
-              setButtonLoading('btnSavePostLoadsControl', false);
-            }
-          };
-        }
-        
-        // User access control
-        const btnLoadUserAccess = el('btnLoadUserAccess');
-        if (btnLoadUserAccess) {
-          btnLoadUserAccess.onclick = async () => {
-            const userId = el('userAccessSelect').value;
-            if (!userId) {
-              showNotification('Please select a user', 'error');
-              return;
-            }
-            
-            try {
-              const users = await getUsers();
-              const user = users.find(u => u.id === userId);
-              if (!user) {
-                showNotification('User not found', 'error');
-                return;
-              }
-              
-              // Show user access controls
-              setHidden('userAccessControls', false);
-              
-              // Update user info
-              setText('selectedUserName', user.name);
-              setText('selectedUserEmail', user.email);
-              el('selectedUserAvatar').textContent = user.name.charAt(0).toUpperCase();
-              
-              // Get user access settings
-              const acl = await getAccessControl();
-              const userAccess = acl.user_access || {};
-              const userSettings = userAccess[userId] || {};
-              
-              // Set toggle states
-              el('canPostLoadsToggle').checked = userSettings.can_post_loads !== false;
-              el('canAccessMarketToggle').checked = userSettings.can_access_market !== false;
-              
-              // Store user ID for saving
-              el('btnSaveUserAccess').dataset.userId = userId;
-            } catch (error) {
-              console.error('Failed to load user access:', error);
-              showNotification('Failed to load user access: ' + error.message, 'error');
-            }
-          };
-        }
-        
-        // Save user access control
-        const btnSaveUserAccess = el('btnSaveUserAccess');
-        if (btnSaveUserAccess) {
-          btnSaveUserAccess.onclick = async () => {
-            const userId = btnSaveUserAccess.dataset.userId;
-            if (!userId) {
-              showNotification('No user selected', 'error');
-              return;
-            }
-            
-            // Show loading state
-            setButtonLoading('btnSaveUserAccess', true);
-            
-            try {
-              const acl = await getAccessControl();
-              
-              // Initialize user_access if not present
-              if (!acl.user_access) {
-                acl.user_access = {};
-              }
-              
-              // Update user settings
-              acl.user_access[userId] = {
-                can_post_loads: el('canPostLoadsToggle').checked,
-                can_access_market: el('canAccessMarketToggle').checked
-              };
-              
-              await updateAccessControl(acl);
-              showNotification('User access control updated successfully', 'success');
-              // Update global variable
-              accessControlData = acl;
-              // Re-render to update UI
-              render();
-            } catch (error) {
-              console.error('Failed to save user access control:', error);
-              showNotification('Failed to save user access control: ' + error.message, 'error');
-            } finally {
-              setButtonLoading('btnSaveUserAccess', false);
-            }
-          };
-        }
-        
-        // Admin controls
-        const btnSaveBanners = el('btnSaveBanners');
-        if (btnSaveBanners) {
-          btnSaveBanners.onclick = async () => {
-            // Show loading state
-            setButtonLoading('btnSaveBanners', true);
-            
-            try {
-              const banners = {
-                index: el('adminIndexBanner').value || '',
-                dashboard: el('adminDashBanner').value || ''
-              };
-              await updateBanners(banners);
-              render();
-            } catch (error) {
-              console.error('Failed to save banners:', error);
-              showNotification('Failed to save banners: ' + error.message, 'error');
-            } finally {
-              setButtonLoading('btnSaveBanners', false);
-            }
-          };
-        }
-        
-        const btnClearBanners = el('btnClearBanners');
-        if (btnClearBanners) {
-          btnClearBanners.onclick = async () => {
-            // Show loading state
-            setButtonLoading('btnClearBanners', true);
-            
-            try {
-              await updateBanners({ index: '', dashboard: '' });
-              render();
-            } catch (error) {
-              console.error('Failed to clear banners:', error);
-              showNotification('Failed to clear banners: ' + error.message, 'error');
-            } finally {
-              setButtonLoading('btnClearBanners', false);
-            }
-          };
-        }
-        
-        // Save page access
-        const btnSavePageAccess = el('btnSavePageAccess');
-        if (btnSavePageAccess) {
-          btnSavePageAccess.onclick = async () => {
-            // Show loading state
-            setButtonLoading('btnSavePageAccess', true);
-            
-            try {
-              const acl = await getAccessControl();
-              
-              // Initialize pages if not present
-              if (!acl.pages) {
-                acl.pages = {};
-              }
-              
-              // Get page access data from checkboxes
-              const pageSections = [
-                { id: 'post_load', name: 'Post Load' },
-                { id: 'market', name: 'Market' }
-              ];
-              
-              pageSections.forEach(page => {
-                if (!acl.pages[page.id]) {
-                  acl.pages[page.id] = { allowed_roles: [] };
-                }
-                
-                // Reset allowed roles
-                acl.pages[page.id].allowed_roles = [];
-                
-                // Get all checked roles for this page
-                ROLES.forEach(role => {
-                  const checkbox = el(`page_${page.id}_role_${role}`);
-                  if (checkbox && checkbox.checked) {
-                    acl.pages[page.id].allowed_roles.push(role);
-                  }
-                });
-              });
-              
-              await updateAccessControl(acl);
-              showNotification('Page access control updated successfully', 'success');
-            } catch (error) {
-              console.error('Failed to save page access:', error);
-              showNotification('Failed to save page access: ' + error.message, 'error');
-            } finally {
-              setButtonLoading('btnSavePageAccess', false);
-            }
-          };
-        }
-        
-        // Load management
-        const btnEditLoad = el('btnEditLoad');
-        if (btnEditLoad) {
-          btnEditLoad.onclick = async () => {
-            const loadId = el('selectLoad').value;
-            if (!loadId) {
-              showNotification('Please select a load to edit', 'error');
-              return;
-            }
-            
-            try {
-              const loads = await getLoads();
-              const load = loads.find(l => l.id === loadId);
-              if (!load) {
-                showNotification('Load not found', 'error');
-                return;
-              }
-              
-              const origin = prompt('Origin', load.origin);
-              if (origin === null) return;
-              
-              const destination = prompt('Destination', load.destination);
-              if (destination === null) return;
-              
-              const date = prompt('Date (YYYY-MM-DD)', load.date);
-              if (date === null) return;
-              
-              const cargo_type = prompt('Cargo', load.cargo_type);
-              if (cargo_type === null) return;
-              
-              const weight = prompt('Weight', load.weight);
-              if (weight === null) return;
-              
-              const notes = prompt('Notes', load.notes || '');
-              if (notes === null) return;
-              
-              // Show loading state
-              setButtonLoading('btnEditLoad', true);
-              
-              try {
-                await updateLoad(load.id, { origin, destination, date, cargo_type, weight, notes });
-                render();
-              } catch (error) {
-                console.error('Failed to edit load:', error);
-                showNotification('Failed to edit load: ' + error.message, 'error');
-              } finally {
-                setButtonLoading('btnEditLoad', false);
-              }
-            } catch (error) {
-              console.error('Failed to get loads:', error);
-              showNotification('Failed to get loads: ' + error.message, 'error');
-            }
-          };
-        }
-        
-        const btnDeleteLoad = el('btnDeleteLoad');
-        if (btnDeleteLoad) {
-          btnDeleteLoad.onclick = async () => {
-            const loadId = el('selectLoad').value;
-            if (!loadId) {
-              showNotification('Please select a load to delete', 'error');
-              return;
-            }
-            
-            if (confirm('Are you sure you want to delete this load?')) {
-              // Show loading state
-              setButtonLoading('btnDeleteLoad', true);
-              
-              try {
-                await deleteLoad(loadId);
-                render();
-              } catch (error) {
-                console.error('Failed to delete load:', error);
-                showNotification('Failed to delete load: ' + error.message, 'error');
-              } finally {
-                setButtonLoading('btnDeleteLoad', false);
-              }
-            }
-          };
-        }
-        
-        // Reset password
-        const btnResetPass = el('btnResetPass');
-        if (btnResetPass) {
-          btnResetPass.onclick = async () => {
-            const email = el('selectUserForPassword').value;
-            const newPass = el('resetPass').value;
-            
-            if (!email || !newPass) {
-              showNotification('Please select a user and enter a new password', 'error');
-              return;
-            }
-            
-            // Show loading state
-            setButtonLoading('btnResetPass', true);
-            
-            try {
-              await resetPassword(email, newPass);
-              el('resetPass').value = '';
-              showNotification('Password reset successfully', 'success');
-            } catch (error) {
-              console.error('Failed to reset password:', error);
-              showNotification('Failed to reset password: ' + error.message, 'error');
-            } finally {
-              setButtonLoading('btnResetPass', false);
-            }
-          };
-        }
-        
-        // Refresh access control
-        const btnRefreshAccessControl = el('btnRefreshAccessControl');
-        if (btnRefreshAccessControl) {
-          btnRefreshAccessControl.onclick = async () => {
-            // Show loading state
-            setButtonLoading('btnRefreshAccessControl', true);
-            
-            try {
-              render();
-            } catch (error) {
-              console.error('Failed to refresh access control:', error);
-              showNotification('Failed to refresh access control: ' + error.message, 'error');
-            } finally {
-              setButtonLoading('btnRefreshAccessControl', false);
-            }
-          };
-        }
-        
-        // Top nav buttons
-        const btnLoginNav = el('btnLoginNav');
-        if (btnLoginNav) {
-          btnLoginNav.onclick = () => {
-            location.hash = '#login';
-          };
-        }
-      };
-      
-      // Initialize app
-      const init = () => {
-        // Set up hash change listener
-        window.addEventListener('hashchange', () => show(location.hash));
-        
-        // Initialize event listeners
-        initEventListeners();
-        
-        // Initial render
-        show(location.hash);
-        
-        // Add error handler for uncaught errors
-        window.addEventListener('error', event => {
-          console.error('Uncaught error:', event.error);
-          // Prevent default error handling
-          event.preventDefault();
-        });
-      };
-      
-      // Start app when DOM is ready
-      if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', init);
-      } else {
-        init();
-      }
-    })();
-  </script>
-</body>
-</html>
+                setButtonLoading('formLogin button[type="submit"]',
