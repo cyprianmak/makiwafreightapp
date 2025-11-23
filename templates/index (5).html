@@ -1,0 +1,2196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="MakiwaFreight - A marketplace where shippers meet transporters" />
+  <meta name="author" content="MakiwaFreight Team" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';" />
+  <title>MakiwaFreight App (Plug & Play)</title>
+  <style>
+    :root{--bg:#0b1220;--panel:#121a2b;--panel-2:#1b2742;--text:#d7e7ff;--muted:#8fb7ff;--accent:#4da3ff;--accent-2:#73c1ff;--good:#22c55e;--warn:#f59e0b;--bad:#ef4444;--border:#2a3b5f;--chip:#0e1a33}*{box-sizing:border-box}html,body{height:100%}body{margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:linear-gradient(180deg,var(--bg),#0d1426 40%,#0a1120);color:var(--text)}a{color:var(--accent)}.container{max-width:1100px;margin:0 auto;padding:24px}header{position:sticky;top:0;z-index:10;background:rgba(11,18,32,0.8);backdrop-filter:blur(8px);border-bottom:1px solid var(--border)}.nav{display:flex;gap:12px;align-items:center;justify-content:space-between}.brand{display:flex;gap:12px;align-items:center}.logo{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:grid;place-items:center;font-weight:800;color:#08203a}.brand h1{font-size:18px;margin:0;color:var(--text)}.auth-area{display:flex;gap:8px;align-items:center}.nav-links{display:flex;gap:8px;flex-wrap:wrap}button,.btn{border:1px solid var(--border);background:linear-gradient(180deg,var(--panel),var(--panel-2));color:var(--text);padding:10px 14px;border-radius:12px;cursor:pointer;font-weight:600;transition:all .15s ease;text-decoration:none;display:inline-flex;align-items:center;gap:8px}button:hover,.btn:hover{transform:translateY(-1px);border-color:var(--accent)}.btn.ghost{background:transparent}.btn.primary{background:linear-gradient(180deg,var(--accent),var(--accent-2));color:#0a1a2e;border-color:transparent}.grid{display:grid;gap:16px}.two{grid-template-columns:repeat(2,minmax(0,1fr))}.three{grid-template-columns:repeat(3,minmax(0,1fr))}@media (max-width:900px){.two,.three{grid-template-columns:1fr}}.card{border:1px solid var(--border);border-radius:16px;padding:16px;background:linear-gradient(180deg,var(--panel),var(--panel-2));box-shadow:0 10px 30px rgba(0,0,0,0.25)}.card h3{margin:0 0 8px}.muted{color:var(--muted)}.kpi{display:flex;gap:14px;align-items:center}.chip{background:var(--chip);border:1px solid var(--border);border-radius:999px;padding:6px 10px;font-size:12px}.danger{color:var(--bad)}.success{color:var(--good)}.warn{color:var(--warn)}.hidden{display:none !important}input,select,textarea{width:100%;padding:10px 12px;border-radius:12px;border:1px solid var(--border);background:#0c1530;color:var(--text)}label{font-size:12px;color:var(--muted)}form .grid{margin-top:8px}table{width:100%;border-collapse:separate;border-spacing:0 8px}th,td{padding:10px 12px;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}th{font-weight:700;text-align:left;color:var(--muted);background:#0f1940}tr td:first-child,tr th:first-child{border-left:1px solid var(--border);border-top-left-radius:12px;border-bottom-left-radius:12px}tr td:last-child,tr th:last-child{border-right:1px solid var(--border);border-top-right-radius:12px;border-bottom-right-radius:12px}.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between}.banner{border:1px dashed var(--border);padding:10px 14px;border-radius:12px;background:#0d1836;color:var(--muted)}.footer{opacity:.75;font-size:12px;text-align:center;padding:24px}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}.checkbox-group{display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:10px;margin-top:10px}.checkbox-item{display:flex;align-items:center;gap:8px}.checkbox-item input{width:auto}.expired{opacity:0.6; text-decoration: line-through;}.profile-header{display:flex;align-items:center;gap:16px;margin-bottom:16px}.profile-avatar{width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:800;color:#08203a}.profile-info h2{margin:0 0 4px}.profile-info .muted{margin:0}.status-indicator{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px}.status-active{background-color:var(--good)}.status-inactive{background-color:var(--bad)}.profile-details{background:var(--panel-2);border-radius:12px;padding:16px;margin-bottom:16px}.profile-details h3{margin:0 0 12px;color:var(--accent)}.detail-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)}.detail-row:last-child{border-bottom:none}.detail-label{color:var(--muted)}.detail-value{font-weight:500}.editable-section{margin-top:20px}.editable-section h3{margin:0 0 12px;color:var(--accent)}.form-notice{background:var(--panel-2);border-left:4px solid var(--accent);padding:10px 14px;border-radius:8px;margin-bottom:16px;font-size:14px;}.recommendations-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:20px;margin-top:20px}.recommendation-card{padding:20px;border:1px solid var(--border);border-radius:12px;background:var(--panel-2);box-shadow:0 4px 12px rgba(0,0,0,0.1)}.recommendation-card h3{margin-top:0;color:var(--accent);margin-bottom:10px}
+    
+    /* Notification styles */
+    .notification {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 15px 25px;
+      border-radius: 5px;
+      color: white;
+      font-weight: 500;
+      z-index: 1000;
+      opacity: 0;
+      transform: translateY(-20px);
+      transition: opacity 0.3s, transform 0.3s;
+      max-width: 350px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+    
+    .notification.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    
+    .notification.success {
+      background-color: var(--good);
+    }
+    
+    .notification.error {
+      background-color: var(--bad);
+    }
+    
+    .notification.warning {
+      background-color: var(--warn);
+      color: #212529;
+    }
+    
+    .notification.info {
+      background-color: var(--accent);
+    }
+    
+    /* Access control styles */
+    .access-control-section {
+      margin-bottom: 20px;
+    }
+    
+    .access-control-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+    
+    .select-with-actions {
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+    }
+    
+    .select-with-actions select {
+      flex: 1;
+    }
+    
+    .select-with-actions button {
+      white-space: nowrap;
+    }
+    
+    .page-access-container {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      margin-top: 15px;
+    }
+    
+    .page-access-item {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 15px;
+      background: var(--panel-2);
+    }
+    
+    .page-access-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    
+    .page-access-title {
+      font-weight: 600;
+      color: var(--accent);
+    }
+    
+    .role-checkboxes {
+      display: flex;
+      gap: 15px;
+      flex-wrap: wrap;
+    }
+    
+    .role-checkbox-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    
+    .role-checkbox-item input {
+      width: auto;
+    }
+    
+    /* Toggle switch styles */
+    .toggle-switch {
+      position: relative;
+      display: inline-block;
+      width: 60px;
+      height: 30px;
+    }
+    
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #ccc;
+      transition: .4s;
+      border-radius: 30px;
+    }
+    
+    .toggle-slider:before {
+      position: absolute;
+      content: "";
+      height: 22px;
+      width: 22px;
+      left: 4px;
+      bottom: 4px;
+      background-color: white;
+      transition: .4s;
+      border-radius: 50%;
+    }
+    
+    input:checked + .toggle-slider {
+      background-color: var(--accent);
+    }
+    
+    input:checked + .toggle-slider:before {
+      transform: translateX(30px);
+    }
+    
+    .control-panel {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      background: var(--panel-2);
+      margin-bottom: 20px;
+    }
+    
+    .control-panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+    
+    .control-panel-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--accent);
+    }
+    
+    .control-panel-body {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    
+    .control-panel-description {
+      flex: 1;
+      margin-right: 20px;
+      color: var(--muted);
+    }
+    
+    .control-panel-action {
+      display: flex;
+      align-items: center;
+    }
+    
+    .user-access-control {
+      margin-top: 20px;
+    }
+    
+    .user-access-row {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      margin-bottom: 15px;
+      padding: 15px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--panel-2);
+    }
+    
+    .user-info {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .user-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: linear-gradient(135deg,var(--accent),var(--accent-2));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      color: #08203a;
+    }
+    
+    .user-details {
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .user-name {
+      font-weight: 600;
+      color: var(--text);
+    }
+    
+    .user-email {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    
+    .access-controls {
+      display: flex;
+      gap: 20px;
+    }
+    
+    .access-control-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .access-control-label {
+      font-size: 14px;
+      color: var(--muted);
+    }
+    
+    .no-users-message {
+      text-align: center;
+      padding: 20px;
+      color: var(--muted);
+      border: 1px dashed var(--border);
+      border-radius: 12px;
+      margin-top: 20px;
+    }
+    
+    /* Loading indicator styles */
+    .loading {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255,255,255,.3);
+      border-radius: 50%;
+      border-top-color: #fff;
+      animation: spin 1s ease-in-out infinite;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    .btn.loading {
+      position: relative;
+      pointer-events: none;
+      opacity: 0.7;
+    }
+    
+    .btn.loading .loading {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container nav">
+      <div class="brand">
+        <div class="logo" aria-label="MakiwaFreight Logo">MF</div>
+        <h1>MakiwaFreight</h1>
+        <span id="roleChip" class="chip hidden" role="status" aria-live="polite"></span>
+      </div>
+      <div class="auth-area">
+        <div id="navLinks" class="nav-links"></div>
+        <span id="authUser" class="muted"></span>
+        <a id="btnLoginNav" href="#login" class="btn" aria-label="Login to your account">Login</a>
+        <button id="btnLogout" class="btn ghost hidden" aria-label="Logout from your account">Logout</button>
+      </div>
+    </div>
+  </header>
+  <main class="container">
+    <!-- Index / Landing Page -->
+    <section id="page-index" class="grid two" aria-label="Welcome section">
+      <div class="card">
+        <h2>Welcome to MakiwaFreight</h2>
+        <p class="muted">A simple marketplace where shippers meet transporters.</p>
+        <div id="indexBanner" class="banner hidden" role="alert"></div>
+        <div class="grid two" style="margin-top:12px">
+          <a class="btn primary" href="#login">Login</a>
+          <a class="btn" href="#register-options">Register</a>
+        </div>
+        <div style="margin-top:12px" class="muted">
+        </div>
+      </div>
+      <div class="grid three">
+        <div class="card"><h3>For Shippers</h3><p>Post loads, manage offers, and message carriers.</p></div>
+        <div class="card"><h3>For Transporters</h3><p>Browse the live load board and message shippers.</p></div>
+        <div class="card"><h3>Secure & Simple</h3><p>Role-based access with PostgreSQL database storage.</p></div>
+      </div>
+    </section>
+    
+    <!-- Recommendations Section -->
+    <section id="recommendations" class="card">
+      <h2>Our Recommendations</h2>
+      <div class="recommendations-grid">
+        <div class="recommendation-card">
+          <h3>Optimize Your Routes</h3>
+          <p>Use our route optimization tools to reduce fuel costs and delivery times. Plan multi-stop routes efficiently.</p>
+        </div>
+        <div class="recommendation-card">
+          <h3>Real-Time Tracking</h3>
+          <p>Enable GPS tracking for all your shipments. Provide visibility to your customers and reduce status inquiries.</p>
+        </div>
+        <div class="recommendation-card">
+          <h3>Document Management</h3>
+          <p>Digitize all shipping documents, bills of lading, and compliance paperwork. Access them anywhere, anytime.</p>
+        </div>
+      </div>
+    </section>
+    
+    <!-- Register options -->
+    <section id="page-register-options" class="card hidden" aria-label="Registration options">
+      <h2>Register</h2>
+      <div class="grid two">
+        <a class="btn" href="#register-shipper">Register as Shipper</a>
+        <a class="btn" href="#register-transporter">Register as Transporter</a>
+      </div>
+    </section>
+    <!-- Login -->
+    <section id="page-login" class="card hidden" aria-label="Login form">
+      <h2>Login</h2>
+      <form id="formLogin" novalidate>
+        <div class="grid two">
+          <div>
+            <label for="loginEmail">Email</label>
+            <input required type="email" id="loginEmail" name="email" placeholder="you@example.com" autocomplete="email" />
+          </div>
+          <div>
+            <label for="loginPassword">Password</label>
+            <input required type="password" id="loginPassword" name="password" placeholder="••••••••" autocomplete="current-password" />
+          </div>
+        </div>
+        <div class="toolbar" style="margin-top:12px">
+          <button class="btn primary" type="submit">Sign in</button>
+          <a class="btn" href="#register-options">Need an account?</a>
+        </div>
+      </form>
+    </section>
+    <!-- Shipper Registration -->
+    <section id="page-register-shipper" class="card hidden" aria-label="Shipper registration form">
+      <h2>Create Shipper Account</h2>
+      <form id="formRegShipper" autocomplete="off" novalidate>
+        <div class="grid two">
+          <div><label for="shipperName">Full Name</label><input required id="shipperName" name="name" autocomplete="name" /></div>
+          <div><label for="shipperCompany">Company</label><input id="shipperCompany" name="company" autocomplete="organization" /></div>
+          <div><label for="shipperEmail">Email</label><input required type="email" id="shipperEmail" name="email" autocomplete="email" /></div>
+          <div><label for="shipperPhone">Phone</label><input required id="shipperPhone" name="phone" autocomplete="tel" /></div>
+          <div><label for="shipperPassword">Password</label><input required type="password" id="shipperPassword" name="password" autocomplete="new-password" /></div>
+          <div><label for="shipperAddress">Address</label><input id="shipperAddress" name="address" autocomplete="street-address" /></div>
+        </div>
+        <div class="toolbar" style="margin-top:12px">
+          <button class="btn primary" type="submit">Register</button>
+          <a class="btn" href="#login">Back to Login</a>
+        </div>
+      </form>
+    </section>
+    <!-- Transporter Registration -->
+    <section id="page-register-transporter" class="card hidden" aria-label="Transporter registration form">
+      <h2>Create Transporter Account</h2>
+      <form id="formRegTransporter" autocomplete="off" novalidate>
+        <div class="grid two">
+          <div><label for="transporterName">Full Name</label><input required id="transporterName" name="name" autocomplete="name" /></div>
+          <div><label for="transporterCompany">Company / Fleet</label><input id="transporterCompany" name="company" autocomplete="organization" /></div>
+          <div><label for="transporterEmail">Email</label><input required type="email" id="transporterEmail" name="email" autocomplete="email" /></div>
+          <div><label for="transporterPhone">Phone</label><input required id="transporterPhone" name="phone" autocomplete="tel" /></div>
+          <div><label for="transporterVehicle">Vehicle Info</label><input id="transporterVehicle" name="vehicle_info" placeholder="e.g. 2 x 34T Side Tipper" /></div>
+          <div><label for="transporterPassword">Password</label><input required type="password" id="transporterPassword" name="password" autocomplete="new-password" /></div>
+          <div class="two" style="grid-column:1/-1"><label for="transporterAddress">Address</label><input id="transporterAddress" name="address" autocomplete="street-address" /></div>
+        </div>
+        <div class="toolbar" style="margin-top:12px">
+          <button class="btn primary" type="submit">Register</button>
+          <a class="btn" href="#login">Back to Login</a>
+        </div>
+      </form>
+    </section>
+    <!-- Shipper Dashboard -->
+    <section id="page-shipper-dashboard" class="hidden" aria-label="Shipper dashboard">
+      <div class="toolbar">
+        <h2>Shipper Dashboard</h2>
+        <div>
+          <a id="shipperDashboardPostLoadBtn" class="btn" href="#shipper-post">Post Load</a>
+          <a id="shipperDashboardMarketBtn" class="btn" href="#market">Market</a>
+          <a class="btn" href="#shipper-profile">Profile</a>
+          <a class="btn" href="#messages">Messages</a>
+        </div>
+      </div>
+      <div id="dashBannerShipper" class="banner hidden" role="alert"></div>
+      <div class="card">
+        <div class="toolbar">
+          <h3>Your Posted Loads</h3>
+        </div>
+        <div class="table-container" style="overflow-x:auto">
+          <table id="tableMyLoads" aria-label="Your posted loads"><thead><tr>
+            <th scope="col">Ref</th><th scope="col">Origin</th><th scope="col">Destination</th><th scope="col">Date</th><th scope="col">Expires</th><th scope="col">Cargo</th><th scope="col">Weight</th><th scope="col">Notes</th><th scope="col">Actions</th>
+          </tr></thead><tbody></tbody></table>
+        </div>
+      </div>
+    </section>
+    <!-- Shipper Post Load -->
+    <section id="page-shipper-post" class="card hidden" aria-label="Post a load form">
+      <h2>Post a Load</h2>
+      <form id="formPostLoad" novalidate>
+        <div class="grid two">
+          <div><label for="loadOrigin">Origin</label><input required id="loadOrigin" name="origin" /></div>
+          <div><label for="loadDestination">Destination</label><input required id="loadDestination" name="destination" /></div>
+          <div><label for="loadDate">Pickup Date</label><input required type="date" id="loadDate" name="date" /></div>
+          <div><label for="loadCargo">Cargo Type</label><input required id="loadCargo" name="cargo_type" /></div>
+          <div><label for="loadWeight">Weight (Tons)</label><input required id="loadWeight" name="weight" type="number" min="0" step="0.01" /></div>
+          <div class="two" style="grid-column:1/-1"><label for="loadNotes">Notes</label><textarea id="loadNotes" name="notes" rows="3"></textarea></div>
+        </div>
+        <div class="toolbar" style="margin-top:12px">
+          <button class="btn primary" type="submit">Publish</button>
+          <a class="btn" href="#shipper-dashboard">Back</a>
+        </div>
+      </form>
+    </section>
+    <!-- Shipper Profile -->
+    <section id="page-shipper-profile" class="card hidden" aria-label="Shipper profile">
+      <div class="profile-header">
+        <div class="profile-avatar" id="shipperProfileAvatar">S</div>
+        <div class="profile-info">
+          <h2 id="shipperProfileName">Shipper Name</h2>
+          <p class="muted"><span class="status-indicator status-active"></span>Active since <span id="shipperProfileSince">January 2023</span></p>
+        </div>
+      </div>
+      
+      <div class="profile-details">
+        <h3>Account Information</h3>
+        <div class="detail-row">
+          <span class="detail-label">Email:</span>
+          <span class="detail-value" id="shipperProfileEmail">email@example.com</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Company:</span>
+          <span class="detail-value" id="shipperProfileCompany">Company Name</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Role:</span>
+          <span class="detail-value" id="shipperProfileRole">Shipper</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Member Since:</span>
+          <span class="detail-value" id="shipperProfileCreated">January 2023</span>
+        </div>
+      </div>
+      
+      <div class="form-notice">
+        You can update your contact person (name), phone number, and address below. Other account details cannot be changed.
+      </div>
+      
+      <div class="editable-section">
+        <h3>Update Contact Information</h3>
+        <form id="formProfileShipper" novalidate></form>
+      </div>
+      
+      <div class="toolbar" style="margin-top:12px">
+        <button class="btn primary" id="saveProfileShipper">Save Changes</button>
+        <a class="btn" href="#shipper-dashboard">Back</a>
+      </div>
+    </section>
+    <!-- Transporter Dashboard (Load Board) -->
+    <section id="page-transporter-dashboard" class="hidden" aria-label="Transporter dashboard">
+      <div class="toolbar">
+        <h2>Transporter Dashboard</h2>
+        <div>
+          <a id="transporterDashboardPostLoadBtn" class="btn" href="#shipper-post">Post Load</a>
+          <a id="transporterDashboardMarketBtn" class="btn" href="#market">Market</a>
+          <a class="btn" href="#transporter-profile">Profile</a>
+          <a class="btn" href="#messages">Messages</a>
+        </div>
+      </div>
+      <div id="dashBannerTransporter" class="banner hidden" role="alert"></div>
+      <div class="card">
+        <div class="toolbar">
+          <h3>Load Market Board</h3>
+          <div style="display:flex;gap:8px">
+            <input id="filterOrigin" placeholder="Filter by origin" aria-label="Filter by origin" />
+            <input id="filterDest" placeholder="Filter by destination" aria-label="Filter by destination" />
+            <button id="btnFilterLoads" class="btn">Filter</button>
+          </div>
+        </div>
+        <div class="table-container" style="overflow-x:auto">
+          <table id="tableLoads" aria-label="Load market board"><thead><tr>
+            <th scope="col">Ref</th><th scope="col">Origin</th><th scope="col">Destination</th><th scope="col">Date</th><th scope="col">Expires</th><th scope="col">Cargo</th><th scope="col">Weight</th><th scope="col">Notes</th><th scope="col">Posted By</th>
+          </tr></thead><tbody></tbody></table>
+        </div>
+      </div>
+    </section>
+    <!-- Transporter Profile -->
+    <section id="page-transporter-profile" class="card hidden" aria-label="Transporter profile">
+      <div class="profile-header">
+        <div class="profile-avatar" id="transporterProfileAvatar">T</div>
+        <div class="profile-info">
+          <h2 id="transporterProfileName">Transporter Name</h2>
+          <p class="muted"><span class="status-indicator status-active"></span>Active since <span id="transporterProfileSince">January 2023</span></p>
+        </div>
+      </div>
+      
+      <div class="profile-details">
+        <h3>Account Information</h3>
+        <div class="detail-row">
+          <span class="detail-label">Email:</span>
+          <span class="detail-value" id="transporterProfileEmail">email@example.com</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Company:</span>
+          <span class="detail-value" id="transporterProfileCompany">Company Name</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Vehicle Info:</span>
+          <span class="detail-value" id="transporterProfileVehicle">Vehicle Information</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Role:</span>
+          <span class="detail-value" id="transporterProfileRole">Transporter</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Member Since:</span>
+          <span class="detail-value" id="transporterProfileCreated">January 2023</span>
+        </div>
+      </div>
+      
+      <div class="form-notice">
+        You can update your contact person (name), phone number, and address below. Other account details cannot be changed.
+      </div>
+      
+      <div class="editable-section">
+        <h3>Update Contact Information</h3>
+        <form id="formProfileTransporter" novalidate></form>
+      </div>
+      
+      <div class="toolbar" style="margin-top:12px">
+        <button class="btn primary" id="saveProfileTransporter">Save Changes</button>
+        <a class="btn" href="#transporter-dashboard">Back</a>
+      </div>
+    </section>
+    <!-- Market Page -->
+    <section id="page-market" class="hidden" aria-label="Market">
+      <div class="toolbar">
+        <h2>Load Market</h2>
+        <div>
+          <a id="marketPostLoadBtn" class="btn" href="#shipper-post">Post Load</a>
+          <a class="btn" href="#messages">Messages</a>
+        </div>
+      </div>
+      <div id="marketBanner" class="banner hidden" role="alert"></div>
+      <div class="card">
+        <div class="toolbar">
+          <h3>Available Loads</h3>
+          <div style="display:flex;gap:8px">
+            <input id="marketFilterOrigin" placeholder="Filter by origin" aria-label="Filter by origin" />
+            <input id="marketFilterDest" placeholder="Filter by destination" aria-label="Filter by destination" />
+            <button id="btnMarketFilterLoads" class="btn">Filter</button>
+          </div>
+        </div>
+        <div class="table-container" style="overflow-x:auto">
+          <table id="tableMarketLoads" aria-label="Market loads"><thead><tr>
+            <th scope="col">Ref</th><th scope="col">Origin</th><th scope="col">Destination</th><th scope="col">Date</th><th scope="col">Expires</th><th scope="col">Cargo</th><th scope="col">Weight</th><th scope="col">Notes</th><th scope="col">Posted By</th>
+          </tr></thead><tbody></tbody></table>
+        </div>
+      </div>
+    </section>
+    <!-- Messages (Common) -->
+    <section id="page-messages" class="card hidden" aria-label="Messages">
+      <h2>Messages</h2>
+      <div class="grid two">
+        <form id="formSendMsg" class="card" novalidate>
+          <h3>Send a Message</h3>
+          <div class="grid two">
+            <div><label for="msgTo">To (email)</label><input required id="msgTo" name="to" placeholder="receiver@example.com" type="email" /></div>
+            <div><label for="msgBody">Message</label><input required id="msgBody" name="body" placeholder="Type your message..." /></div>
+          </div>
+          <div class="toolbar" style="margin-top:12px">
+            <button class="btn primary" type="submit">Send</button>
+            <a class="btn" href="#">Back</a>
+          </div>
+        </form>
+        <div class="card">
+          <h3>Inbox</h3>
+          <div class="table-container" style="overflow-x:auto">
+            <table id="tableInbox" aria-label="Message inbox"><thead><tr>
+              <th scope="col">From</th><th scope="col">Message</th><th scope="col">When</th><th scope="col">Action</th>
+            </tr></thead><tbody></tbody></table>
+          </div>
+        </div>
+      </div>
+    </section>
+    <!-- Admin Control Page -->
+    <section id="page-control" class="hidden" aria-label="Admin control panel">
+      <div class="toolbar">
+        <h2>Admin Control</h2>
+        <div>
+          <a class="btn" href="#messages">Messages</a>
+        </div>
+      </div>
+      
+      <!-- Unified Access Control Section -->
+      <div class="card">
+        <div class="access-control-header">
+          <h3>Access Control Management</h3>
+          <button id="btnRefreshAccessControl" class="btn">Refresh</button>
+        </div>
+        
+        <div class="access-control-section">
+          <h4>Broadcasts</h4>
+          <div class="grid two">
+            <div>
+              <label for="adminIndexBanner">Index Banner</label>
+              <input id="adminIndexBanner" placeholder="Short notice shown on Index" />
+            </div>
+            <div>
+              <label for="adminDashBanner">Dashboard Banner</label>
+              <input id="adminDashBanner" placeholder="Shown on all dashboards" />
+            </div>
+          </div>
+          <div class="toolbar" style="margin-top:12px">
+            <button id="btnSaveBanners" class="btn primary">Save Banners</button>
+            <button id="btnClearBanners" class="btn">Clear Banners</button>
+          </div>
+        </div>
+        
+        <div class="access-control-section">
+          <h4>Page Access Control</h4>
+          <div id="pageAccessContainer" class="page-access-container"></div>
+          <div class="toolbar" style="margin-top:12px">
+            <button id="btnSavePageAccess" class="btn primary">Save Page Access</button>
+          </div>
+        </div>
+      </div>
+      
+      <div class="grid two">
+        <div class="card">
+          <h3>Users</h3>
+          <div class="table-container" style="overflow-x:auto">
+            <table id="tableUsers" aria-label="User management"><thead><tr>
+              <th scope="col">Name</th><th scope="col">Email</th><th scope="col">Role</th><th scope="col">Actions</th>
+            </tr></thead><tbody></tbody></table>
+          </div>
+        </div>
+        <div class="card">
+          <h3>Loads</h3>
+          <div class="select-with-actions">
+            <select id="selectLoad">
+              <option value="">-- Select Load --</option>
+            </select>
+            <button id="btnEditLoad" class="btn">Edit</button>
+            <button id="btnDeleteLoad" class="btn danger">Delete</button>
+          </div>
+          <div id="loadDetails" style="margin-top: 15px;"></div>
+        </div>
+        <div class="card">
+          <h3>Reset Password</h3>
+          <div class="select-with-actions">
+            <select id="selectUserForPassword">
+              <option value="">-- Select User --</option>
+            </select>
+            <button id="btnResetPass" class="btn">Reset</button>
+          </div>
+          <div style="margin-top: 10px;">
+            <label for="resetPass">New Password</label>
+            <input id="resetPass" placeholder="new password" type="password" />
+          </div>
+        </div>
+      </div>
+    </section>
+    <div class="footer">Demo build – data stored in PostgreSQL database.</div>
+  </main>
+  
+  <!-- Notification Container -->
+  <div id="notificationContainer"></div>
+    <script>
+    // MakiwaFreight App Frontend (Corrected for Initial Load)
+    (function() {
+      'use strict';
+      
+      // Configuration
+      const API_BASE = '/api';
+      const LOAD_EXPIRY_DAYS = 7;
+      
+      // Page definitions for access control
+      const PAGES = {
+        'shipper-dashboard': { name: 'Shipper Dashboard', roles: ['shipper'] },
+        'shipper-post': { name: 'Post Load', roles: ['admin', 'shipper', 'transporter'] },
+        'shipper-profile': { name: 'Shipper Profile', roles: ['shipper'] },
+        'transporter-dashboard': { name: 'Transporter Dashboard', roles: ['transporter'] },
+        'transporter-profile': { name: 'Transporter Profile', roles: ['transporter'] },
+        'market': { name: 'Market', roles: ['shipper', 'transporter'] },
+        'messages': { name: 'Messages', roles: ['shipper', 'transporter'] },
+        'control': { name: 'Admin Control', roles: ['admin'] }
+      };
+      
+      // Role definitions
+      const ROLES = ['admin', 'shipper', 'transporter'];
+      
+      // Global variable to store access control data
+      let accessControlData = {};
+      
+      // Utility functions
+      const now = () => new Date().toISOString();
+      const el = id => document.getElementById(id);
+      const setText = (id, txt) => { const e = el(id); if(e) e.textContent = txt; };
+      const setHidden = (id, hid) => { const e = el(id); if(e) e.classList[hid ? 'add' : 'remove']('hidden'); };
+      
+      // Sanitize input to prevent XSS
+      const sanitize = str => {
+        if (!str) return '';
+        return str.toString()
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#039;');
+      };
+      
+      // Validate email format
+      const isValidEmail = email => {
+        const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return re.test(email);
+      };
+      
+      // Error handling wrapper
+      const handleError = async (fn, fallbackMsg = 'An error occurred') => {
+        try {
+          return await fn();
+        } catch (error) {
+          console.error('MakiwaFreight Error:', error);
+          showNotification(fallbackMsg + ': ' + error.message, 'error');
+          return null;
+        }
+      };
+      
+      // Calculate expiry date (7 days from now)
+      const calculateExpiryDate = () => {
+        const expiryDate = new Date();
+        expiryDate.setDate(expiryDate.getDate() + LOAD_EXPIRY_DAYS);
+        return expiryDate.toISOString();
+      };
+      
+      // Check if a load has expired
+      const isLoadExpired = load => {
+        if (!load.expires_at) return false;
+        return new Date(load.expires_at) < new Date();
+      };
+      
+      // Get current user synchronously (from stored data)
+      const getCurrentUserSync = () => {
+        try {
+          const userData = sessionStorage.getItem('currentUser');
+          if (userData) {
+            return JSON.parse(userData);
+          }
+          return null;
+        } catch (error) {
+          console.error('Error getting current user:', error);
+          return null;
+        }
+      };
+      
+      // Show loading state on a button
+      const setButtonLoading = (buttonId, isLoading) => {
+        const button = el(buttonId);
+        if (!button) return;
+        
+        if (isLoading) {
+          button.classList.add('loading');
+          button.disabled = true;
+          
+          if (!button.querySelector('.loading')) {
+            const spinner = document.createElement('span');
+            spinner.className = 'loading';
+            button.appendChild(spinner);
+          }
+        } else {
+          button.classList.remove('loading');
+          button.disabled = false;
+          
+          const spinner = button.querySelector('.loading');
+          if (spinner) {
+            spinner.remove();
+          }
+        }
+      };
+      
+      // Notification system
+      function showNotification(message, type = 'info') {
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`;
+        notification.textContent = message;
+        
+        document.getElementById('notificationContainer').appendChild(notification);
+        
+        setTimeout(() => {
+          notification.classList.add('show');
+        }, 10);
+        
+        setTimeout(() => {
+          notification.classList.remove('show');
+          setTimeout(() => {
+            notification.remove();
+          }, 300);
+        }, 5000);
+      }
+      
+      // API helper functions that call the correct backend endpoints
+      
+      const apiRequest = async (endpoint, options = {}) => {
+        const headers = {
+          'Content-Type': 'application/json',
+          ...options.headers
+        };
+        
+        // Add authorization header if user is logged in
+        const user = getCurrentUserSync();
+        if (user && user.data && user.data.token) {
+          headers['Authorization'] = `Bearer ${user.data.token}`;
+        }
+        
+        try {
+          const response = await fetch(`${API_BASE}${endpoint}`, {
+            ...options,
+            headers
+          });
+          
+          if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new Error(error.error || `API error: ${response.status}`);
+          }
+          
+          return await response.json();
+        } catch (error) {
+          if (error instanceof TypeError && error.message.includes('fetch')) {
+            throw new Error('Network error. Please check your connection and try again.');
+          }
+          throw error;
+        }
+      };
+      
+      // Authentication API functions
+      const login = async (email, password) => {
+        if (!email || !password) return null;
+        
+        email = email.trim().toLowerCase();
+        
+        try {
+          // Fixed: Changed from '/users/login' to '/auth/login'
+          const user = await apiRequest('/auth/login', {
+            method: 'POST',
+            body: JSON.stringify({ email, password })
+          });
+          
+          if (user) {
+            sessionStorage.setItem('currentUser', JSON.stringify(user));
+            showNotification('Login successful', 'success');
+            return user;
+          }
+          return null;
+        } catch (error) {
+          console.error('Login error:', error);
+          showNotification('Login failed: ' + error.message, 'error');
+          return null;
+        }
+      };
+      
+      const logout = () => {
+        sessionStorage.removeItem('currentUser');
+        showNotification('Logged out successfully', 'info');
+        location.hash = '#login';
+        render();
+      };
+      
+      // User API functions
+      const registerUser = async (data) => {
+        if (!data.name || !data.email || !data.password || !data.phone) {
+          throw new Error('All required fields must be filled');
+        }
+        
+        if (!isValidEmail(data.email)) {
+          throw new Error('Please enter a valid email address');
+        }
+        
+        const sanitizedData = {
+          name: sanitize(data.name),
+          company: sanitize(data.company || ''),
+          email: data.email.trim().toLowerCase(),
+          phone: sanitize(data.phone),
+          password: data.password,
+          address: sanitize(data.address || ''),
+          role: data.role,
+          vehicle_info: sanitize(data.vehicle_info || '')
+        };
+        
+        try {
+          // Fixed: Changed from '/users/register' to '/auth/register'
+          const user = await apiRequest('/auth/register', {
+            method: 'POST',
+            body: JSON.stringify(sanitizedData)
+          });
+          
+          showNotification('Registration successful', 'success');
+          return user;
+        } catch (error) {
+          console.error('Registration error:', error);
+          showNotification('Registration failed: ' + error.message, 'error');
+          throw error;
+        }
+      };
+      
+      const updateUserProfile = async (userId, profileData) => {
+        if (!userId || !profileData) throw new Error('User ID and profile data are required');
+        
+        const sanitizedData = {};
+        for (const key in profileData) {
+          if (['name', 'phone', 'address', 'password'].includes(key)) {
+            sanitizedData[key] = profileData[key];
+          }
+        }
+        
+        try {
+          // Fixed: Changed from `/users/${userId}` to `/users/me`
+          const user = await apiRequest('/users/me', {
+            method: 'PUT',
+            body: JSON.stringify(sanitizedData)
+          });
+          
+          const currentUser = getCurrentUserSync();
+          if (currentUser) {
+            const updatedUser = { ...currentUser, ...sanitizedData };
+            sessionStorage.setItem('currentUser', JSON.stringify(updatedUser));
+          }
+          
+          showNotification('Profile updated successfully', 'success');
+          return user;
+        } catch (error) {
+          console.error('Profile update error:', error);
+          showNotification('Profile update failed: ' + error.message, 'error');
+          throw error;
+        }
+      };
+      
+      // Load API functions
+      const postLoad = async (payload) => {
+        if (!payload.origin || !payload.destination || !payload.date || !payload.cargo_type || !payload.weight) {
+          throw new Error('All required fields must be filled');
+        }
+        
+        const user = getCurrentUserSync();
+        if (!user) throw new Error('User not logged in');
+        
+        const sanitizedPayload = {
+          origin: sanitize(payload.origin),
+          destination: sanitize(payload.destination),
+          date: payload.date,
+          cargo_type: sanitize(payload.cargo_type),
+          weight: parseFloat(payload.weight),
+          notes: sanitize(payload.notes || ''),
+          shipper_id: user.id
+        };
+        
+        try {
+          const load = await apiRequest('/loads', {
+            method: 'POST',
+            body: JSON.stringify(sanitizedPayload)
+          });
+          
+          showNotification('Load posted successfully', 'success');
+          return load;
+        } catch (error) {
+          console.error('Post load error:', error);
+          showNotification('Failed to post load: ' + error.message, 'error');
+          throw error;
+        }
+      };
+      
+      const getLoads = async (filters = {}) => {
+        try {
+          // Fixed: Get all loads and filter on client side
+          const response = await apiRequest('/loads');
+          let loads = response.data ? response.data.loads : response;
+          
+          // Filter by shipper if specified
+          if (filters.shipper_id) {
+            loads = loads.filter(l => l.shipper_id === filters.shipper_id);
+          }
+          
+          // Apply other filters
+          if (filters.origin) {
+            loads = loads.filter(l => l.origin.toLowerCase().includes(filters.origin.toLowerCase()));
+          }
+          if (filters.destination) {
+            loads = loads.filter(l => l.destination.toLowerCase().includes(filters.destination.toLowerCase()));
+          }
+          
+          return loads;
+        } catch (error) {
+          console.error('Get loads error:', error);
+          showNotification('Failed to get loads: ' + error.message, 'error');
+          throw error;
+        }
+      };
+      
+      const updateLoad = async (loadId, patch) => {
+        if (!loadId) throw new Error('Load ID is required');
+        
+        const sanitizedPatch = {};
+        for (const key in patch) {
+          if (key === 'weight') {
+            sanitizedPatch[key] = parseFloat(patch[key]);
+          } else {
+            sanitizedPatch[key] = sanitize(patch[key]);
+          }
+        }
+        
+        try {
+          const load = await apiRequest(`/loads/${loadId}`, {
+            method: 'PUT',
+            body: JSON.stringify(sanitizedPatch)
+          });
+          
+          showNotification('Load updated successfully', 'success');
+          return load;
+        } catch (error) {
+          console.error('Update load error:', error);
+          showNotification('Failed to update load: ' + error.message, 'error');
+          throw error;
+        }
+      };
+      
+      const deleteLoad = async (loadId) => {
+        if (!loadId) throw new Error('Load ID is required');
+        
+        try {
+          await apiRequest(`/loads/${loadId}`, { method: 'DELETE' });
+          showNotification('Load deleted successfully', 'success');
+        } catch (error) {
+          console.error('Delete load error:', error);
+          showNotification('Failed to delete load: ' + error.message, 'error');
+          throw error;
+        }
+      };
+      
+      // Message API functions
+      const sendMessage = async (toEmail, body) => {
+        if (!toEmail || !body) {
+          throw new Error('Recipient and message are required');
+        }
+        
+        const user = getCurrentUserSync();
+        if (!user) throw new Error('User not logged in');
+        
+        if (!isValidEmail(toEmail)) {
+          throw new Error('Please enter a valid recipient email');
+        }
+        
+        try {
+          // Fixed: Changed sender_id to sender_email to match the backend
+          const message = await apiRequest('/messages', {
+            method: 'POST',
+            body: JSON.stringify({ 
+              sender_email: user.data.user.email, 
+              recipient_email: toEmail, 
+              body: sanitize(body) 
+            })
+          });
+          
+          showNotification('Message sent successfully', 'success');
+          return message;
+        } catch (error) {
+          console.error('Send message error:', error);
+          showNotification('Failed to send message: ' + error.message, 'error');
+          throw error;
+        }
+      };
+      
+      const getMessages = async () => {
+        const user = getCurrentUserSync();
+        if (!user) throw new Error('User not logged in');
+        
+        try {
+          // Fixed: Changed from '/messages/${user.id}' to '/messages'
+          const response = await apiRequest('/messages');
+          const messages = response.data ? response.data.messages : response;
+          
+          // Filter messages for current user
+          const userEmail = user.data.user.email;
+          return messages.filter(m => 
+            m.sender_email === userEmail || m.recipient_email === userEmail
+          );
+        } catch (error) {
+          console.error('Get messages error:', error);
+          showNotification('Failed to get messages: ' + error.message, 'error');
+          throw error;
+        }
+      };
+      
+      const deleteMessage = async (messageId) => {
+        if (!messageId) throw new Error('Message ID is required');
+        
+        try {
+          await apiRequest(`/messages/${messageId}`, { method: 'DELETE' });
+          showNotification('Message deleted successfully', 'success');
+        } catch (error) {
+          console.error('Delete message error:', error);
+          showNotification('Failed to delete message: ' + error.message, 'error');
+          throw error;
+        }
+      };
+      
+      // Admin API functions
+      const isAdmin = u => u && u.data && u.data.user && u.data.user.role === 'admin';
+      
+      const getUsers = async () => {
+        try {
+          const response = await apiRequest('/users');
+          return response.data ? response.data.users : response;
+        } catch (error) {
+          console.error('Get users error:', error);
+          showNotification('Failed to get users: ' + error.message, 'error');
+          throw error;
+        }
+      };
+      
+      const deleteUser = async (email) => {
+        if (!email) throw new Error('Email is required');
+        
+        try {
+          await apiRequest(`/admin/users/${encodeURIComponent(email)}`, { method: 'DELETE' });
+          showNotification('User deleted successfully', 'success');
+        } catch (error) {
+          console.error('Delete user error:', error);
+          showNotification('Failed to delete user: ' + error.message, 'error');
+          throw error;
+        }
+      };
+      
+      const resetPassword = async (email, newPass) => {
+        if (!email || !newPass) throw new Error('Email and password are required');
+        
+        try {
+          await apiRequest('/admin/reset-password', {
+            method: 'POST',
+            body: JSON.stringify({ email, new_password: newPass })
+          });
+          showNotification('Password reset successfully', 'success');
+        } catch (error) {
+          console.error('Reset password error:', error);
+          showNotification('Failed to reset password: ' + error.message, 'error');
+          throw error;
+        }
+      };
+      
+      const getBanners = async () => {
+        try {
+          const response = await apiRequest('/admin/banners');
+          return response.data || response;
+        } catch (error) {
+          console.error('Get banners error:', error);
+          showNotification('Failed to get banners: ' + error.message, 'error');
+          throw error;
+        }
+      };
+      
+      const updateBanners = async (banners) => {
+        try {
+          await apiRequest('/admin/banners', {
+            method: 'PUT',
+            body: JSON.stringify(banners)
+          });
+          showNotification('Banners updated successfully', 'success');
+          return banners;
+        } catch (error) {
+          console.error('Update banners error:', error);
+          showNotification('Failed to update banners: ' + error.message, 'error');
+          throw error;
+        }
+      };
+      
+      const getAccessControl = async () => {
+        try {
+          const response = await apiRequest('/admin/access-control');
+          return response.data || response;
+        } catch (error) {
+          console.error('Get access control error:', error);
+          showNotification('Failed to get access control: ' + error.message, 'error');
+          throw error;
+        }
+      };
+      
+      const updateAccessControl = async (acl) => {
+        try {
+          await apiRequest('/admin/access-control', {
+            method: 'PUT',
+            body: JSON.stringify(acl)
+          });
+          showNotification('Access control updated successfully', 'success');
+          return acl;
+        } catch (error) {
+          console.error('Update access control error:', error);
+          showNotification('Failed to update access control: ' + error.message, 'error');
+          throw error;
+        }
+      };
+      
+      // Check if user can access a specific page
+      const canAccessPage = (user, pageId) => {
+        if (!user) return false;
+        if (isAdmin(user)) return true;
+        
+        const page = PAGES[pageId];
+        if (page && page.roles.includes(user.data.user.role)) {
+          return true;
+        }
+        
+        return false;
+      };
+      
+      // Router
+      const pages = {
+        index: 'page-index',
+        'register-options': 'page-register-options',
+        login: 'page-login',
+        'register-shipper': 'page-register-shipper',
+        'register-transporter': 'page-register-transporter',
+        'shipper-dashboard': 'page-shipper-dashboard',
+        'shipper-post': 'page-shipper-post',
+        'shipper-profile': 'page-shipper-profile',
+        'transporter-dashboard': 'page-transporter-dashboard',
+        'transporter-profile': 'page-transporter-profile',
+        'market': 'page-market',
+        messages: 'page-messages',
+        control: 'page-control'
+      };
+      
+      const show = hash => {
+        const key = (hash || '#').replace('#', '') || 'index';
+        for (const k in pages) {
+          const element = el(pages[k]);
+          if (element) element.classList.add('hidden');
+        }
+        const activePage = el(pages[key]);
+        if (activePage) {
+          activePage.classList.remove('hidden');
+          const heading = activePage.querySelector('h1, h2');
+          if (heading) heading.focus();
+        }
+        render();
+      };
+      
+      // Rendering functions
+      const renderHeader = async () => {
+        const u = getCurrentUserSync();
+        setHidden('btnLogout', !u);
+        setHidden('btnLoginNav', !!u);
+        
+        if (u && u.data && u.data.user) {
+          setText('authUser', `${sanitize(u.data.user.name)} · ${u.data.user.role}`);
+        } else {
+          setText('authUser', '');
+        }
+        
+        const chip = el('roleChip');
+        if (u && u.data && u.data.user) {
+          chip.textContent = u.data.user.role.toUpperCase();
+          chip.classList.remove('hidden');
+        } else {
+          chip.classList.add('hidden');
+        }
+        
+        const navLinksContainer = el('navLinks');
+        if (navLinksContainer) {
+          navLinksContainer.innerHTML = '';
+          
+          if (u) {
+            Object.keys(PAGES).forEach(pageId => {
+              if (canAccessPage(u, pageId)) {
+                const link = document.createElement('a');
+                link.href = `#${pageId}`;
+                link.className = 'btn';
+                link.textContent = PAGES[pageId].name;
+                navLinksContainer.appendChild(link);
+              }
+            });
+          }
+        }
+      };
+      
+      const renderBanners = async () => {
+        const u = getCurrentUserSync();
+
+        // Set default (empty) state for all banner elements
+        setText('indexBanner', ''); setHidden('indexBanner', true);
+        setText('dashBannerShipper', ''); setHidden('dashBannerShipper', true);
+        setText('dashBannerTransporter', ''); setHidden('dashBannerTransporter', true);
+        setText('marketBanner', ''); setHidden('marketBanner', true);
+
+        // Only try to fetch and populate admin banners if an admin is logged in.
+        if (isAdmin(u)) {
+          try {
+            const banners = await getBanners();
+            const adminIndexBanner = el('adminIndexBanner');
+            const adminDashBanner = el('adminDashBanner');
+            if (adminIndexBanner) adminIndexBanner.value = banners.index || '';
+            if (adminDashBanner) adminDashBanner.value = banners.dashboard || '';
+          } catch (error) {
+            console.error('Failed to load admin banners:', error);
+            showNotification('Could not load admin banner settings.', 'warning');
+          }
+        }
+      };
+      
+      const renderShipper = async () => {
+        const u = getCurrentUserSync();
+        if (!u) return;
+        
+        try {
+          const rows = await getLoads({ shipper_id: u.id });
+          const tb = el('tableMyLoads');
+          if (!tb) return;
+          
+          const tbody = tb.querySelector('tbody');
+          if (!tbody) return;
+          
+          tbody.innerHTML = '';
+          
+          if (rows.length === 0) {
+            const emptyRow = document.createElement('tr');
+            emptyRow.innerHTML = '<td colspan="9" style="text-align:center">No loads posted yet</td>';
+            tbody.appendChild(emptyRow);
+            return;
+          }
+          
+          for (const l of rows) {
+            const expired = isLoadExpired(l);
+            const expiryDate = l.expires_at ? new Date(l.expires_at).toLocaleDateString() : 'N/A';
+            
+            const tr = document.createElement('tr');
+            if (expired) tr.classList.add('expired');
+            
+            tr.innerHTML = `
+              <td>${sanitize(l.ref)}</td>
+              <td>${sanitize(l.origin)}</td>
+              <td>${sanitize(l.destination)}</td>
+              <td>${sanitize(l.date)}</td>
+              <td>${expiryDate}</td>
+              <td>${sanitize(l.cargo_type)}</td>
+              <td>${sanitize(l.weight)}</td>
+              <td>${sanitize(l.notes || '')}</td>
+              <td>
+                <button class="btn" data-edit="${l.id}" aria-label="Edit load ${l.ref}">Edit</button>
+                <button class="btn danger" data-del="${l.id}" aria-label="Delete load ${l.ref}">Delete</button>
+              </td>`;
+            tbody.appendChild(tr);
+          }
+          
+          tbody.querySelectorAll('[data-del]').forEach(b => {
+            b.onclick = () => {
+              if (confirm('Are you sure you want to delete this load?')) {
+                handleError(async () => {
+                  await deleteLoad(b.dataset.del);
+                  render();
+                }, 'Failed to delete load');
+              }
+            };
+          });
+          
+          tbody.querySelectorAll('[data-edit]').forEach(b => {
+            b.onclick = () => {
+              const l = rows.find(x => x.id === b.dataset.edit);
+              if (!l) return;
+              
+              const origin = prompt('Origin', l.origin);
+              if (origin === null) return;
+              
+              const destination = prompt('Destination', l.destination);
+              if (destination === null) return;
+              
+              const date = prompt('Date (YYYY-MM-DD)', l.date);
+              if (date === null) return;
+              
+              const cargo_type = prompt('Cargo', l.cargo_type);
+              if (cargo_type === null) return;
+              
+              const weight = prompt('Weight', l.weight);
+              if (weight === null) return;
+              
+              const notes = prompt('Notes', l.notes || '');
+              if (notes === null) return;
+              
+              handleError(async () => {
+                await updateLoad(l.id, { origin, destination, date, cargo_type, weight, notes });
+                render();
+              }, 'Failed to update load');
+            };
+          });
+        } catch (error) {
+          console.error('Failed to render shipper dashboard:', error);
+        }
+      };
+      
+      const renderTransporter = async () => {
+        const u = getCurrentUserSync();
+        if (!u) return;
+        
+        try {
+          const tb = el('tableLoads');
+          if (!tb) return;
+          
+          const tbody = tb.querySelector('tbody');
+          if (!tbody) return;
+          
+          tbody.innerHTML = '';
+          
+          const fo = el('filterOrigin');
+          const fd = el('filterDest');
+          
+          const filters = {};
+          if (fo && fo.value.trim()) filters.origin = fo.value.trim();
+          if (fd && fd.value.trim()) filters.destination = fd.value.trim();
+          
+          let rows = await getLoads(filters);
+          rows = rows.filter(l => !isLoadExpired(l));
+          
+          if (rows.length === 0) {
+            const emptyRow = document.createElement('tr');
+            emptyRow.innerHTML = '<td colspan="9" style="text-align:center">No loads available</td>';
+            tbody.appendChild(emptyRow);
+            return;
+          }
+          
+          for (const l of rows) {
+            const expiryDate = l.expires_at ? new Date(l.expires_at).toLocaleDateString() : 'N/A';
+            
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td>${sanitize(l.ref)}</td>
+              <td>${sanitize(l.origin)}</td>
+              <td>${sanitize(l.destination)}</td>
+              <td>${sanitize(l.date)}</td>
+              <td>${expiryDate}</td>
+              <td>${sanitize(l.cargo_type)}</td>
+              <td>${sanitize(l.weight)}</td>
+              <td>${sanitize(l.notes || '')}</td>
+              <td>${sanitize(l.shipper_name || '')}</td>`;
+            tbody.appendChild(tr);
+          }
+        } catch (error) {
+          console.error('Failed to render transporter dashboard:', error);
+        }
+      };
+      
+      const renderMarket = async () => {
+        const u = getCurrentUserSync();
+        if (!u) return;
+        
+        try {
+          const fo = el('marketFilterOrigin');
+          const fd = el('marketFilterDest');
+          
+          const filters = {};
+          if (fo && fo.value.trim()) filters.origin = fo.value.trim();
+          if (fd && fd.value.trim()) filters.destination = fd.value.trim();
+          
+          let rows = await getLoads(filters);
+          rows = rows.filter(l => !isLoadExpired(l));
+          
+          const tb = el('tableMarketLoads');
+          if (!tb) return;
+          
+          const tbody = tb.querySelector('tbody');
+          if (!tbody) return;
+          
+          tbody.innerHTML = '';
+          
+          if (rows.length === 0) {
+            const emptyRow = document.createElement('tr');
+            emptyRow.innerHTML = '<td colspan="9" style="text-align:center">No loads available</td>';
+            tbody.appendChild(emptyRow);
+            return;
+          }
+          
+          for (const l of rows) {
+            const expiryDate = l.expires_at ? new Date(l.expires_at).toLocaleDateString() : 'N/A';
+            
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td>${sanitize(l.ref)}</td>
+              <td>${sanitize(l.origin)}</td>
+              <td>${sanitize(l.destination)}</td>
+              <td>${sanitize(l.date)}</td>
+              <td>${expiryDate}</td>
+              <td>${sanitize(l.cargo_type)}</td>
+              <td>${sanitize(l.weight)}</td>
+              <td>${sanitize(l.notes || '')}</td>
+              <td>${sanitize(l.shipper_name || '')}</td>`;
+            tbody.appendChild(tr);
+          }
+        } catch (error) {
+          console.error('Failed to render market:', error);
+        }
+      };
+      
+      const renderProfiles = async () => {
+        const u = getCurrentUserSync();
+        if (!u) return;
+        
+        if (u.role === 'shipper') {
+          const avatar = el('shipperProfileAvatar');
+          const name = el('shipperProfileName');
+          const since = el('shipperProfileSince');
+          
+          if (avatar) avatar.textContent = u.name.charAt(0).toUpperCase();
+          if (name) name.textContent = u.name;
+          if (since) since.textContent = new Date(u.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
+          
+          setText('shipperProfileEmail', u.email);
+          setText('shipperProfileCompany', u.company || 'Not provided');
+          setText('shipperProfileRole', u.role.charAt(0).toUpperCase() + u.role.slice(1));
+          setText('shipperProfileCreated', new Date(u.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long' }));
+        }
+        
+        if (u.role === 'transporter') {
+          const avatar = el('transporterProfileAvatar');
+          const name = el('transporterProfileName');
+          const since = el('transporterProfileSince');
+          
+          if (avatar) avatar.textContent = u.name.charAt(0).toUpperCase();
+          if (name) name.textContent = u.name;
+          if (since) since.textContent = new Date(u.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
+          
+          setText('transporterProfileEmail', u.email);
+          setText('transporterProfileCompany', u.company || 'Not provided');
+          setText('transporterProfileVehicle', u.vehicle_info || 'Not provided');
+          setText('transporterProfileRole', u.role.charAt(0).toUpperCase() + u.role.slice(1));
+          setText('transporterProfileCreated', new Date(u.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long' }));
+        }
+        
+        const fields = (user, role) => {
+          const base = `
+            <div class="grid two">
+              <div><label for="${role}Name">Contact Person (Name)</label><input required id="${role}Name" name="name" value="${sanitize(user.name || '')}" /></div>
+              <div><label for="${role}Phone">Phone</label><input id="${role}Phone" name="phone" value="${sanitize(user.phone || '')}" /></div>
+              <div class="two" style="grid-column:1/-1"><label for="${role}Address">Address</label><input id="${role}Address" name="address" value="${sanitize(user.address || '')}" /></div>
+              <div><label for="${role}Password">New Password (leave blank to keep current)</label><input id="${role}Password" name="password" type="password" value="" /></div>
+            </div>`;
+          return base;
+        };
+        
+        if (u.role === 'shipper') {
+          const form = el('formProfileShipper');
+          if (form) form.innerHTML = fields(u, 'shipper');
+        }
+        
+        if (u.role === 'transporter') {
+          const form = el('formProfileTransporter');
+          if (form) form.innerHTML = fields(u, 'transporter');
+        }
+      };
+      
+      const renderMessages = async () => {
+        const u = getCurrentUserSync();
+        if (!u) return;
+        
+        try {
+          const tb = el('tableInbox');
+          if (!tb) return;
+          
+          const tbody = tb.querySelector('tbody');
+          if (!tbody) return;
+          
+          tbody.innerHTML = '';
+          
+          const messages = await getMessages();
+          
+          if (messages.length === 0) {
+            const emptyRow = document.createElement('tr');
+            emptyRow.innerHTML = '<td colspan="4" style="text-align:center">No messages</td>';
+            tbody.appendChild(emptyRow);
+            return;
+          }
+          
+          for (const m of messages) {
+            const tr = document.createElement('tr');
+            const d = new Date(m.created_at).toLocaleString();
+            tr.innerHTML = `
+              <td>${sanitize(m.sender_name || 'Unknown')}</td>
+              <td>${sanitize(m.body)}</td>
+              <td>${sanitize(d)}</td>
+              <td><button class="btn" data-delmsg="${m.id}" aria-label="Delete message">Delete</button></td>`;
+            tbody.appendChild(tr);
+          }
+          
+          tbody.querySelectorAll('[data-delmsg]').forEach(b => {
+            b.onclick = () => {
+              handleError(async () => {
+                await deleteMessage(b.dataset.delmsg);
+                render();
+              }, 'Failed to delete message');
+            };
+          });
+        } catch (error) {
+          console.error('Failed to render messages:', error);
+        }
+      };
+      
+      const renderUserDropdowns = async () => {
+        const passwordSelect = el('selectUserForPassword');
+        
+        try {
+          const users = await getUsers();
+          
+          if (passwordSelect) {
+            passwordSelect.innerHTML = '<option value="">-- Select User --</option>';
+            
+            users.forEach(user => {
+              const option = document.createElement('option');
+              option.value = user.email;
+              option.textContent = `${user.name} (${user.email})`;
+              passwordSelect.appendChild(option);
+            });
+          }
+        } catch (error) {
+          console.error('Failed to render user dropdowns:', error);
+        }
+      };
+      
+      const renderLoadDropdown = async () => {
+        const select = el('selectLoad');
+        if (!select) return;
+        
+        try {
+          const loads = await getLoads();
+          
+          select.innerHTML = '<option value="">-- Select Load --</option>';
+          
+          loads.forEach(load => {
+            const option = document.createElement('option');
+            option.value = load.id;
+            option.textContent = `${load.ref}: ${load.origin} to ${load.destination}`;
+            select.appendChild(option);
+          });
+        } catch (error) {
+          console.error('Failed to render load dropdown:', error);
+        }
+      };
+      
+      const renderAdmin = async () => {
+        const u = getCurrentUserSync();
+        if (!isAdmin(u)) return;
+        
+        try {
+          const banners = await getBanners();
+          const adminIndexBanner = el('adminIndexBanner');
+          const adminDashBanner = el('adminDashBanner');
+          if (adminIndexBanner) adminIndexBanner.value = banners.index || '';
+          if (adminDashBanner) adminDashBanner.value = banners.dashboard || '';
+          
+          const tbU = el('tableUsers');
+          if (tbU) {
+            const users = await getUsers();
+            
+            const tbodyU = tbU.querySelector('tbody');
+            if (tbodyU) {
+              tbodyU.innerHTML = '';
+              
+              for (const usr of users) {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                  <td>${sanitize(usr.name)}</td>
+                  <td>${sanitize(usr.email)}</td>
+                  <td>${sanitize(usr.role)}</td>
+                  <td>
+                    <button class="btn danger" data-deluser="${usr.email}" aria-label="Delete user ${usr.email}">Delete</button>
+                  </td>`;
+                tbodyU.appendChild(tr);
+              }
+              
+              tbodyU.querySelectorAll('[data-deluser]').forEach(b => {
+                b.onclick = () => {
+                  if (confirm('Are you sure you want to delete this user? This will also delete all their associated data.')) {
+                    handleError(async () => {
+                      await deleteUser(b.dataset.deluser);
+                      render();
+                    }, 'Failed to delete user');
+                  }
+                };
+              });
+            }
+          }
+          
+          renderLoadDropdown();
+          renderUserDropdowns();
+        } catch (error) {
+          console.error('Failed to render admin panel:', error);
+        }
+      };
+      
+      // MAIN RENDER FUNCTION - with error handling
+      const render = async () => {
+        await renderHeader();
+        await renderBanners();
+        
+        const u = getCurrentUserSync();
+        
+        const restricted = ['shipper-dashboard', 'shipper-post', 'shipper-profile', 'transporter-dashboard', 'transporter-profile', 'market', 'messages', 'control'];
+        const page = (location.hash || '#').replace('#', '') || 'index';
+        
+        if (!u && restricted.includes(page)) {
+          location.hash = '#login';
+          return;
+        }
+        
+        if (u && !canAccessPage(u, page)) {
+          if (u.role === 'shipper') location.hash = '#shipper-dashboard';
+          else if (u.role === 'transporter') location.hash = '#transporter-dashboard';
+          else location.hash = '#index';
+          return;
+        }
+        
+        if (u) {
+          if (page === 'index') {
+            if (u.role === 'shipper') location.hash = '#shipper-dashboard';
+            else if (u.role === 'transporter') location.hash = '#transporter-dashboard';
+            else if (isAdmin(u)) location.hash = '#control';
+          }
+          
+          if (page.startsWith('shipper')) await renderShipper();
+          if (page.startsWith('transporter')) await renderTransporter();
+          if (page === 'market') await renderMarket();
+          if (page === 'messages') await renderMessages();
+          if (page === 'shipper-profile' || page === 'transporter-profile') await renderProfiles();
+          if (page === 'control') await renderAdmin();
+        }
+      };
+      
+      // Event bindings
+      const initEventListeners = () => {
+        const btnLogout = el('btnLogout');
+        if (btnLogout) btnLogout.onclick = logout;
+        
+        const formLogin = el('formLogin');
+        if (formLogin) {
+          formLogin.onsubmit = async e => {
+            e.preventDefault();
+            setButtonLoading('formLogin button[type="submit"]', true);
+            
+            const fd = new FormData(e.target);
+            const email = fd.get('email');
+            const password = fd.get('password');
+            
+            if (!email || !password) {
+              showNotification('Please enter both email and password', 'error');
+              setButtonLoading('formLogin button[type="submit"]', false);
+              return;
+            }
+            
+            try {
+              const user = await login(email, password);
+              if (!user) {
+                setButtonLoading('formLogin button[type="submit"]', false);
+                return;
+              }
+              
+              if (user.role === 'shipper') location.hash = '#shipper-dashboard';
+              else if (user.role === 'transporter') location.hash = '#transporter-dashboard';
+              else if (isAdmin(user)) location.hash = '#control';
+            } catch (error) {
+              console.error('Login error:', error);
+              showNotification('Login failed: ' + error.message, 'error');
+              setButtonLoading('formLogin button[type="submit"]', false);
+            }
+          };
+        }
+        
+        const formRegShipper = el('formRegShipper');
+        if (formRegShipper) {
+          formRegShipper.onsubmit = async e => {
+            e.preventDefault();
+            setButtonLoading('formRegShipper button[type="submit"]', true);
+            
+            const fd = new FormData(e.target);
+            
+            try {
+              await registerUser({
+                name: fd.get('name'),
+                company: fd.get('company'),
+                email: fd.get('email'),
+                phone: fd.get('phone'),
+                password: fd.get('password'),
+                address: fd.get('address'),
+                role: 'shipper'
+              });
+              location.hash = '#login';
+            } catch (error) {
+              console.error('Registration error:', error);
+            } finally {
+              setButtonLoading('formRegShipper button[type="submit"]', false);
+            }
+          };
+        }
+        
+        const formRegTransporter = el('formRegTransporter');
+        if (formRegTransporter) {
+          formRegTransporter.onsubmit = async e => {
+            e.preventDefault();
+            setButtonLoading('formRegTransporter button[type="submit"]', true);
+            
+            const fd = new FormData(e.target);
+            
+            try {
+              await registerUser({
+                name: fd.get('name'),
+                company: fd.get('company'),
+                email: fd.get('email'),
+                phone: fd.get('phone'),
+                password: fd.get('password'),
+                address: fd.get('address'),
+                vehicle_info: fd.get('vehicle_info'),
+                role: 'transporter'
+              });
+              location.hash = '#login';
+            } catch (error) {
+              console.error('Registration error:', error);
+            } finally {
+              setButtonLoading('formRegTransporter button[type="submit"]', false);
+            }
+          };
+        }
+        
+        const formPostLoad = el('formPostLoad');
+        if (formPostLoad) {
+          formPostLoad.onsubmit = async e => {
+            e.preventDefault();
+            setButtonLoading('formPostLoad button[type="submit"]', true);
+            
+            const fd = new FormData(e.target);
+            
+            try {
+              await postLoad({
+                origin: fd.get('origin'),
+                destination: fd.get('destination'),
+                date: fd.get('date'),
+                cargo_type: fd.get('cargo_type'),
+                weight: fd.get('weight'),
+                notes: fd.get('notes')
+              });
+              e.target.reset();
+              location.hash = '#shipper-dashboard';
+            } catch (error) {
+              console.error('Post load error:', error);
+            } finally {
+              setButtonLoading('formPostLoad button[type="submit"]', false);
+            }
+          };
+        }
+        
+        const saveProfileShipper = el('saveProfileShipper');
+        if (saveProfileShipper) {
+          saveProfileShipper.onclick = async () => {
+            const u = getCurrentUserSync();
+            if (!u) return;
+            
+            setButtonLoading('saveProfileShipper', true);
+            
+            const f = el('formProfileShipper');
+            if (!f) {
+              setButtonLoading('saveProfileShipper', false);
+              return;
+            }
+            
+            try {
+              const data = Object.fromEntries(new FormData(f).entries());
+              await updateUserProfile(u.id, data);
+              render();
+            } catch (error) {
+              console.error('Profile update error:', error);
+            } finally {
+              setButtonLoading('saveProfileShipper', false);
+            }
+          };
+        }
+        
+        const saveProfileTransporter = el('saveProfileTransporter');
+        if (saveProfileTransporter) {
+          saveProfileTransporter.onclick = async () => {
+            const u = getCurrentUserSync();
+            if (!u) return;
+            
+            setButtonLoading('saveProfileTransporter', true);
+            
+            const f = el('formProfileTransporter');
+            if (!f) {
+              setButtonLoading('saveProfileTransporter', false);
+              return;
+            }
+            
+            try {
+              const data = Object.fromEntries(new FormData(f).entries());
+              await updateUserProfile(u.id, data);
+              render();
+            } catch (error) {
+              console.error('Profile update error:', error);
+            } finally {
+              setButtonLoading('saveProfileTransporter', false);
+            }
+          };
+        }
+        
+        const btnFilterLoads = el('btnFilterLoads');
+        if (btnFilterLoads) {
+          btnFilterLoads.onclick = e => {
+            e.preventDefault();
+            renderTransporter();
+          };
+        }
+        
+        const btnMarketFilterLoads = el('btnMarketFilterLoads');
+        if (btnMarketFilterLoads) {
+          btnMarketFilterLoads.onclick = e => {
+            e.preventDefault();
+            renderMarket();
+          };
+        }
+        
+        const formSendMsg = el('formSendMsg');
+        if (formSendMsg) {
+          formSendMsg.onsubmit = async e => {
+            e.preventDefault();
+            setButtonLoading('formSendMsg button[type="submit"]', true);
+            
+            const fd = new FormData(e.target);
+            
+            try {
+              await sendMessage(fd.get('to').trim(), fd.get('body').trim());
+              e.target.reset();
+              renderMessages();
+            } catch (error) {
+              console.error('Send message error:', error);
+            } finally {
+              setButtonLoading('formSendMsg button[type="submit"]', false);
+            }
+          };
+        }
+        
+        const btnSaveBanners = el('btnSaveBanners');
+        if (btnSaveBanners) {
+          btnSaveBanners.onclick = async () => {
+            setButtonLoading('btnSaveBanners', true);
+            
+            try {
+              const banners = {
+                index: el('adminIndexBanner').value || '',
+                dashboard: el('adminDashBanner').value || ''
+              };
+              await updateBanners(banners);
+              render();
+            } catch (error) {
+              console.error('Failed to save banners:', error);
+            } finally {
+              setButtonLoading('btnSaveBanners', false);
+            }
+          };
+        }
+        
+        const btnClearBanners = el('btnClearBanners');
+        if (btnClearBanners) {
+          btnClearBanners.onclick = async () => {
+            setButtonLoading('btnClearBanners', true);
+            
+            try {
+              await updateBanners({ index: '', dashboard: '' });
+              render();
+            } catch (error) {
+              console.error('Failed to clear banners:', error);
+            } finally {
+              setButtonLoading('btnClearBanners', false);
+            }
+          };
+        }
+        
+        const btnEditLoad = el('btnEditLoad');
+        if (btnEditLoad) {
+          btnEditLoad.onclick = async () => {
+            const loadId = el('selectLoad').value;
+            if (!loadId) {
+              showNotification('Please select a load to edit', 'error');
+              return;
+            }
+            
+            try {
+              const loads = await getLoads();
+              const load = loads.find(l => l.id === loadId);
+              if (!load) {
+                showNotification('Load not found', 'error');
+                return;
+              }
+              
+              const origin = prompt('Origin', load.origin);
+              if (origin === null) return;
+              
+              const destination = prompt('Destination', load.destination);
+              if (destination === null) return;
+              
+              const date = prompt('Date (YYYY-MM-DD)', load.date);
+              if (date === null) return;
+              
+              const cargo_type = prompt('Cargo', load.cargo_type);
+              if (cargo_type === null) return;
+              
+              const weight = prompt('Weight', load.weight);
+              if (weight === null) return;
+              
+              const notes = prompt('Notes', load.notes || '');
+              if (notes === null) return;
+              
+              setButtonLoading('btnEditLoad', true);
+              
+              try {
+                await updateLoad(load.id, { origin, destination, date, cargo_type, weight, notes });
+                render();
+              } catch (error) {
+                console.error('Failed to edit load:', error);
+              } finally {
+                setButtonLoading('btnEditLoad', false);
+              }
+            } catch (error) {
+              console.error('Failed to get loads:', error);
+            }
+          };
+        }
+        
+        const btnDeleteLoad = el('btnDeleteLoad');
+        if (btnDeleteLoad) {
+          btnDeleteLoad.onclick = async () => {
+            const loadId = el('selectLoad').value;
+            if (!loadId) {
+              showNotification('Please select a load to delete', 'error');
+              return;
+            }
+            
+            if (confirm('Are you sure you want to delete this load?')) {
+              setButtonLoading('btnDeleteLoad', true);
+              
+              try {
+                await deleteLoad(loadId);
+                render();
+              } catch (error) {
+                console.error('Failed to delete load:', error);
+              } finally {
+                setButtonLoading('btnDeleteLoad', false);
+              }
+            }
+          };
+        }
+        
+        const btnResetPass = el('btnResetPass');
+        if (btnResetPass) {
+          btnResetPass.onclick = async () => {
+            const email = el('selectUserForPassword').value;
+            const newPass = el('resetPass').value;
+            
+            if (!email || !newPass) {
+              showNotification('Please select a user and enter a new password', 'error');
+              return;
+            }
+            
+            setButtonLoading('btnResetPass', true);
+            
+            try {
+              await resetPassword(email, newPass);
+              el('resetPass').value = '';
+              showNotification('Password reset successfully', 'success');
+            } catch (error) {
+              console.error('Failed to reset password:', error);
+            } finally {
+              setButtonLoading('btnResetPass', false);
+            }
+          };
+        }
+        
+        const btnRefreshAccessControl = el('btnRefreshAccessControl');
+        if (btnRefreshAccessControl) {
+          btnRefreshAccessControl.onclick = async () => {
+            setButtonLoading('btnRefreshAccessControl', true);
+            
+            try {
+              await render();
+            } catch (error) {
+              console.error('Failed to refresh access control:', error);
+            } finally {
+              setButtonLoading('btnRefreshAccessControl', false);
+            }
+          };
+        }
+        
+        const btnLoginNav = el('btnLoginNav');
+        if (btnLoginNav) {
+          btnLoginNav.onclick = () => {
+            location.hash = '#login';
+          };
+        }
+      };
+      
+      // *** CORRECTED INITIALIZE FUNCTION ***
+      // This function now correctly handles the initial page load and subsequent navigation
+      const init = async () => {
+        // Set up hash change listener for subsequent navigation
+        window.addEventListener('hashchange', async () => {
+          await show(location.hash);
+        });
+        
+        // Add a global click listener for internal links to ensure hash changes are handled
+        document.addEventListener('click', (e) => {
+          const link = e.target.closest('a');
+          if (link && link.href && link.href.includes('#')) {
+            e.preventDefault();
+            const hash = link.href.split('#').pop() || '';
+            location.hash = `#${hash}`;
+          }
+        });
+
+        // Set up all other event listeners
+        initEventListeners();
+        
+        // *** KEY FIX: Render on window load to ensure everything is ready ***
+        // This ensures that the correct page is shown on first visit
+        console.log('Window fully loaded. Rendering hash:', location.hash || '#index');
+        await show(location.hash || '#index');
+        
+        // Add error handler for uncaught errors
+        window.addEventListener('error', event => {
+          console.error('Uncaught error:', event.error);
+          event.preventDefault();
+        });
+      };
+      
+      // Start the application
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+      } else {
+        init();
+      }
+    })();
+   </script>
+</body>
+</html>
