@@ -678,6 +678,20 @@
             <button id="btnSavePageAccess" class="btn primary">Save Page Access</button>
           </div>
         </div>
+        
+        <div class="access-control-section">
+          <h4>User Access Control</h4>
+          <div class="select-with-actions">
+            <select id="selectUserForAccess">
+              <option value="">-- Select User --</option>
+            </select>
+            <button id="btnLoadUserAccess" class="btn">Load</button>
+          </div>
+          <div id="userAccessContainer" class="page-access-container"></div>
+          <div class="toolbar" style="margin-top:12px">
+            <button id="btnSaveUserAccess" class="btn primary">Save User Access</button>
+          </div>
+        </div>
       </div>
       
       <div class="grid two">
@@ -720,7 +734,7 @@
   
   <!-- Notification Container -->
   <div id="notificationContainer"></div>
-    <script>
+        <script>
     // MakiwaFreight App Frontend (Corrected for Initial Load)
     (function() {
       'use strict';
@@ -1264,7 +1278,7 @@
         }
       };
       
-      // Check if user can access a specific page
+      // Check if user can access a specific page based on default role settings
       const canAccessPage = (user, pageId) => {
         if (!user) return false;
         if (isAdmin(user)) return true;
@@ -1277,107 +1291,97 @@
         return false;
       };
       
-      // Add these functions after the existing access control functions
-      const renderPageAccessControl = async () => {
-        const u = getCurrentUserSync();
-        if (!isAdmin(u)) return;
-
+      // *** START: NEW ACCESS CONTROL FUNCTIONS ***
+      
+      // Check if a user has access to a page, including custom overrides
+      const checkPageAccess = async (pageId) => {
         try {
-          const accessControl = await getAccessControl();
-          const container = el('pageAccessContainer');
-          if (!container) return;
-
-          container.innerHTML = '';
-
-          // Create page access controls
-          Object.keys(PAGES).forEach(pageId => {
-            if (pageId === 'index' || pageId === 'register-options' || pageId === 'login') return;
-
-            const page = PAGES[pageId];
-            if (!page) return;
-
-            const item = document.createElement('div');
-            item.className = 'page-access-item';
-
-            const header = document.createElement('div');
-            header.className = 'page-access-header';
-            header.innerHTML = `
-              <div class="page-access-title">${page.name}</div>
-              <div class="toggle-switch">
-                <input type="checkbox" id="access-${pageId}" ${accessControl.pages && accessControl.pages[pageId] && accessControl.pages[pageId].enabled ? 'checked' : ''}>
-                <span class="toggle-slider"></span>
-              </div>
-            `;
-
-            const rolesDiv = document.createElement('div');
-            rolesDiv.className = 'role-checkboxes';
-
-            ROLES.forEach(role => {
-              // Check if role is allowed in access control or default page roles
-              let isChecked = false;
-              if (accessControl.pages && accessControl.pages[pageId] && accessControl.pages[pageId].roles) {
-                isChecked = accessControl.pages[pageId].roles.includes(role);
-              } else {
-                isChecked = page.roles.includes(role);
-              }
-              
-              const checkboxItem = document.createElement('div');
-              checkboxItem.className = 'role-checkbox-item';
-              checkboxItem.innerHTML = `
-                <input type="checkbox" id="access-${pageId}-${role}" ${isChecked ? 'checked' : ''}>
-                <label for="access-${pageId}-${role}">${role.charAt(0).toUpperCase() + role.slice(1)}</label>
-              `;
-              rolesDiv.appendChild(checkboxItem);
-            });
-
-            item.appendChild(header);
-            item.appendChild(rolesDiv);
-            container.appendChild(item);
-          });
-
-          // Add save button handler
-          const btnSavePageAccess = el('btnSavePageAccess');
-          if (btnSavePageAccess) {
-            btnSavePageAccess.onclick = async () => {
-              setButtonLoading('btnSavePageAccess', true);
-
-              try {
-                const updatedAccessControl = { ...accessControl };
-
-                // Update page access settings
-                Object.keys(PAGES).forEach(pageId => {
-                  if (pageId === 'index' || pageId === 'register-options' || pageId === 'login') return;
-
-                  if (!updatedAccessControl.pages) updatedAccessControl.pages = {};
-                  if (!updatedAccessControl.pages[pageId]) updatedAccessControl.pages[pageId] = {};
-
-                  const isEnabled = el(`access-${pageId}`).checked;
-                  updatedAccessControl.pages[pageId].enabled = isEnabled;
-
-                  const allowedRoles = [];
-                  ROLES.forEach(role => {
-                    if (el(`access-${pageId}-${role}`).checked) {
-                      allowedRoles.push(role);
-                    }
-                  });
-                  updatedAccessControl.pages[pageId].roles = allowedRoles;
-                });
-
-                await updateAccessControl(updatedAccessControl);
-                showNotification('Page access control updated successfully', 'success');
-              } catch (error) {
-                console.error('Failed to update page access:', error);
-                showNotification('Failed to update page access: ' + error.message, 'error');
-              } finally {
-                setButtonLoading('btnSavePageAccess', false);
-              }
-            };
+          const user = getCurrentUserSync();
+          if (!user) return false;
+          
+          // First, check default role-based access
+          if (canAccessPage(user, pageId)) return true;
+          
+          // If default access is denied, check for custom user-specific overrides
+          const acl = await getAccessControl();
+          const userEmail = user.data.user.email;
+          
+          if (acl.users && acl.users[userEmail] && 
+              acl.users[userEmail].pages && 
+              acl.users[userEmail].pages[pageId]) {
+            return acl.users[userEmail].pages[pageId].enabled === true;
           }
+          
+          return false;
         } catch (error) {
-          console.error('Failed to render page access control:', error);
-          showNotification('Failed to load page access control settings', 'error');
+          console.error('Check page access error:', error);
+          return false;
         }
       };
+      
+      // Populate the page access control section in the admin panel
+      const populatePageAccess = async () => {
+        try {
+          const acl = await getAccessControl();
+          const pageAccessContainer = el('pageAccessContainer');
+          
+          if (!pageAccessContainer) return;
+          
+          pageAccessContainer.innerHTML = '';
+          
+          // Create page access controls for each page
+          for (const [pageId, pageInfo] of Object.entries(PAGES)) {
+            const pageAccessItem = document.createElement('div');
+            pageAccessItem.className = 'page-access-item';
+            
+            const pageAccessHeader = document.createElement('div');
+            pageAccessHeader.className = 'page-access-header';
+            
+            const pageTitle = document.createElement('div');
+            pageTitle.className = 'page-access-title';
+            pageTitle.textContent = pageInfo.name;
+            
+            pageAccessHeader.appendChild(pageTitle);
+            pageAccessItem.appendChild(pageAccessHeader);
+            
+            const roleCheckboxes = document.createElement('div');
+            roleCheckboxes.className = 'role-checkboxes';
+            
+            // Create a checkbox for each role
+            ROLES.forEach(role => {
+              const roleCheckboxItem = document.createElement('div');
+              roleCheckboxItem.className = 'role-checkbox-item';
+              
+              const checkbox = document.createElement('input');
+              checkbox.type = 'checkbox';
+              checkbox.id = `page-${pageId}-role-${role}`;
+              checkbox.setAttribute('data-page', pageId);
+              checkbox.setAttribute('data-role', role);
+              
+              // Check if this role has access to this page in the current ACL
+              if (acl.pages && acl.pages[pageId] && acl.pages[pageId].roles && acl.pages[pageId].roles.includes(role)) {
+                checkbox.checked = true;
+              }
+              
+              const label = document.createElement('label');
+              label.htmlFor = `page-${pageId}-role-${role}`;
+              label.textContent = role;
+              
+              roleCheckboxItem.appendChild(checkbox);
+              roleCheckboxItem.appendChild(label);
+              roleCheckboxes.appendChild(roleCheckboxItem);
+            });
+            
+            pageAccessItem.appendChild(roleCheckboxes);
+            pageAccessContainer.appendChild(pageAccessItem);
+          }
+        } catch (error) {
+          console.error('Populate page access error:', error);
+          showNotification('Failed to populate page access: ' + error.message, 'error');
+        }
+      };
+      
+      // *** END: NEW ACCESS CONTROL FUNCTIONS ***
       
       // Router
       const pages = {
@@ -1861,8 +1865,8 @@
           renderLoadDropdown();
           renderUserDropdowns();
           
-          // Add this line to render page access control
-          renderPageAccessControl();
+          // *** NEW: Call to populate page access control ***
+          await populatePageAccess();
         } catch (error) {
           console.error('Failed to render admin panel:', error);
         }
@@ -2276,7 +2280,7 @@
       };
       
       // *** CORRECTED INITIALIZE FUNCTION ***
-      // This function now correctly handles the initial page load and subsequent navigation
+      // This function now correctly handles initial page load and subsequent navigation
       const init = async () => {
         // Set up hash change listener for subsequent navigation
         window.addEventListener('hashchange', async () => {
@@ -2318,4 +2322,3 @@
    </script>
 </body>
 </html>
-
