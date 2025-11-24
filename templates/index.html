@@ -754,1135 +754,1175 @@
   
   <!-- Notification Container -->
   <div id="notificationContainer"></div>
-      <script>
-    // MakiwaFreight App Frontend (Fixed Version)
-    (function() {
-      'use strict';
-      
-      // Configuration
-      const API_BASE = '/api';
-      const LOAD_EXPIRY_DAYS = 7;
-      
-      // Page definitions for access control
-      const PAGES = {
-        'shipper-dashboard': { name: 'Shipper Dashboard', roles: ['shipper'] },
-        'shipper-post': { name: 'Post Load', roles: ['admin', 'shipper', 'transporter'] },
-        'shipper-profile': { name: 'Shipper Profile', roles: ['shipper'] },
-        'transporter-dashboard': { name: 'Transporter Dashboard', roles: ['transporter'] },
-        'transporter-profile': { name: 'Transporter Profile', roles: ['transporter'] },
-        'market': { name: 'Market', roles: ['shipper', 'transporter'] },
-        'messages': { name: 'Messages', roles: ['shipper', 'transporter'] },
-        'control': { name: 'Admin Control', roles: ['admin'] }
-      };
-      
-      // Role definitions
-      const ROLES = ['admin', 'shipper', 'transporter'];
-      
-      // Utility functions
-      const now = () => new Date().toISOString();
-      const el = id => document.getElementById(id);
-      const setText = (id, txt) => { const e = el(id); if(e) e.textContent = txt; };
-      const setHidden = (id, hid) => { const e = el(id); if(e) e.classList[hid ? 'add' : 'remove']('hidden'); };
-      
-      // Sanitize input to prevent XSS
-      const sanitize = str => {
-        if (!str) return '';
-        return str.toString()
-          .replace(/&/g, '&amp;')
-          .replace(/</g, '&lt;')
-          .replace(/>/g, '&gt;')
-          .replace(/"/g, '&quot;')
-          .replace(/'/g, '&#039;');
-      };
-      
-      // Validate email format
-      const isValidEmail = email => {
-        const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        return re.test(email);
-      };
-      
-      // Error handling wrapper
-      const handleError = async (fn, fallbackMsg = 'An error occurred') => {
-        try {
-          return await fn();
-        } catch (error) {
-          console.error('MakiwaFreight Error:', error);
-          showNotification(fallbackMsg + ': ' + error.message, 'error');
-          return null;
-        }
-      };
-      
-      // Calculate expiry date (7 days from now)
-      const calculateExpiryDate = () => {
-        const expiryDate = new Date();
-        expiryDate.setDate(expiryDate.getDate() + LOAD_EXPIRY_DAYS);
-        return expiryDate.toISOString();
-      };
-      
-      // Check if a load has expired
-      const isLoadExpired = load => {
-        if (!load.expires_at) return false;
-        return new Date(load.expires_at) < new Date();
-      };
-      
-      // Get current user synchronously (from stored data)
-      const getCurrentUserSync = () => {
-        try {
-          const userData = sessionStorage.getItem('currentUser');
-          if (userData) {
-            return JSON.parse(userData);
-          }
-          return null;
-        } catch (error) {
-          console.error('Error getting current user:', error);
-          return null;
-        }
-      };
-      
-      // Show loading state on a button
-      const setButtonLoading = (buttonId, isLoading) => {
-        const button = el(buttonId);
-        if (!button) return;
-        
-        if (isLoading) {
-          button.classList.add('loading');
-          button.disabled = true;
-          
-          if (!button.querySelector('.loading')) {
-            const spinner = document.createElement('span');
-            spinner.className = 'loading';
-            button.appendChild(spinner);
-          }
-        } else {
-          button.classList.remove('loading');
-          button.disabled = false;
-          
-          const spinner = button.querySelector('.loading');
-          if (spinner) {
-            spinner.remove();
-          }
-        }
-      };
-      
-      // Notification system
-      function showNotification(message, type = 'info') {
-        const notification = document.createElement('div');
-        notification.className = `notification ${type}`;
-        notification.textContent = message;
-        
-        document.getElementById('notificationContainer').appendChild(notification);
-        
-        setTimeout(() => {
-          notification.classList.add('show');
-        }, 10);
-        
-        setTimeout(() => {
-          notification.classList.remove('show');
-          setTimeout(() => {
-            notification.remove();
-          }, 300);
-        }, 5000);
-      }
-      
-      // API helper functions that call correct backend endpoints
-      const apiRequest = async (endpoint, options = {}) => {
-        const headers = {
-          'Content-Type': 'application/json',
-          ...options.headers
-        };
-        
-        // Add authorization header if user is logged in
-        const user = getCurrentUserSync();
-        if (user && user.data && user.data.token) {
-          headers['Authorization'] = `Bearer ${user.data.token}`;
-        }
-        
-        try {
-          const response = await fetch(`${API_BASE}${endpoint}`, {
-            ...options,
-            headers
-          });
-          
-          if (!response.ok) {
-            const error = await response.json().catch(() => ({}));
-            throw new Error(error.error || `API error: ${response.status}`);
-          }
-          
-          return await response.json();
-        } catch (error) {
-          if (error instanceof TypeError && error.message.includes('fetch')) {
-            throw new Error('Network error. Please check your connection and try again.');
-          }
-          throw error;
-        }
-      };
-      
-      // Authentication API functions
-      const login = async (email, password) => {
-        if (!email || !password) return null;
-        email = email.trim().toLowerCase();
-        try {
-          const user = await apiRequest('/auth/login', {
-            method: 'POST',
-            body: JSON.stringify({ email, password })
-          });
-          if (user) {
-            sessionStorage.setItem('currentUser', JSON.stringify(user));
-            showNotification('Login successful', 'success');
-            return user;
-          }
-          return null;
-        } catch (error) {
-          console.error('Login error:', error);
-          showNotification('Login failed: ' + error.message, 'error');
-          return null;
-        }
-      };
-      
-      const logout = () => {
-        sessionStorage.removeItem('currentUser');
-        showNotification('Logged out successfully', 'info');
-        location.hash = '#login';
-        render();
-      };
-      
-      // User API functions
-      const registerUser = async (data) => {
-        if (!data.name || !data.email || !data.password || !data.phone) {
-          throw new Error('All required fields must be filled');
-        }
-        if (!isValidEmail(data.email)) {
-          throw new Error('Please enter a valid email address');
-        }
-        const sanitizedData = {
-          name: sanitize(data.name),
-          company: sanitize(data.company || ''),
-          email: data.email.trim().toLowerCase(),
-          phone: sanitize(data.phone),
-          password: data.password,
-          address: sanitize(data.address || ''),
-          role: data.role,
-          vehicle_info: sanitize(data.vehicle_info || '')
-        };
-        try {
-          const user = await apiRequest('/auth/register', {
-            method: 'POST',
-            body: JSON.stringify(sanitizedData)
-          });
-          showNotification('Registration successful', 'success');
-          return user;
-        } catch (error) {
-          console.error('Registration error:', error);
-          showNotification('Registration failed: ' + error.message, 'error');
-          throw error;
-        }
-      };
-      
-      const updateUserProfile = async (profileData) => {
-        if (!profileData) throw new Error('Profile data is required');
-        const sanitizedData = {};
-        for (const key in profileData) {
-          if (['name', 'phone', 'address', 'password'].includes(key)) {
-            sanitizedData[key] = profileData[key];
-          }
-        }
-        try {
-          const user = await apiRequest('/users/me', {
-            method: 'PUT',
-            body: JSON.stringify(sanitizedData)
-          });
-          const currentUser = getCurrentUserSync();
-          if (currentUser) {
-            const updatedUser = { ...currentUser, ...sanitizedData };
-            sessionStorage.setItem('currentUser', JSON.stringify(updatedUser));
-          }
-          showNotification('Profile updated successfully', 'success');
-          return user;
-        } catch (error) {
-          console.error('Profile update error:', error);
-          showNotification('Profile update failed: ' + error.message, 'error');
-          throw error;
-        }
-      };
-      
-      // Load API functions
-      const postLoad = async (payload) => {
-        if (!payload.origin || !payload.destination || !payload.date || !payload.cargo_type || !payload.weight) {
-          throw new Error('All required fields must be filled');
-        }
-        const user = getCurrentUserSync();
-        if (!user) throw new Error('User not logged in');
-        const ref = 'LD' + Date.now().toString().slice(-6);
-        const sanitizedPayload = {
-          ref: ref,
-          origin: sanitize(payload.origin),
-          destination: sanitize(payload.destination),
-          date: payload.date,
-          cargo_type: sanitize(payload.cargo_type),
-          weight: parseFloat(payload.weight),
-          notes: sanitize(payload.notes || '')
-        };
-        try {
-          const load = await apiRequest('/loads', {
-            method: 'POST',
-            body: JSON.stringify(sanitizedPayload)
-          });
-          showNotification('Load posted successfully', 'success');
-          return load;
-        } catch (error) {
-          console.error('Post load error:', error);
-          showNotification('Failed to post load: ' + error.message, 'error');
-          throw error;
-        }
-      };
-      
-      const getLoads = async (filters = {}) => {
-        try {
-          const response = await apiRequest('/loads');
-          let loads = response.data ? response.data.loads : response;
-          if (filters.shipper_id) {
-            loads = loads.filter(l => l.shipper_id === filters.shipper_id);
-          }
-          if (filters.origin) {
-            loads = loads.filter(l => l.origin.toLowerCase().includes(filters.origin.toLowerCase()));
-          }
-          if (filters.destination) {
-            loads = loads.filter(l => l.destination.toLowerCase().includes(filters.destination.toLowerCase()));
-          }
-          return loads;
-        } catch (error) {
-          console.error('Get loads error:', error);
-          showNotification('Failed to get loads: ' + error.message, 'error');
-          throw error;
-        }
-      };
-      
-      const updateLoad = async (loadId, patch) => {
-        if (!loadId) throw new Error('Load ID is required');
-        const sanitizedPatch = {};
-        for (const key in patch) {
-          if (key === 'weight') {
-            sanitizedPatch[key] = parseFloat(patch[key]);
-          } else {
-            sanitizedPatch[key] = sanitize(patch[key]);
-          }
-        }
-        try {
-          const load = await apiRequest(`/loads/${loadId}`, {
-            method: 'PUT',
-            body: JSON.stringify(sanitizedPatch)
-          });
-          showNotification('Load updated successfully', 'success');
-          return load;
-        } catch (error) {
-          console.error('Update load error:', error);
-          showNotification('Failed to update load: ' + error.message, 'error');
-          throw error;
-        }
-      };
-      
-      const deleteLoad = async (loadId) => {
-        if (!loadId) throw new Error('Load ID is required');
-        try {
-          await apiRequest(`/loads/${loadId}`, { method: 'DELETE' });
-          showNotification('Load deleted successfully', 'success');
-        } catch (error) {
-          console.error('Delete load error:', error);
-          showNotification('Failed to delete load: ' + error.message, 'error');
-          throw error;
-        }
-      };
-      
-      // Message API functions
-      const sendMessage = async (toEmail, body) => {
-        if (!toEmail || !body) {
-          throw new Error('Recipient and message are required');
-        }
-        const user = getCurrentUserSync();
-        if (!user) throw new Error('User not logged in');
-        if (!isValidEmail(toEmail)) {
-          throw new Error('Please enter a valid recipient email');
-        }
-        try {
-          const userEmail = user.data.user.email;
-          const message = await apiRequest('/messages', {
-            method: 'POST',
-            body: JSON.stringify({ 
-              sender_email: userEmail, 
-              recipient_email: toEmail, 
-              body: sanitize(body) 
-            })
-          });
-          showNotification('Message sent successfully', 'success');
-          return message;
-        } catch (error) {
-          console.error('Send message error:', error);
-          if (error.message.includes('not being sent to user with specified email')) {
-            showNotification('Failed to send message: Recipient email not found in the system', 'error');
-          } else {
-            showNotification('Failed to send message: ' + error.message, 'error');
-          }
-          throw error;
-        }
-      };
-      
-      const getMessages = async () => {
-        const user = getCurrentUserSync();
-        if (!user) throw new Error('User not logged in');
-        try {
-          const response = await apiRequest('/messages');
-          const messages = response.data ? response.data.messages : response;
-          const userEmail = user.data.user.email;
-          return messages.filter(m => 
-            m.sender_email === userEmail || m.recipient_email === userEmail
-          );
-        } catch (error) {
-          console.error('Get messages error:', error);
-          showNotification('Failed to get messages: ' + error.message, 'error');
-          throw error;
-        }
-      };
-      
-      const deleteMessage = async (messageId) => {
-        if (!messageId) throw new Error('Message ID is required');
-        try {
-          await apiRequest(`/messages/${messageId}`, { method: 'DELETE' });
-          showNotification('Message deleted successfully', 'success');
-        } catch (error) {
-          console.error('Delete message error:', error);
-          showNotification('Failed to delete message: ' + error.message, 'error');
-          throw error;
-        }
-      };
-      
-      // Admin API functions
-      const isAdmin = u => u && u.data && u.data.user && u.data.user.role === 'admin';
-      
-      const getUsers = async () => {
-        try {
-          const response = await apiRequest('/users');
-          return response.data ? response.data.users : response;
-        } catch (error) {
-          console.error('Get users error:', error);
-          showNotification('Failed to get users: ' + error.message, 'error');
-          throw error;
-        }
-      };
-      
-      const deleteUser = async (email) => {
-        if (!email) throw new Error('Email is required');
-        try {
-          await apiRequest(`/admin/users/${encodeURIComponent(email)}`, { method: 'DELETE' });
-          showNotification('User deleted successfully', 'success');
-        } catch (error) {
-          console.error('Delete user error:', error);
-          showNotification('Failed to delete user: ' + error.message, 'error');
-          throw error;
-        }
-      };
-      
-      const resetPassword = async (email, newPass) => {
-        if (!email || !newPass) throw new Error('Email and password are required');
-        try {
-          await apiRequest('/admin/reset-password', {
-            method: 'POST',
-            body: JSON.stringify({ email, new_password: newPass })
-          });
-          showNotification('Password reset successfully', 'success');
-        } catch (error) {
-          console.error('Reset password error:', error);
-          showNotification('Failed to reset password: ' + error.message, 'error');
-          throw error;
-        }
-      };
-      
-      const getBanners = async () => {
-        try {
-          const response = await apiRequest('/admin/banners');
-          return response.data || response;
-        } catch (error) {
-          console.error('Get banners error:', error);
-          showNotification('Failed to get banners: ' + error.message, 'error');
-          throw error;
-        }
-      };
-      
-      const updateBanners = async (banners) => {
-        try {
-          await apiRequest('/admin/banners', {
-            method: 'PUT',
-            body: JSON.stringify(banners)
-          });
-          showNotification('Banners updated successfully', 'success');
-          return banners;
-        } catch (error) {
-          console.error('Update banners error:', error);
-          showNotification('Failed to update banners: ' + error.message, 'error');
-          throw error;
-        }
-      };
-      
-      const getAccessControl = async () => {
-        try {
-          const response = await apiRequest('/admin/access-control');
-          return response.data || response;
-        } catch (error) {
-          console.error('Get access control error:', error);
-          showNotification('Failed to get access control: ' + error.message, 'error');
-          throw error;
-        }
-      };
-      
-      const updateAccessControl = async (acl) => {
-        try {
-          await apiRequest('/admin/access-control', {
-            method: 'PUT',
-            body: JSON.stringify(acl)
-          });
-          showNotification('Access control updated successfully', 'success');
-          return acl;
-        } catch (error) {
-          console.error('Update access control error:', error);
-          showNotification('Failed to update access control: ' + error.message, 'error');
-          throw error;
-        }
-      };
-      
-      const updateUserAccess = async (userId, access) => {
-        try {
-          await apiRequest(`/admin/users/${userId}/access`, {
-            method: 'PUT',
-            body: JSON.stringify(access)
-          });
-          showNotification('User access updated successfully', 'success');
-        } catch (error) {
-          console.error('Update user access error:', error);
-          showNotification('Failed to update user access: ' + error.message, 'error');
-          throw error;
-        }
-      };
-      
-      const getUserAccess = async (userId) => {
-        try {
-          const response = await apiRequest(`/admin/users/${userId}/access`);
-          return response.data || response;
-        } catch (error) {
-          console.error('Get user access error:', error);
-          showNotification('Failed to get user access: ' + error.message, 'error');
-          throw error;
-        }
-      };
-      
-      const canAccessPage = (user, pageId) => {
-        if (!user) return false;
-        if (isAdmin(user)) return true;
-        const page = PAGES[pageId];
-        if (page && page.roles.includes(user.data.user.role)) {
-          return true;
-        }
-        return false;
-      };
-      
-      const checkPageAccess = async (pageId) => {
-        try {
-          const user = getCurrentUserSync();
-          if (!user) return false;
-          if (canAccessPage(user, pageId)) return true;
-          const userId = user.data.user.id;
-          const userAccess = await getUserAccess(userId);
-          if (userAccess && userAccess.pages && userAccess.pages[pageId]) {
-            return userAccess.pages[pageId].enabled === true;
-          }
-          return false;
-        } catch (error) {
-          console.error('Check page access error:', error);
-          return false;
-        }
-      };
-      
-      // Render functions
-      const renderHeader = async () => {
-        const u = getCurrentUserSync();
-        const navLinks = el('navLinks');
-        const authUser = el('authUser');
-        const btnLoginNav = el('btnLoginNav');
-        const btnLogout = el('btnLogout');
-        const roleChip = el('roleChip');
-        
-        if (u && u.data && u.data.user) {
-          if (navLinks) navLinks.innerHTML = '';
-          if (authUser) authUser.textContent = u.data.user.name;
-          if (btnLoginNav) btnLoginNav.classList.add('hidden');
-          if (btnLogout) btnLogout.classList.remove('hidden');
-          if (roleChip) {
-            roleChip.textContent = u.data.user.role;
-            roleChip.classList.remove('hidden');
-          }
-          if (navLinks) {
-            if (u.data.user.role === 'shipper') {
-              navLinks.innerHTML = `<a class="btn" href="#shipper-dashboard">Dashboard</a><a class="btn" href="#shipper-post">Post Load</a><a class="btn" href="#market">Market</a><a class="btn" href="#messages">Messages</a><a class="btn" href="#shipper-profile">Profile</a>`;
-            } else if (u.data.user.role === 'transporter') {
-              navLinks.innerHTML = `<a class="btn" href="#transporter-dashboard">Dashboard</a><a class="btn" href="#shipper-post">Post Load</a><a class="btn" href="#market">Market</a><a class="btn" href="#messages">Messages</a><a class="btn" href="#transporter-profile">Profile</a>`;
-            } else if (u.data.user.role === 'admin') {
-              navLinks.innerHTML = `<a class="btn" href="#control">Admin</a><a class="btn" href="#messages">Messages</a>`;
-            }
-          }
-        } else {
-          if (navLinks) navLinks.innerHTML = '';
-          if (authUser) authUser.textContent = '';
-          if (btnLoginNav) btnLoginNav.classList.remove('hidden');
-          if (btnLogout) btnLogout.classList.add('hidden');
-          if (roleChip) roleChip.classList.add('hidden');
-        }
-      };
-      
-      const renderBanners = async () => {
-        const u = getCurrentUserSync();
-        if (!u) return;
-        try {
-          const banners = await getBanners();
-          const indexBanner = el('indexBanner');
-          const dashBannerShipper = el('dashBannerShipper');
-          const dashBannerTransporter = el('dashBannerTransporter');
-          const marketBanner = el('marketBanner');
-          if (indexBanner && banners.index) { indexBanner.textContent = banners.index; indexBanner.classList.remove('hidden'); }
-          if (dashBannerShipper && banners.shipper_dashboard) { dashBannerShipper.textContent = banners.shipper_dashboard; dashBannerShipper.classList.remove('hidden'); }
-          if (dashBannerTransporter && banners.transporter_dashboard) { dashBannerTransporter.textContent = banners.transporter_dashboard; dashBannerTransporter.classList.remove('hidden'); }
-          if (marketBanner && banners.market) { marketBanner.textContent = banners.market; marketBanner.classList.remove('hidden'); }
-        } catch (error) { console.error('Error rendering banners:', error); }
-      };
-      
-      const renderShipper = async () => {
-        const u = getCurrentUserSync();
-        if (!u || u.data.user.role !== 'shipper') return;
-        try {
-          const loads = await getLoads({ shipper_id: u.data.user.id });
-          const tbody = el('tableMyLoads').querySelector('tbody');
-          tbody.innerHTML = '';
-          if (!loads || loads.length === 0) { tbody.innerHTML = '<tr><td colspan="9" class="muted">No loads posted yet.</td></tr>'; return; }
-          loads.forEach(load => {
-            const row = document.createElement('tr');
-            if (isLoadExpired(load)) row.classList.add('expired');
-            const postedDate = new Date(load.created_at).toLocaleDateString();
-            const expiryDate = new Date(load.expires_at).toLocaleDateString();
-            row.innerHTML = `<td>${sanitize(load.ref)}</td><td>${sanitize(load.origin)}</td><td>${sanitize(load.destination)}</td><td>${postedDate}</td><td>${expiryDate}</td><td>${sanitize(load.cargo_type)}</td><td>${load.weight}</td><td>${sanitize(load.notes || '')}</td><td><button class="btn" onclick="editLoad('${load.id}')">Edit</button><button class="btn danger" onclick="deleteLoad('${load.id}')">Delete</button></td>`;
-            tbody.appendChild(row);
-          });
-        } catch (error) { console.error('Error rendering shipper dashboard:', error); }
-      };
-      
-      const renderTransporter = async () => {
-        const u = getCurrentUserSync();
-        if (!u || u.data.user.role !== 'transporter') return;
-        try {
-          const loads = await getLoads({ shipper_id: u.data.user.id });
-          const tbody = el('tableMyLoads').querySelector('tbody');
-          tbody.innerHTML = '';
-          if (!loads || loads.length === 0) { tbody.innerHTML = '<tr><td colspan="9" class="muted">No loads posted yet.</td></tr>'; return; }
-          loads.forEach(load => {
-            const row = document.createElement('tr');
-            if (isLoadExpired(load)) row.classList.add('expired');
-            const postedDate = new Date(load.created_at).toLocaleDateString();
-            const expiryDate = new Date(load.expires_at).toLocaleDateString();
-            row.innerHTML = `<td>${sanitize(load.ref)}</td><td>${sanitize(load.origin)}</td><td>${sanitize(load.destination)}</td><td>${postedDate}</td><td>${expiryDate}</td><td>${sanitize(load.cargo_type)}</td><td>${load.weight}</td><td>${sanitize(load.notes || '')}</td><td><button class="btn" onclick="editLoad('${load.id}')">Edit</button><button class="btn danger" onclick="deleteLoad('${load.id}')">Delete</button></td>`;
-            tbody.appendChild(row);
-          });
-        } catch (error) { console.error('Error rendering transporter dashboard:', error); }
-      };
-      
-      const renderMarket = async () => {
-        try {
-          const loads = await getLoads();
-          const tbody = el('tableMarketLoads').querySelector('tbody');
-          tbody.innerHTML = '';
-          if (!loads || loads.length === 0) { tbody.innerHTML = '<tr><td colspan="9" class="muted">No loads available.</td></tr>'; return; }
-          loads.forEach(load => {
-            const row = document.createElement('tr');
-            if (isLoadExpired(load)) row.classList.add('expired');
-            const postedDate = new Date(load.created_at).toLocaleDateString();
-            const expiryDate = new Date(load.expires_at).toLocaleDateString();
-            row.innerHTML = `<td>${sanitize(load.ref)}</td><td>${sanitize(load.origin)}</td><td>${sanitize(load.destination)}</td><td>${postedDate}</td><td>${expiryDate}</td><td>${sanitize(load.cargo_type)}</td><td>${load.weight}</td><td>${sanitize(load.notes || '')}</td><td>${sanitize(load.shipper_name || 'Unknown')}</td>`;
-            tbody.appendChild(row);
-          });
-        } catch (error) { console.error('Error rendering market:', error); }
-      };
-      
-      const renderMessages = async () => {
-        try {
-          const messages = await getMessages();
-          const tbody = el('tableInbox').querySelector('tbody');
-          tbody.innerHTML = '';
-          if (!messages || messages.length === 0) { tbody.innerHTML = '<tr><td colspan="4" class="muted">No messages.</td></tr>'; return; }
-          messages.forEach(msg => {
-            const row = document.createElement('tr');
-            const date = new Date(msg.created_at).toLocaleString();
-            row.innerHTML = `<td>${sanitize(msg.sender_email)}</td><td>${sanitize(msg.body)}</td><td>${date}</td><td><button class="btn danger" onclick="deleteMessage('${msg.id}')">Delete</button></td>`;
-            tbody.appendChild(row);
-          });
-        } catch (error) { console.error('Error rendering messages:', error); }
-      };
-      
-      const renderShipperProfile = async () => {
-        const u = getCurrentUserSync();
-        if (!u || u.data.user.role !== 'shipper') return;
-        try {
-          const user = u.data.user;
-          setText('shipperProfileName', user.name);
-          setText('shipperProfileEmail', user.email);
-          setText('shipperProfileCompany', user.company || 'Not specified');
-          setText('shipperProfileRole', user.role);
-          setText('shipperProfileCreated', new Date(user.created_at).toLocaleDateString());
-          const avatar = el('shipperProfileAvatar');
-          if (avatar) avatar.textContent = user.name.charAt(0).toUpperCase();
-          const form = el('formProfileShipper');
-          form.innerHTML = `<div class="grid two"><div><label for="profileShipperName">Name</label><input id="profileShipperName" name="name" value="${sanitize(user.name)}" /></div><div><label for="profileShipperPhone">Phone</label><input id="profileShipperPhone" name="phone" value="${sanitize(user.phone)}" /></div><div class="two" style="grid-column:1/-1"><label for="profileShipperAddress">Address</label><input id="profileShipperAddress" name="address" value="${sanitize(user.address || '')}" /></div></div>`;
-          const saveBtn = el('saveProfileShipper');
-          if (saveBtn) {
-            saveBtn.onclick = async () => {
-              const name = el('profileShipperName').value;
-              const phone = el('profileShipperPhone').value;
-              const address = el('profileShipperAddress').value;
-              if (!name || !phone) { showNotification('Name and phone are required', 'error'); return; }
-              setButtonLoading('saveProfileShipper', true);
-              try {
-                await updateUserProfile({ name, phone, address });
-                showNotification('Profile updated successfully', 'success');
-                location.hash = '#shipper-dashboard';
-              } catch (error) { console.error('Error updating profile:', error); }
-              finally { setButtonLoading('saveProfileShipper', false); }
-            };
-          }
-        } catch (error) { console.error('Error rendering shipper profile:', error); }
-      };
-      
-      const renderTransporterProfile = async () => {
-        const u = getCurrentUserSync();
-        if (!u || u.data.user.role !== 'transporter') return;
-        try {
-          const user = u.data.user;
-          setText('transporterProfileName', user.name);
-          setText('transporterProfileEmail', user.email);
-          setText('transporterProfileCompany', user.company || 'Not specified');
-          setText('transporterProfileVehicle', user.vehicle_info || 'Not specified');
-          setText('transporterProfileRole', user.role);
-          setText('transporterProfileCreated', new Date(user.created_at).toLocaleDateString());
-          const avatar = el('transporterProfileAvatar');
-          if (avatar) avatar.textContent = user.name.charAt(0).toUpperCase();
-          const form = el('formProfileTransporter');
-          form.innerHTML = `<div class="grid two"><div><label for="profileTransporterName">Name</label><input id="profileTransporterName" name="name" value="${sanitize(user.name)}" /></div><div><label for="profileTransporterPhone">Phone</label><input id="profileTransporterPhone" name="phone" value="${sanitize(user.phone)}" /></div><div class="two" style="grid-column:1/-1"><label for="profileTransporterAddress">Address</label><input id="profileTransporterAddress" name="address" value="${sanitize(user.address || '')}" /></div></div>`;
-          const saveBtn = el('saveProfileTransporter');
-          if (saveBtn) {
-            saveBtn.onclick = async () => {
-              const name = el('profileTransporterName').value;
-              const phone = el('profileTransporterPhone').value;
-              const address = el('profileTransporterAddress').value;
-              if (!name || !phone) { showNotification('Name and phone are required', 'error'); return; }
-              setButtonLoading('saveProfileTransporter', true);
-              try {
-                await updateUserProfile({ name, phone, address });
-                showNotification('Profile updated successfully', 'success');
-                location.hash = '#transporter-dashboard';
-              } catch (error) { console.error('Error updating profile:', error); }
-              finally { setButtonLoading('saveProfileTransporter', false); }
-            };
-          }
-        } catch (error) { console.error('Error rendering transporter profile:', error); }
-      };
-      
-      const renderControl = async () => {
-        const u = getCurrentUserSync();
-        if (!isAdmin(u)) return;
-        try {
-          const users = await getUsers();
-          const tbodyUsers = el('tableUsers').querySelector('tbody');
-          tbodyUsers.innerHTML = '';
-          users.forEach(user => {
-            const row = document.createElement('tr');
-            row.innerHTML = `<td>${sanitize(user.name)}</td><td>${sanitize(user.email)}</td><td>${sanitize(user.role)}</td><td><button class="btn danger" onclick="deleteUser('${user.email}')">Delete</button></td>`;
-            tbodyUsers.appendChild(row);
-          });
-          const selectUserForPassword = el('selectUserForPassword');
-          if (selectUserForPassword) {
-            selectUserForPassword.innerHTML = '<option value="">-- Select User --</option>';
-            users.forEach(user => {
-              const option = document.createElement('option');
-              option.value = user.email;
-              option.textContent = `${user.name} (${user.email})`;
-              selectUserForPassword.appendChild(option);
-            });
-          }
-          const loads = await getLoads();
-          const selectLoad = el('selectLoad');
-          if (selectLoad) {
-            selectLoad.innerHTML = '<option value="">-- Select Load --</option>';
-            loads.forEach(load => {
-              const option = document.createElement('option');
-              option.value = load.id;
-              option.textContent = `${load.ref}: ${load.origin} to ${load.destination}`;
-              selectLoad.appendChild(option);
-            });
-          }
-          const btnResetPass = el('btnResetPass');
-          if (btnResetPass) {
-            btnResetPass.onclick = async () => {
-              const email = selectUserForPassword.value;
-              const newPass = el('resetPass').value;
-              if (!email || !newPass) { showNotification('Please select a user and enter a new password', 'error'); return; }
-              setButtonLoading('btnResetPass', true);
-              try {
-                await resetPassword(email, newPass);
-                el('resetPass').value = '';
-              } catch (error) { console.error('Error resetting password:', error); }
-              finally { setButtonLoading('btnResetPass', false); }
-            };
-          }
-          const btnEditLoad = el('btnEditLoad');
-          if (btnEditLoad) {
-            btnEditLoad.onclick = () => {
-              const loadId = selectLoad.value;
-              if (!loadId) { showNotification('Please select a load', 'error'); return; }
-              const load = loads.find(l => l.id === loadId);
-              if (load) {
-                const loadDetails = el('loadDetails');
-                loadDetails.innerHTML = `<div class="card"><h3>Edit Load</h3><form id="formEditLoad"><div class="grid two"><div><label for="editLoadOrigin">Origin</label><input id="editLoadOrigin" name="origin" value="${sanitize(load.origin)}" /></div><div><label for="editLoadDestination">Destination</label><input id="editLoadDestination" name="destination" value="${sanitize(load.destination)}" /></div><div><label for="editLoadDate">Pickup Date</label><input type="date" id="editLoadDate" name="date" value="${load.date}" /></div><div><label for="editLoadCargo">Cargo Type</label><input id="editLoadCargo" name="cargo_type" value="${sanitize(load.cargo_type)}" /></div><div><label for="editLoadWeight">Weight (Tons)</label><input type="number" id="editLoadWeight" name="weight" value="${load.weight}" min="0" step="0.01" /></div><div class="two" style="grid-column:1/-1"><label for="editLoadNotes">Notes</label><textarea id="editLoadNotes" name="notes" rows="3">${sanitize(load.notes || '')}</textarea></div></div><div class="toolbar" style="margin-top:12px"><button class="btn primary" type="button" onclick="saveLoadEdit('${loadId}')">Save</button><button class="btn" type="button" onclick="cancelLoadEdit()">Cancel</button></div></form></div>`;
-              }
-            };
-          }
-          const btnDeleteLoad = el('btnDeleteLoad');
-          if (btnDeleteLoad) {
-            btnDeleteLoad.onclick = async () => {
-              const loadId = selectLoad.value;
-              if (!loadId) { showNotification('Please select a load', 'error'); return; }
-              if (confirm('Are you sure you want to delete this load?')) {
-                setButtonLoading('btnDeleteLoad', true);
+          <script>
+            // MakiwaFreight App Frontend (Fixed Version)
+            (function() {
+              'use strict';
+              
+              // Configuration
+              const API_BASE = '/api';
+              const LOAD_EXPIRY_DAYS = 7;
+              
+              // Page definitions for access control
+              const PAGES = {
+                'shipper-dashboard': { name: 'Shipper Dashboard', roles: ['shipper'] },
+                'shipper-post': { name: 'Post Load', roles: ['admin', 'shipper', 'transporter'] },
+                'shipper-profile': { name: 'Shipper Profile', roles: ['shipper'] },
+                'transporter-dashboard': { name: 'Transporter Dashboard', roles: ['transporter'] },
+                'transporter-profile': { name: 'Transporter Profile', roles: ['transporter'] },
+                'market': { name: 'Market', roles: ['shipper', 'transporter'] },
+                'messages': { name: 'Messages', roles: ['shipper', 'transporter'] },
+                'control': { name: 'Admin Control', roles: ['admin'] }
+              };
+              
+              // Role definitions
+              const ROLES = ['admin', 'shipper', 'transporter'];
+              
+              // Utility functions
+              const now = () => new Date().toISOString();
+              const el = id => document.getElementById(id);
+              const setText = (id, txt) => { const e = el(id); if(e) e.textContent = txt; };
+              const setHidden = (id, hid) => { const e = el(id); if(e) e.classList[hid ? 'add' : 'remove']('hidden'); };
+              
+              // Sanitize input to prevent XSS
+              const sanitize = str => {
+                if (!str) return '';
+                return str.toString()
+                  .replace(/&/g, '&amp;')
+                  .replace(/</g, '&lt;')
+                  .replace(/>/g, '&gt;')
+                  .replace(/"/g, '&quot;')
+                  .replace(/'/g, '&#039;');
+              };
+              
+              // Validate email format
+              const isValidEmail = email => {
+                const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                return re.test(email);
+              };
+              
+              // Error handling wrapper
+              const handleError = async (fn, fallbackMsg = 'An error occurred') => {
                 try {
-                  await deleteLoad(loadId);
-                  selectLoad.value = '';
-                  el('loadDetails').innerHTML = '';
-                  const updatedLoads = await getLoads();
-                  selectLoad.innerHTML = '<option value="">-- Select Load --</option>';
-                  updatedLoads.forEach(load => {
-                    const option = document.createElement('option');
-                    option.value = load.id;
-                    option.textContent = `${load.ref}: ${load.origin} to ${load.destination}`;
-                    selectLoad.appendChild(option);
-                  });
-                } catch (error) { console.error('Error deleting load:', error); }
-                finally { setButtonLoading('btnDeleteLoad', false); }
-              }
-            };
-          }
-        } catch (error) { console.error('Error rendering control panel:', error); }
-      };
-      
-      const renderUserAccessControl = async () => {
-        const u = getCurrentUserSync();
-        if (!isAdmin(u)) return;
-        
-        try {
-          const users = await getUsers();
-          const selectUserForAccess = el('selectUserForAccess');
-          if (!selectUserForAccess) return;
-          
-          // Populate user dropdown
-          selectUserForAccess.innerHTML = '<option value="">-- Select User --</option>';
-          users.forEach(user => {
-            const option = document.createElement('option');
-            option.value = user.id;
-            option.textContent = `${user.name} (${user.email})`;
-            selectUserForAccess.appendChild(option);
-          });
-    
-          // Get all toggle switches
-          const marketToggle = el('access-market');
-          const postLoadToggle = el('access-post-load');
-          const shipperDashboardToggle = el('access-shipper-dashboard');
-          const transporterDashboardToggle = el('access-transporter-dashboard');
-          const messagesToggle = el('access-messages');
-    
-          // This will hold the current access state in memory
-          let currentAccessData = { pages: {} };
-    
-          // Function to update the in-memory state when a toggle changes
-          const updateAccessState = () => {
-            if (!currentAccessData.pages) {
-              currentAccessData.pages = {};
-            }
-            currentAccessData.pages.market = { enabled: marketToggle ? marketToggle.checked : false };
-            currentAccessData.pages['shipper-post'] = { enabled: postLoadToggle ? postLoadToggle.checked : false };
-            currentAccessData.pages['shipper-dashboard'] = { enabled: shipperDashboardToggle ? shipperDashboardToggle.checked : false };
-            currentAccessData.pages['transporter-dashboard'] = { enabled: transporterDashboardToggle ? transporterDashboardToggle.checked : false };
-            currentAccessData.pages.messages = { enabled: messagesToggle ? messagesToggle.checked : false };
-          };
-    
-          // Add event listeners to all toggles to update the state
-          if (marketToggle) marketToggle.addEventListener('change', updateAccessState);
-          if (postLoadToggle) postLoadToggle.addEventListener('change', updateAccessState);
-          if (shipperDashboardToggle) shipperDashboardToggle.addEventListener('change', updateAccessState);
-          if (transporterDashboardToggle) transporterDashboardToggle.addEventListener('change', updateAccessState);
-          if (messagesToggle) messagesToggle.addEventListener('change', updateAccessState);
-    
-          // Event listener for the "Load" button
-          const btnLoadUserAccess = el('btnLoadUserAccess');
-          if (btnLoadUserAccess) {
-            btnLoadUserAccess.onclick = async () => {
-              const userId = selectUserForAccess.value;
-              if (!userId) {
-                showNotification('Please select a user', 'error');
-                return;
-              }
+                  return await fn();
+                } catch (error) {
+                  console.error('MakiwaFreight Error:', error);
+                  showNotification(fallbackMsg + ': ' + error.message, 'error');
+                  return null;
+                }
+              };
               
-              setButtonLoading('btnLoadUserAccess', true);
+              // Calculate expiry date (7 days from now)
+              const calculateExpiryDate = () => {
+                const expiryDate = new Date();
+                expiryDate.setDate(expiryDate.getDate() + LOAD_EXPIRY_DAYS);
+                return expiryDate.toISOString();
+              };
               
-              try {
-                // Fetch the user's current access from the server
-                const userAccess = await getUserAccess(userId);
-                currentAccessData = userAccess || { pages: {} }; // Update our state with server data
+              // Check if a load has expired
+              const isLoadExpired = load => {
+                if (!load.expires_at) return false;
+                return new Date(load.expires_at) < new Date();
+              };
+              
+              // Get current user synchronously (from stored data)
+              const getCurrentUserSync = () => {
+                try {
+                  const userData = sessionStorage.getItem('currentUser');
+                  if (userData) {
+                    return JSON.parse(userData);
+                  }
+                  return null;
+                } catch (error) {
+                  console.error('Error getting current user:', error);
+                  return null;
+                }
+              };
+              
+              // Show loading state on a button
+              const setButtonLoading = (buttonId, isLoading) => {
+                const button = el(buttonId);
+                if (!button) return;
                 
-                // Update the UI to match the loaded data
-                if (marketToggle) marketToggle.checked = currentAccessData.pages.market ? currentAccessData.pages.market.enabled : false;
-                if (postLoadToggle) postLoadToggle.checked = currentAccessData.pages['shipper-post'] ? currentAccessData.pages['shipper-post'].enabled : false;
-                if (shipperDashboardToggle) shipperDashboardToggle.checked = currentAccessData.pages['shipper-dashboard'] ? currentAccessData.pages['shipper-dashboard'].enabled : false;
-                if (transporterDashboardToggle) transporterDashboardToggle.checked = currentAccessData.pages['transporter-dashboard'] ? currentAccessData.pages['transporter-dashboard'].enabled : false;
-                if (messagesToggle) messagesToggle.checked = currentAccessData.pages.messages ? currentAccessData.pages.messages.enabled : false;
-    
-              } catch (error) {
-                console.error('Failed to load user access:', error);
-                showNotification('Failed to load user access: ' + error.message, 'error');
-              } finally {
-                setButtonLoading('btnLoadUserAccess', false);
-              }
-            };
-          }
-          
-          // Event listener for the "Save" button
-          const btnSaveUserAccess = el('btnSaveUserAccess');
-          if (btnSaveUserAccess) {
-            btnSaveUserAccess.onclick = async () => {
-              const userId = selectUserForAccess.value;
-              if (!userId) {
-                showNotification('Please select a user', 'error');
-                return;
+                if (isLoading) {
+                  button.classList.add('loading');
+                  button.disabled = true;
+                  
+                  if (!button.querySelector('.loading')) {
+                    const spinner = document.createElement('span');
+                    spinner.className = 'loading';
+                    button.appendChild(spinner);
+                  }
+                } else {
+                  button.classList.remove('loading');
+                  button.disabled = false;
+                  
+                  const spinner = button.querySelector('.loading');
+                  if (spinner) {
+                    spinner.remove();
+                  }
+                }
+              };
+              
+              // Notification system
+              function showNotification(message, type = 'info') {
+                const notification = document.createElement('div');
+                notification.className = `notification ${type}`;
+                notification.textContent = message;
+                
+                document.getElementById('notificationContainer').appendChild(notification);
+                
+                setTimeout(() => {
+                  notification.classList.add('show');
+                }, 10);
+                
+                setTimeout(() => {
+                  notification.classList.remove('show');
+                  setTimeout(() => {
+                    notification.remove();
+                  }, 300);
+                }, 5000);
               }
               
-              // Use the in-memory state which has all the latest changes
-              const accessData = currentAccessData;
+              // API helper functions that call correct backend endpoints
+              const apiRequest = async (endpoint, options = {}) => {
+                const headers = {
+                  'Content-Type': 'application/json',
+                  ...options.headers
+                };
+                
+                // Add authorization header if user is logged in
+                const user = getCurrentUserSync();
+                if (user && user.data && user.data.token) {
+                  headers['Authorization'] = `Bearer ${user.data.token}`;
+                }
+                
+                try {
+                  const response = await fetch(`${API_BASE}${endpoint}`, {
+                    ...options,
+                    headers
+                  });
+                  
+                  if (!response.ok) {
+                    const error = await response.json().catch(() => ({}));
+                    throw new Error(error.error || `API error: ${response.status}`);
+                  }
+                  
+                  return await response.json();
+                } catch (error) {
+                  if (error instanceof TypeError && error.message.includes('fetch')) {
+                    throw new Error('Network error. Please check your connection and try again.');
+                  }
+                  throw error;
+                }
+              };
               
-              setButtonLoading('btnSaveUserAccess', true);
+              // Authentication API functions
+              const login = async (email, password) => {
+                if (!email || !password) return null;
+                email = email.trim().toLowerCase();
+                try {
+                  const user = await apiRequest('/auth/login', {
+                    method: 'POST',
+                    body: JSON.stringify({ email, password })
+                  });
+                  if (user) {
+                    sessionStorage.setItem('currentUser', JSON.stringify(user));
+                    showNotification('Login successful', 'success');
+                    return user;
+                  }
+                  return null;
+                } catch (error) {
+                  console.error('Login error:', error);
+                  showNotification('Login failed: ' + error.message, 'error');
+                  return null;
+                }
+              };
               
-              try {
-                await updateUserAccess(userId, accessData);
-                showNotification('User access updated successfully', 'success');
-              } catch (error) {
-                console.error('Failed to update user access:', error);
-                showNotification('Failed to update user access: ' + error.message, 'error');
-              } finally {
-                setButtonLoading('btnSaveUserAccess', false);
+              const logout = () => {
+                sessionStorage.removeItem('currentUser');
+                showNotification('Logged out successfully', 'info');
+                location.hash = '#login';
+                render();
+              };
+              
+              // User API functions
+              const registerUser = async (data) => {
+                if (!data.name || !data.email || !data.password || !data.phone) {
+                  throw new Error('All required fields must be filled');
+                }
+                if (!isValidEmail(data.email)) {
+                  throw new Error('Please enter a valid email address');
+                }
+                const sanitizedData = {
+                  name: sanitize(data.name),
+                  company: sanitize(data.company || ''),
+                  email: data.email.trim().toLowerCase(),
+                  phone: sanitize(data.phone),
+                  password: data.password,
+                  address: sanitize(data.address || ''),
+                  role: data.role,
+                  vehicle_info: sanitize(data.vehicle_info || '')
+                };
+                try {
+                  const user = await apiRequest('/auth/register', {
+                    method: 'POST',
+                    body: JSON.stringify(sanitizedData)
+                  });
+                  showNotification('Registration successful', 'success');
+                  return user;
+                } catch (error) {
+                  console.error('Registration error:', error);
+                  showNotification('Registration failed: ' + error.message, 'error');
+                  throw error;
+                }
+              };
+              
+              const updateUserProfile = async (profileData) => {
+                if (!profileData) throw new Error('Profile data is required');
+                const sanitizedData = {};
+                for (const key in profileData) {
+                  if (['name', 'phone', 'address', 'password'].includes(key)) {
+                    sanitizedData[key] = profileData[key];
+                  }
+                }
+                try {
+                  const user = await apiRequest('/users/me', {
+                    method: 'PUT',
+                    body: JSON.stringify(sanitizedData)
+                  });
+                  const currentUser = getCurrentUserSync();
+                  if (currentUser) {
+                    const updatedUser = { ...currentUser, ...sanitizedData };
+                    sessionStorage.setItem('currentUser', JSON.stringify(updatedUser));
+                  }
+                  showNotification('Profile updated successfully', 'success');
+                  return user;
+                } catch (error) {
+                  console.error('Profile update error:', error);
+                  showNotification('Profile update failed: ' + error.message, 'error');
+                  throw error;
+                }
+              };
+              
+              // Load API functions
+              const postLoad = async (payload) => {
+                if (!payload.origin || !payload.destination || !payload.date || !payload.cargo_type || !payload.weight) {
+                  throw new Error('All required fields must be filled');
+                }
+                const user = getCurrentUserSync();
+                if (!user) throw new Error('User not logged in');
+                const ref = 'LD' + Date.now().toString().slice(-6);
+                const sanitizedPayload = {
+                  ref: ref,
+                  origin: sanitize(payload.origin),
+                  destination: sanitize(payload.destination),
+                  date: payload.date,
+                  cargo_type: sanitize(payload.cargo_type),
+                  weight: parseFloat(payload.weight),
+                  notes: sanitize(payload.notes || '')
+                };
+                try {
+                  const load = await apiRequest('/loads', {
+                    method: 'POST',
+                    body: JSON.stringify(sanitizedPayload)
+                  });
+                  showNotification('Load posted successfully', 'success');
+                  return load;
+                } catch (error) {
+                  console.error('Post load error:', error);
+                  showNotification('Failed to post load: ' + error.message, 'error');
+                  throw error;
+                }
+              };
+              
+              const getLoads = async (filters = {}) => {
+                try {
+                  const response = await apiRequest('/loads');
+                  let loads = response.data ? response.data.loads : response;
+                  if (filters.shipper_id) {
+                    loads = loads.filter(l => l.shipper_id === filters.shipper_id);
+                  }
+                  if (filters.origin) {
+                    loads = loads.filter(l => l.origin.toLowerCase().includes(filters.origin.toLowerCase()));
+                  }
+                  if (filters.destination) {
+                    loads = loads.filter(l => l.destination.toLowerCase().includes(filters.destination.toLowerCase()));
+                  }
+                  return loads;
+                } catch (error) {
+                  console.error('Get loads error:', error);
+                  showNotification('Failed to get loads: ' + error.message, 'error');
+                  throw error;
+                }
+              };
+              
+              const updateLoad = async (loadId, patch) => {
+                if (!loadId) throw new Error('Load ID is required');
+                const sanitizedPatch = {};
+                for (const key in patch) {
+                  if (key === 'weight') {
+                    sanitizedPatch[key] = parseFloat(patch[key]);
+                  } else {
+                    sanitizedPatch[key] = sanitize(patch[key]);
+                  }
+                }
+                try {
+                  const load = await apiRequest(`/loads/${loadId}`, {
+                    method: 'PUT',
+                    body: JSON.stringify(sanitizedPatch)
+                  });
+                  showNotification('Load updated successfully', 'success');
+                  return load;
+                } catch (error) {
+                  console.error('Update load error:', error);
+                  showNotification('Failed to update load: ' + error.message, 'error');
+                  throw error;
+                }
+              };
+              
+              const deleteLoad = async (loadId) => {
+                if (!loadId) throw new Error('Load ID is required');
+                try {
+                  await apiRequest(`/loads/${loadId}`, { method: 'DELETE' });
+                  showNotification('Load deleted successfully', 'success');
+                } catch (error) {
+                  console.error('Delete load error:', error);
+                  showNotification('Failed to delete load: ' + error.message, 'error');
+                  throw error;
+                }
+              };
+              
+              // Message API functions
+              const sendMessage = async (toEmail, body) => {
+                if (!toEmail || !body) {
+                  throw new Error('Recipient and message are required');
+                }
+                const user = getCurrentUserSync();
+                if (!user) throw new Error('User not logged in');
+                if (!isValidEmail(toEmail)) {
+                  throw new Error('Please enter a valid recipient email');
+                }
+                try {
+                  const userEmail = user.data.user.email;
+                  const message = await apiRequest('/messages', {
+                    method: 'POST',
+                    body: JSON.stringify({ 
+                      sender_email: userEmail, 
+                      recipient_email: toEmail, 
+                      body: sanitize(body) 
+                    })
+                  });
+                  showNotification('Message sent successfully', 'success');
+                  return message;
+                } catch (error) {
+                  console.error('Send message error:', error);
+                  if (error.message.includes('not being sent to user with specified email')) {
+                    showNotification('Failed to send message: Recipient email not found in the system', 'error');
+                  } else {
+                    showNotification('Failed to send message: ' + error.message, 'error');
+                  }
+                  throw error;
+                }
+              };
+              
+              const getMessages = async () => {
+                const user = getCurrentUserSync();
+                if (!user) throw new Error('User not logged in');
+                try {
+                  const response = await apiRequest('/messages');
+                  const messages = response.data ? response.data.messages : response;
+                  const userEmail = user.data.user.email;
+                  return messages.filter(m => 
+                    m.sender_email === userEmail || m.recipient_email === userEmail
+                  );
+                } catch (error) {
+                  console.error('Get messages error:', error);
+                  showNotification('Failed to get messages: ' + error.message, 'error');
+                  throw error;
+                }
+              };
+              
+              const deleteMessage = async (messageId) => {
+                if (!messageId) throw new Error('Message ID is required');
+                try {
+                  await apiRequest(`/messages/${messageId}`, { method: 'DELETE' });
+                  showNotification('Message deleted successfully', 'success');
+                } catch (error) {
+                  console.error('Delete message error:', error);
+                  showNotification('Failed to delete message: ' + error.message, 'error');
+                  throw error;
+                }
+              };
+              
+              // Admin API functions
+              const isAdmin = u => u && u.data && u.data.user && u.data.user.role === 'admin';
+              
+              const getUsers = async () => {
+                try {
+                  const response = await apiRequest('/users');
+                  return response.data ? response.data.users : response;
+                } catch (error) {
+                  console.error('Get users error:', error);
+                  showNotification('Failed to get users: ' + error.message, 'error');
+                  throw error;
+                }
+              };
+              
+              const deleteUser = async (email) => {
+                if (!email) throw new Error('Email is required');
+                try {
+                  await apiRequest(`/admin/users/${encodeURIComponent(email)}`, { method: 'DELETE' });
+                  showNotification('User deleted successfully', 'success');
+                } catch (error) {
+                  console.error('Delete user error:', error);
+                  showNotification('Failed to delete user: ' + error.message, 'error');
+                  throw error;
+                }
+              };
+              
+              const resetPassword = async (email, newPass) => {
+                if (!email || !newPass) throw new Error('Email and password are required');
+                try {
+                  await apiRequest('/admin/reset-password', {
+                    method: 'POST',
+                    body: JSON.stringify({ email, new_password: newPass })
+                  });
+                  showNotification('Password reset successfully', 'success');
+                } catch (error) {
+                  console.error('Reset password error:', error);
+                  showNotification('Failed to reset password: ' + error.message, 'error');
+                  throw error;
+                }
+              };
+              
+              const getBanners = async () => {
+                try {
+                  const response = await apiRequest('/admin/banners');
+                  return response.data || response;
+                } catch (error) {
+                  console.error('Get banners error:', error);
+                  showNotification('Failed to get banners: ' + error.message, 'error');
+                  throw error;
+                }
+              };
+              
+              const updateBanners = async (banners) => {
+                try {
+                  await apiRequest('/admin/banners', {
+                    method: 'PUT',
+                    body: JSON.stringify(banners)
+                  });
+                  showNotification('Banners updated successfully', 'success');
+                  return banners;
+                } catch (error) {
+                  console.error('Update banners error:', error);
+                  showNotification('Failed to update banners: ' + error.message, 'error');
+                  throw error;
+                }
+              };
+              
+              const getAccessControl = async () => {
+                try {
+                  const response = await apiRequest('/admin/access-control');
+                  return response.data || response;
+                } catch (error) {
+                  console.error('Get access control error:', error);
+                  showNotification('Failed to get access control: ' + error.message, 'error');
+                  throw error;
+                }
+              };
+              
+              const updateAccessControl = async (acl) => {
+                try {
+                  await apiRequest('/admin/access-control', {
+                    method: 'PUT',
+                    body: JSON.stringify(acl)
+                  });
+                  showNotification('Access control updated successfully', 'success');
+                  return acl;
+                } catch (error) {
+                  console.error('Update access control error:', error);
+                  showNotification('Failed to update access control: ' + error.message, 'error');
+                  throw error;
+                }
+              };
+              
+              const updateUserAccess = async (userId, access) => {
+                try {
+                  await apiRequest(`/admin/users/${userId}/access`, {
+                    method: 'PUT',
+                    body: JSON.stringify(access)
+                  });
+                  showNotification('User access updated successfully', 'success');
+                } catch (error) {
+                  console.error('Update user access error:', error);
+                  showNotification('Failed to update user access: ' + error.message, 'error');
+                  throw error;
+                }
+              };
+              
+              const getUserAccess = async (userId) => {
+                try {
+                  const response = await apiRequest(`/admin/users/${userId}/access`);
+                  return response.data || response;
+                } catch (error) {
+                  console.error('Get user access error:', error);
+                  showNotification('Failed to get user access: ' + error.message, 'error');
+                  throw error;
+                }
+              };
+              
+              const canAccessPage = (user, pageId) => {
+                if (!user) return false;
+                if (isAdmin(user)) return true;
+                const page = PAGES[pageId];
+                if (page && page.roles.includes(user.data.user.role)) {
+                  return true;
+                }
+                return false;
+              };
+              
+              const checkPageAccess = async (pageId) => {
+                try {
+                  const user = getCurrentUserSync();
+                  if (!user) return false;
+                  if (canAccessPage(user, pageId)) return true;
+                  const userId = user.data.user.id;
+                  const userAccess = await getUserAccess(userId);
+                  if (userAccess && userAccess.pages && userAccess.pages[pageId]) {
+                    return userAccess.pages[pageId].enabled === true;
+                  }
+                  return false;
+                } catch (error) {
+                  console.error('Check page access error:', error);
+                  return false;
+                }
+              };
+              
+              // Render functions
+              const renderHeader = async () => {
+                const u = getCurrentUserSync();
+                const navLinks = el('navLinks');
+                const authUser = el('authUser');
+                const btnLoginNav = el('btnLoginNav');
+                const btnLogout = el('btnLogout');
+                const roleChip = el('roleChip');
+                
+                if (u && u.data && u.data.user) {
+                  if (navLinks) navLinks.innerHTML = '';
+                  if (authUser) authUser.textContent = u.data.user.name;
+                  if (btnLoginNav) btnLoginNav.classList.add('hidden');
+                  if (btnLogout) btnLogout.classList.remove('hidden');
+                  if (roleChip) {
+                    roleChip.textContent = u.data.user.role;
+                    roleChip.classList.remove('hidden');
+                  }
+                  if (navLinks) {
+                    if (u.data.user.role === 'shipper') {
+                      navLinks.innerHTML = `<a class="btn" href="#shipper-dashboard">Dashboard</a><a class="btn" href="#shipper-post">Post Load</a><a class="btn" href="#market">Market</a><a class="btn" href="#messages">Messages</a><a class="btn" href="#shipper-profile">Profile</a>`;
+                    } else if (u.data.user.role === 'transporter') {
+                      navLinks.innerHTML = `<a class="btn" href="#transporter-dashboard">Dashboard</a><a class="btn" href="#shipper-post">Post Load</a><a class="btn" href="#market">Market</a><a class="btn" href="#messages">Messages</a><a class="btn" href="#transporter-profile">Profile</a>`;
+                    } else if (u.data.user.role === 'admin') {
+                      navLinks.innerHTML = `<a class="btn" href="#control">Admin</a><a class="btn" href="#messages">Messages</a>`;
+                    }
+                  }
+                } else {
+                  if (navLinks) navLinks.innerHTML = '';
+                  if (authUser) authUser.textContent = '';
+                  if (btnLoginNav) btnLoginNav.classList.remove('hidden');
+                  if (btnLogout) btnLogout.classList.add('hidden');
+                  if (roleChip) roleChip.classList.add('hidden');
+                }
+              };
+              
+              const renderBanners = async () => {
+                const u = getCurrentUserSync();
+                if (!u) return;
+                try {
+                  const banners = await getBanners();
+                  const indexBanner = el('indexBanner');
+                  const dashBannerShipper = el('dashBannerShipper');
+                  const dashBannerTransporter = el('dashBannerTransporter');
+                  const marketBanner = el('marketBanner');
+                  if (indexBanner && banners.index) { indexBanner.textContent = banners.index; indexBanner.classList.remove('hidden'); }
+                  if (dashBannerShipper && banners.shipper_dashboard) { dashBannerShipper.textContent = banners.shipper_dashboard; dashBannerShipper.classList.remove('hidden'); }
+                  if (dashBannerTransporter && banners.transporter_dashboard) { dashBannerTransporter.textContent = banners.transporter_dashboard; dashBannerTransporter.classList.remove('hidden'); }
+                  if (marketBanner && banners.market) { marketBanner.textContent = banners.market; marketBanner.classList.remove('hidden'); }
+                } catch (error) { console.error('Error rendering banners:', error); }
+              };
+              
+              const renderShipper = async () => {
+                const u = getCurrentUserSync();
+                if (!u || u.data.user.role !== 'shipper') return;
+                try {
+                  const loads = await getLoads({ shipper_id: u.data.user.id });
+                  const tbody = el('tableMyLoads').querySelector('tbody');
+                  tbody.innerHTML = '';
+                  if (!loads || loads.length === 0) { tbody.innerHTML = '<tr><td colspan="9" class="muted">No loads posted yet.</td></tr>'; return; }
+                  loads.forEach(load => {
+                    const row = document.createElement('tr');
+                    if (isLoadExpired(load)) row.classList.add('expired');
+                    const postedDate = new Date(load.created_at).toLocaleDateString();
+                    const expiryDate = new Date(load.expires_at).toLocaleDateString();
+                    row.innerHTML = `<td>${sanitize(load.ref)}</td><td>${sanitize(load.origin)}</td><td>${sanitize(load.destination)}</td><td>${postedDate}</td><td>${expiryDate}</td><td>${sanitize(load.cargo_type)}</td><td>${load.weight}</td><td>${sanitize(load.notes || '')}</td><td><button class="btn" onclick="editLoad('${load.id}')">Edit</button><button class="btn danger" onclick="deleteLoad('${load.id}')">Delete</button></td>`;
+                    tbody.appendChild(row);
+                  });
+                } catch (error) { console.error('Error rendering shipper dashboard:', error); }
+              };
+              
+              const renderTransporter = async () => {
+                const u = getCurrentUserSync();
+                if (!u || u.data.user.role !== 'transporter') return;
+                try {
+                  const loads = await getLoads({ shipper_id: u.data.user.id });
+                  const tbody = el('tableMyLoads').querySelector('tbody');
+                  tbody.innerHTML = '';
+                  if (!loads || loads.length === 0) { tbody.innerHTML = '<tr><td colspan="9" class="muted">No loads posted yet.</td></tr>'; return; }
+                  loads.forEach(load => {
+                    const row = document.createElement('tr');
+                    if (isLoadExpired(load)) row.classList.add('expired');
+                    const postedDate = new Date(load.created_at).toLocaleDateString();
+                    const expiryDate = new Date(load.expires_at).toLocaleDateString();
+                    row.innerHTML = `<td>${sanitize(load.ref)}</td><td>${sanitize(load.origin)}</td><td>${sanitize(load.destination)}</td><td>${postedDate}</td><td>${expiryDate}</td><td>${sanitize(load.cargo_type)}</td><td>${load.weight}</td><td>${sanitize(load.notes || '')}</td><td><button class="btn" onclick="editLoad('${load.id}')">Edit</button><button class="btn danger" onclick="deleteLoad('${load.id}')">Delete</button></td>`;
+                    tbody.appendChild(row);
+                  });
+                } catch (error) { console.error('Error rendering transporter dashboard:', error); }
+              };
+              
+              const renderMarket = async () => {
+                try {
+                  const loads = await getLoads();
+                  const tbody = el('tableMarketLoads').querySelector('tbody');
+                  tbody.innerHTML = '';
+                  if (!loads || loads.length === 0) { tbody.innerHTML = '<tr><td colspan="9" class="muted">No loads available.</td></tr>'; return; }
+                  loads.forEach(load => {
+                    const row = document.createElement('tr');
+                    if (isLoadExpired(load)) row.classList.add('expired');
+                    const postedDate = new Date(load.created_at).toLocaleDateString();
+                    const expiryDate = new Date(load.expires_at).toLocaleDateString();
+                    row.innerHTML = `<td>${sanitize(load.ref)}</td><td>${sanitize(load.origin)}</td><td>${sanitize(load.destination)}</td><td>${postedDate}</td><td>${expiryDate}</td><td>${sanitize(load.cargo_type)}</td><td>${load.weight}</td><td>${sanitize(load.notes || '')}</td><td>${sanitize(load.shipper_name || 'Unknown')}</td>`;
+                    tbody.appendChild(row);
+                  });
+                } catch (error) { console.error('Error rendering market:', error); }
+              };
+              
+              const renderMessages = async () => {
+                try {
+                  const messages = await getMessages();
+                  const tbody = el('tableInbox').querySelector('tbody');
+                  tbody.innerHTML = '';
+                  if (!messages || messages.length === 0) { tbody.innerHTML = '<tr><td colspan="4" class="muted">No messages.</td></tr>'; return; }
+                  messages.forEach(msg => {
+                    const row = document.createElement('tr');
+                    const date = new Date(msg.created_at).toLocaleString();
+                    row.innerHTML = `<td>${sanitize(msg.sender_email)}</td><td>${sanitize(msg.body)}</td><td>${date}</td><td><button class="btn danger" onclick="deleteMessage('${msg.id}')">Delete</button></td>`;
+                    tbody.appendChild(row);
+                  });
+                } catch (error) { console.error('Error rendering messages:', error); }
+              };
+              
+              const renderShipperProfile = async () => {
+                const u = getCurrentUserSync();
+                if (!u || u.data.user.role !== 'shipper') return;
+                try {
+                  const user = u.data.user;
+                  setText('shipperProfileName', user.name);
+                  setText('shipperProfileEmail', user.email);
+                  setText('shipperProfileCompany', user.company || 'Not specified');
+                  setText('shipperProfileRole', user.role);
+                  setText('shipperProfileCreated', new Date(user.created_at).toLocaleDateString());
+                  const avatar = el('shipperProfileAvatar');
+                  if (avatar) avatar.textContent = user.name.charAt(0).toUpperCase();
+                  const form = el('formProfileShipper');
+                  form.innerHTML = `<div class="grid two"><div><label for="profileShipperName">Name</label><input id="profileShipperName" name="name" value="${sanitize(user.name)}" /></div><div><label for="profileShipperPhone">Phone</label><input id="profileShipperPhone" name="phone" value="${sanitize(user.phone)}" /></div><div class="two" style="grid-column:1/-1"><label for="profileShipperAddress">Address</label><input id="profileShipperAddress" name="address" value="${sanitize(user.address || '')}" /></div></div>`;
+                  const saveBtn = el('saveProfileShipper');
+                  if (saveBtn) {
+                    saveBtn.onclick = async () => {
+                      const name = el('profileShipperName').value;
+                      const phone = el('profileShipperPhone').value;
+                      const address = el('profileShipperAddress').value;
+                      if (!name || !phone) { showNotification('Name and phone are required', 'error'); return; }
+                      setButtonLoading('saveProfileShipper', true);
+                      try {
+                        await updateUserProfile({ name, phone, address });
+                        showNotification('Profile updated successfully', 'success');
+                        location.hash = '#shipper-dashboard';
+                      } catch (error) { console.error('Error updating profile:', error); }
+                      finally { setButtonLoading('saveProfileShipper', false); }
+                    };
+                  }
+                } catch (error) { console.error('Error rendering shipper profile:', error); }
+              };
+              
+              const renderTransporterProfile = async () => {
+                const u = getCurrentUserSync();
+                if (!u || u.data.user.role !== 'transporter') return;
+                try {
+                  const user = u.data.user;
+                  setText('transporterProfileName', user.name);
+                  setText('transporterProfileEmail', user.email);
+                  setText('transporterProfileCompany', user.company || 'Not specified');
+                  setText('transporterProfileVehicle', user.vehicle_info || 'Not specified');
+                  setText('transporterProfileRole', user.role);
+                  setText('transporterProfileCreated', new Date(user.created_at).toLocaleDateString());
+                  const avatar = el('transporterProfileAvatar');
+                  if (avatar) avatar.textContent = user.name.charAt(0).toUpperCase();
+                  const form = el('formProfileTransporter');
+                  form.innerHTML = `<div class="grid two"><div><label for="profileTransporterName">Name</label><input id="profileTransporterName" name="name" value="${sanitize(user.name)}" /></div><div><label for="profileTransporterPhone">Phone</label><input id="profileTransporterPhone" name="phone" value="${sanitize(user.phone)}" /></div><div class="two" style="grid-column:1/-1"><label for="profileTransporterAddress">Address</label><input id="profileTransporterAddress" name="address" value="${sanitize(user.address || '')}" /></div></div>`;
+                  const saveBtn = el('saveProfileTransporter');
+                  if (saveBtn) {
+                    saveBtn.onclick = async () => {
+                      const name = el('profileTransporterName').value;
+                      const phone = el('profileTransporterPhone').value;
+                      const address = el('profileTransporterAddress').value;
+                      if (!name || !phone) { showNotification('Name and phone are required', 'error'); return; }
+                      setButtonLoading('saveProfileTransporter', true);
+                      try {
+                        await updateUserProfile({ name, phone, address });
+                        showNotification('Profile updated successfully', 'success');
+                        location.hash = '#transporter-dashboard';
+                      } catch (error) { console.error('Error updating profile:', error); }
+                      finally { setButtonLoading('saveProfileTransporter', false); }
+                    };
+                  }
+                } catch (error) { console.error('Error rendering transporter profile:', error); }
+              };
+              
+              const renderControl = async () => {
+                const u = getCurrentUserSync();
+                if (!isAdmin(u)) return;
+                try {
+                  const users = await getUsers();
+                  const tbodyUsers = el('tableUsers').querySelector('tbody');
+                  tbodyUsers.innerHTML = '';
+                  users.forEach(user => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `<td>${sanitize(user.name)}</td><td>${sanitize(user.email)}</td><td>${sanitize(user.role)}</td><td><button class="btn danger" onclick="deleteUser('${user.email}')">Delete</button></td>`;
+                    tbodyUsers.appendChild(row);
+                  });
+                  const selectUserForPassword = el('selectUserForPassword');
+                  if (selectUserForPassword) {
+                    selectUserForPassword.innerHTML = '<option value="">-- Select User --</option>';
+                    users.forEach(user => {
+                      const option = document.createElement('option');
+                      option.value = user.email;
+                      option.textContent = `${user.name} (${user.email})`;
+                      selectUserForPassword.appendChild(option);
+                    });
+                  }
+                  const loads = await getLoads();
+                  const selectLoad = el('selectLoad');
+                  if (selectLoad) {
+                    selectLoad.innerHTML = '<option value="">-- Select Load --</option>';
+                    loads.forEach(load => {
+                      const option = document.createElement('option');
+                      option.value = load.id;
+                      option.textContent = `${load.ref}: ${load.origin} to ${load.destination}`;
+                      selectLoad.appendChild(option);
+                    });
+                  }
+                  const btnResetPass = el('btnResetPass');
+                  if (btnResetPass) {
+                    btnResetPass.onclick = async () => {
+                      const email = selectUserForPassword.value;
+                      const newPass = el('resetPass').value;
+                      if (!email || !newPass) { showNotification('Please select a user and enter a new password', 'error'); return; }
+                      setButtonLoading('btnResetPass', true);
+                      try {
+                        await resetPassword(email, newPass);
+                        el('resetPass').value = '';
+                      } catch (error) { console.error('Error resetting password:', error); }
+                      finally { setButtonLoading('btnResetPass', false); }
+                    };
+                  }
+                  const btnEditLoad = el('btnEditLoad');
+                  if (btnEditLoad) {
+                    btnEditLoad.onclick = () => {
+                      const loadId = selectLoad.value;
+                      if (!loadId) { showNotification('Please select a load', 'error'); return; }
+                      const load = loads.find(l => l.id === loadId);
+                      if (load) {
+                        const loadDetails = el('loadDetails');
+                        loadDetails.innerHTML = `<div class="card"><h3>Edit Load</h3><form id="formEditLoad"><div class="grid two"><div><label for="editLoadOrigin">Origin</label><input id="editLoadOrigin" name="origin" value="${sanitize(load.origin)}" /></div><div><label for="editLoadDestination">Destination</label><input id="editLoadDestination" name="destination" value="${sanitize(load.destination)}" /></div><div><label for="editLoadDate">Pickup Date</label><input type="date" id="editLoadDate" name="date" value="${load.date}" /></div><div><label for="editLoadCargo">Cargo Type</label><input id="editLoadCargo" name="cargo_type" value="${sanitize(load.cargo_type)}" /></div><div><label for="editLoadWeight">Weight (Tons)</label><input type="number" id="editLoadWeight" name="weight" value="${load.weight}" min="0" step="0.01" /></div><div class="two" style="grid-column:1/-1"><label for="editLoadNotes">Notes</label><textarea id="editLoadNotes" name="notes" rows="3">${sanitize(load.notes || '')}</textarea></div></div><div class="toolbar" style="margin-top:12px"><button class="btn primary" type="button" onclick="saveLoadEdit('${loadId}')">Save</button><button class="btn" type="button" onclick="cancelLoadEdit()">Cancel</button></div></form></div>`;
+                      }
+                    };
+                  }
+                  const btnDeleteLoad = el('btnDeleteLoad');
+                  if (btnDeleteLoad) {
+                    btnDeleteLoad.onclick = async () => {
+                      const loadId = selectLoad.value;
+                      if (!loadId) { showNotification('Please select a load', 'error'); return; }
+                      if (confirm('Are you sure you want to delete this load?')) {
+                        setButtonLoading('btnDeleteLoad', true);
+                        try {
+                          await deleteLoad(loadId);
+                          selectLoad.value = '';
+                          el('loadDetails').innerHTML = '';
+                          const updatedLoads = await getLoads();
+                          selectLoad.innerHTML = '<option value="">-- Select Load --</option>';
+                          updatedLoads.forEach(load => {
+                            const option = document.createElement('option');
+                            option.value = load.id;
+                            option.textContent = `${load.ref}: ${load.origin} to ${load.destination}`;
+                            selectLoad.appendChild(option);
+                          });
+                        } catch (error) { console.error('Error deleting load:', error); }
+                        finally { setButtonLoading('btnDeleteLoad', false); }
+                      }
+                    };
+                  }
+                } catch (error) { console.error('Error rendering control panel:', error); }
+              };
+              
+              const renderUserAccessControl = async () => {
+                const u = getCurrentUserSync();
+                if (!isAdmin(u)) return;
+                
+                try {
+                  const users = await getUsers();
+                  const selectUserForAccess = el('selectUserForAccess');
+                  if (!selectUserForAccess) return;
+                  
+                  // Populate user dropdown
+                  selectUserForAccess.innerHTML = '<option value="">-- Select User --</option>';
+                  users.forEach(user => {
+                    const option = document.createElement('option');
+                    option.value = user.id;
+                    option.textContent = `${user.name} (${user.email})`;
+                    selectUserForAccess.appendChild(option);
+                  });
+            
+                  // Get all toggle switches
+                  const marketToggle = el('access-market');
+                  const postLoadToggle = el('access-post-load');
+                  const shipperDashboardToggle = el('access-shipper-dashboard');
+                  const transporterDashboardToggle = el('access-transporter-dashboard');
+                  const messagesToggle = el('access-messages');
+            
+                  // This will hold the current access state in memory
+                  let currentAccessData = { pages: {} };
+            
+                  // Function to update the in-memory state when a toggle changes
+                  const updateAccessState = () => {
+                    if (!currentAccessData.pages) {
+                      currentAccessData.pages = {};
+                    }
+                    currentAccessData.pages.market = { enabled: marketToggle ? marketToggle.checked : false };
+                    currentAccessData.pages['shipper-post'] = { enabled: postLoadToggle ? postLoadToggle.checked : false };
+                    currentAccessData.pages['shipper-dashboard'] = { enabled: shipperDashboardToggle ? shipperDashboardToggle.checked : false };
+                    currentAccessData.pages['transporter-dashboard'] = { enabled: transporterDashboardToggle ? transporterDashboardToggle.checked : false };
+                    currentAccessData.pages.messages = { enabled: messagesToggle ? messagesToggle.checked : false };
+                  };
+            
+                  // Add event listeners to all toggles to update the state
+                  if (marketToggle) {
+                    marketToggle.addEventListener('change', () => {
+                      updateAccessState();
+                      const userId = selectUserForAccess.value;
+                      if (userId) {
+                        updateUserAccess(userId, currentAccessData);
+                      }
+                    });
+                  }
+                  if (postLoadToggle) {
+                    postLoadToggle.addEventListener('change', () => {
+                      updateAccessState();
+                      const userId = selectUserForAccess.value;
+                      if (userId) {
+                        updateUserAccess(userId, currentAccessData);
+                      }
+                    });
+                  }
+                  if (shipperDashboardToggle) {
+                    shipperDashboardToggle.addEventListener('change', () => {
+                      updateAccessState();
+                      const userId = selectUserForAccess.value;
+                      if (userId) {
+                        updateUserAccess(userId, currentAccessData);
+                      }
+                    });
+                  }
+                  if (transporterDashboardToggle) {
+                    transporterDashboardToggle.addEventListener('change', () => {
+                      updateAccessState();
+                      const userId = selectUserForAccess.value;
+                      if (userId) {
+                        updateUserAccess(userId, currentAccessData);
+                      }
+                    });
+                  }
+                  if (messagesToggle) {
+                    messagesToggle.addEventListener('change', () => {
+                      updateAccessState();
+                      const userId = selectUserForAccess.value;
+                      if (userId) {
+                        updateUserAccess(userId, currentAccessData);
+                      }
+                    });
+                  }
+            
+                  // Event listener for the "Load" button
+                  const btnLoadUserAccess = el('btnLoadUserAccess');
+                  if (btnLoadUserAccess) {
+                    btnLoadUserAccess.onclick = async () => {
+                      const userId = selectUserForAccess.value;
+                      if (!userId) {
+                        showNotification('Please select a user', 'error');
+                        return;
+                      }
+                      
+                      setButtonLoading('btnLoadUserAccess', true);
+                      
+                      try {
+                        // Fetch the user's current access from the server
+                        const userAccess = await getUserAccess(userId);
+                        currentAccessData = userAccess || { pages: {} }; // Update our state with server data
+                        
+                        // Update the UI to match the loaded data
+                        if (marketToggle) marketToggle.checked = currentAccessData.pages.market ? currentAccessData.pages.market.enabled : false;
+                        if (postLoadToggle) postLoadToggle.checked = currentAccessData.pages['shipper-post'] ? currentAccessData.pages['shipper-post'].enabled : false;
+                        if (shipperDashboardToggle) shipperDashboardToggle.checked = currentAccessData.pages['shipper-dashboard'] ? currentAccessData.pages['shipper-dashboard'].enabled : false;
+                        if (transporterDashboardToggle) transporterDashboardToggle.checked = currentAccessData.pages['transporter-dashboard'] ? currentAccessData.pages['transporter-dashboard'].enabled : false;
+                        if (messagesToggle) messagesToggle.checked = currentAccessData.pages.messages ? currentAccessData.pages.messages.enabled : false;
+            
+                      } catch (error) {
+                        console.error('Failed to load user access:', error);
+                        showNotification('Failed to load user access: ' + error.message, 'error');
+                      } finally {
+                        setButtonLoading('btnLoadUserAccess', false);
+                      }
+                    };
+                  }
+                  
+                  // Event listener for the "Save" button
+                  const btnSaveUserAccess = el('btnSaveUserAccess');
+                  if (btnSaveUserAccess) {
+                    btnSaveUserAccess.onclick = async () => {
+                      const userId = selectUserForAccess.value;
+                      if (!userId) {
+                        showNotification('Please select a user', 'error');
+                        return;
+                      }
+                      
+                      // Use the in-memory state which has all the latest changes
+                      const accessData = currentAccessData;
+                      
+                      setButtonLoading('btnSaveUserAccess', true);
+                      
+                      try {
+                        await updateUserAccess(userId, accessData);
+                        showNotification('User access updated successfully', 'success');
+                      } catch (error) {
+                        console.error('Failed to update user access:', error);
+                        showNotification('Failed to update user access: ' + error.message, 'error');
+                      } finally {
+                        setButtonLoading('btnSaveUserAccess', false);
+                      }
+                    };
+                  }
+                  
+                  // Add event listener for the refresh button
+                  const btnRefreshAccessControl = el('btnRefreshAccessControl');
+                  if (btnRefreshAccessControl) {
+                    btnRefreshAccessControl.onclick = async () => {
+                      setButtonLoading('btnRefreshAccessControl', true);
+                      
+                      try {
+                        await renderUserAccessControl();
+                        showNotification('Access control refreshed', 'success');
+                      } catch (error) {
+                        console.error('Error refreshing access control:', error);
+                        showNotification('Error refreshing access control: ' + error.message, 'error');
+                      } finally {
+                        setButtonLoading('btnRefreshAccessControl', false);
+                      }
+                    };
+                  }
+                } catch (error) {
+                  console.error('Render user access control error:', error);
+                  showNotification('Failed to render user access control: ' + error.message, 'error');
+                }
+              };
+              
+              // Global functions for inline event handlers
+              window.editLoad = async (loadId) => { /* Handled in renderControl */ };
+              window.deleteLoad = async (loadId) => {
+                if (confirm('Are you sure you want to delete this load?')) {
+                  try {
+                    await deleteLoad(loadId);
+                    render();
+                  } catch (error) { console.error('Error deleting load:', error); }
+                }
+              };
+              window.deleteMessage = async (messageId) => {
+                if (confirm('Are you sure you want to delete this message?')) {
+                  try {
+                    await deleteMessage(messageId);
+                    render();
+                  } catch (error) { console.error('Error deleting message:', error); }
+                }
+              };
+              window.deleteUser = async (email) => {
+                if (confirm(`Are you sure you want to delete user ${email}?`)) {
+                  try {
+                    await deleteUser(email);
+                    render();
+                  } catch (error) { console.error('Error deleting user:', error); }
+                }
+              };
+              window.saveLoadEdit = async (loadId) => {
+                const origin = el('editLoadOrigin').value;
+                const destination = el('editLoadDestination').value;
+                const date = el('editLoadDate').value;
+                const cargo_type = el('editLoadCargo').value;
+                const weight = el('editLoadWeight').value;
+                const notes = el('editLoadNotes').value;
+                if (!origin || !destination || !date || !cargo_type || !weight) { showNotification('All required fields must be filled', 'error'); return; }
+                try {
+                  await updateLoad(loadId, { origin, destination, date, cargo_type, weight, notes });
+                  el('loadDetails').innerHTML = '';
+                  render();
+                } catch (error) { console.error('Error updating load:', error); }
+              };
+              window.cancelLoadEdit = () => { el('loadDetails').innerHTML = ''; };
+              
+              // Main render function
+              const render = async () => {
+                const u = getCurrentUserSync();
+                const hash = location.hash.slice(1) || 'index';
+                document.querySelectorAll('main > section').forEach(section => { section.classList.add('hidden'); });
+                await renderHeader();
+                await renderBanners();
+                if (hash !== 'index' && hash !== 'login' && hash !== 'register-options' && hash !== 'register-shipper' && hash !== 'register-transporter') {
+                  const hasAccess = await checkPageAccess(hash);
+                  if (!hasAccess) {
+                    showNotification('You do not have permission to access this page', 'error');
+                    if (u) {
+                      location.hash = u.data.user.role === 'shipper' ? 'shipper-dashboard' : 'transporter-dashboard';
+                    } else {
+                      location.hash = 'login';
+                    }
+                    return;
+                  }
+                }
+                switch (hash) {
+                  case 'index': setHidden('page-index', false); break;
+                  case 'login': setHidden('page-login', false); break;
+                  case 'register-options': setHidden('page-register-options', false); break;
+                  case 'register-shipper': setHidden('page-register-shipper', false); break;
+                  case 'register-transporter': setHidden('page-register-transporter', false); break;
+                  case 'shipper-dashboard': setHidden('page-shipper-dashboard', false); await renderShipper(); break;
+                  case 'shipper-post': setHidden('page-shipper-post', false); break;
+                  case 'shipper-profile': setHidden('page-shipper-profile', false); await renderShipperProfile(); break;
+                  case 'transporter-dashboard': setHidden('page-transporter-dashboard', false); await renderTransporter(); break;
+                  case 'transporter-profile': setHidden('page-transporter-profile', false); await renderTransporterProfile(); break;
+                  case 'market': setHidden('page-market', false); await renderMarket(); break;
+                  case 'messages': setHidden('page-messages', false); await renderMessages(); break;
+                  case 'control':
+                    if (isAdmin(u)) {
+                      setHidden('page-control', false);
+                      await renderControl();
+                      await renderUserAccessControl();
+                    } else {
+                      showNotification('Access denied', 'error');
+                      location.hash = 'index';
+                    }
+                    break;
+                  default: location.hash = 'index'; break;
+                }
+              };
+              
+              // Initialize app
+              const init = () => {
+                el('formLogin').onsubmit = async e => {
+                  e.preventDefault();
+                  const email = el('loginEmail').value;
+                  const password = el('loginPassword').value;
+                  setButtonLoading('formLogin button[type="submit"]', true);
+                  try {
+                    const user = await login(email, password);
+                    if (user) {
+                      location.hash = user.data.user.role === 'shipper' ? 'shipper-dashboard' : user.data.user.role === 'transporter' ? 'transporter-dashboard' : 'control';
+                      render();
+                    }
+                  } finally { setButtonLoading('formLogin button[type="submit"]', false); }
+                };
+                el('formRegShipper').onsubmit = async e => {
+                  e.preventDefault();
+                  const formData = new FormData(e.target);
+                  const data = Object.fromEntries(formData.entries());
+                  data.role = 'shipper';
+                  setButtonLoading('formRegShipper button[type="submit"]', true);
+                  try {
+                    await registerUser(data);
+                    location.hash = 'login';
+                    render();
+                  } finally { setButtonLoading('formRegShipper button[type="submit"]', false); }
+                };
+                el('formRegTransporter').onsubmit = async e => {
+                  e.preventDefault();
+                  const formData = new FormData(e.target);
+                  const data = Object.fromEntries(formData.entries());
+                  data.role = 'transporter';
+                  setButtonLoading('formRegTransporter button[type="submit"]', true);
+                  try {
+                    await registerUser(data);
+                    location.hash = 'login';
+                    render();
+                  } finally { setButtonLoading('formRegTransporter button[type="submit"]', false); }
+                };
+                el('formPostLoad').onsubmit = async e => {
+                  e.preventDefault();
+                  const formData = new FormData(e.target);
+                  const data = Object.fromEntries(formData.entries());
+                  setButtonLoading('formPostLoad button[type="submit"]', true);
+                  try {
+                    await postLoad(data);
+                    location.hash = getCurrentUserSync().data.user.role === 'shipper' ? 'shipper-dashboard' : 'transporter-dashboard';
+                    render();
+                  } finally { setButtonLoading('formPostLoad button[type="submit"]', false); }
+                };
+                el('formSendMsg').onsubmit = async e => {
+                  e.preventDefault();
+                  const formData = new FormData(e.target);
+                  const data = Object.fromEntries(formData.entries());
+                  setButtonLoading('formSendMsg button[type="submit"]', true);
+                  try {
+                    await sendMessage(data.to, data.body);
+                    e.target.reset();
+                    render();
+                  } finally { setButtonLoading('formSendMsg button[type="submit"]', false); }
+                };
+                el('btnLogout').onclick = logout;
+                el('btnMarketFilterLoads').onclick = async () => {
+                  const origin = el('marketFilterOrigin').value;
+                  const destination = el('marketFilterDest').value;
+                  try {
+                    const loads = await getLoads({ origin, destination });
+                    const tbody = el('tableMarketLoads').querySelector('tbody');
+                    tbody.innerHTML = '';
+                    if (!loads || loads.length === 0) { tbody.innerHTML = '<tr><td colspan="9" class="muted">No loads found matching your criteria.</td></tr>'; return; }
+                    loads.forEach(load => {
+                      const row = document.createElement('tr');
+                      if (isLoadExpired(load)) row.classList.add('expired');
+                      const postedDate = new Date(load.created_at).toLocaleDateString();
+                      const expiryDate = new Date(load.expires_at).toLocaleDateString();
+                      row.innerHTML = `<td>${sanitize(load.ref)}</td><td>${sanitize(load.origin)}</td><td>${sanitize(load.destination)}</td><td>${postedDate}</td><td>${expiryDate}</td><td>${sanitize(load.cargo_type)}</td><td>${load.weight}</td><td>${sanitize(load.notes || '')}</td><td>${sanitize(load.shipper_name || 'Unknown')}</td>`;
+                      tbody.appendChild(row);
+                    });
+                  } catch (error) { console.error('Error filtering loads:', error); }
+                };
+                window.addEventListener('hashchange', render);
+                render();
+              };
+              
+              if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', init);
+              } else {
+                init();
               }
-            };
-          }
-          
-          // Add event listener for the refresh button
-          const btnRefreshAccessControl = el('btnRefreshAccessControl');
-          if (btnRefreshAccessControl) {
-            btnRefreshAccessControl.onclick = async () => {
-              setButtonLoading('btnRefreshAccessControl', true);
-              
-              try {
-                await renderUserAccessControl();
-                showNotification('Access control refreshed', 'success');
-              } catch (error) {
-                console.error('Error refreshing access control:', error);
-                showNotification('Error refreshing access control: ' + error.message, 'error');
-              } finally {
-                setButtonLoading('btnRefreshAccessControl', false);
-              }
-            };
-          }
-        } catch (error) {
-          console.error('Render user access control error:', error);
-          showNotification('Failed to render user access control: ' + error.message, 'error');
-        }
-      };
-      
-      // Global functions for inline event handlers
-      window.editLoad = async (loadId) => { /* Handled in renderControl */ };
-      window.deleteLoad = async (loadId) => {
-        if (confirm('Are you sure you want to delete this load?')) {
-          try {
-            await deleteLoad(loadId);
-            render();
-          } catch (error) { console.error('Error deleting load:', error); }
-        }
-      };
-      window.deleteMessage = async (messageId) => {
-        if (confirm('Are you sure you want to delete this message?')) {
-          try {
-            await deleteMessage(messageId);
-            render();
-          } catch (error) { console.error('Error deleting message:', error); }
-        }
-      };
-      window.deleteUser = async (email) => {
-        if (confirm(`Are you sure you want to delete user ${email}?`)) {
-          try {
-            await deleteUser(email);
-            render();
-          } catch (error) { console.error('Error deleting user:', error); }
-        }
-      };
-      window.saveLoadEdit = async (loadId) => {
-        const origin = el('editLoadOrigin').value;
-        const destination = el('editLoadDestination').value;
-        const date = el('editLoadDate').value;
-        const cargo_type = el('editLoadCargo').value;
-        const weight = el('editLoadWeight').value;
-        const notes = el('editLoadNotes').value;
-        if (!origin || !destination || !date || !cargo_type || !weight) { showNotification('All required fields must be filled', 'error'); return; }
-        try {
-          await updateLoad(loadId, { origin, destination, date, cargo_type, weight, notes });
-          el('loadDetails').innerHTML = '';
-          render();
-        } catch (error) { console.error('Error updating load:', error); }
-      };
-      window.cancelLoadEdit = () => { el('loadDetails').innerHTML = ''; };
-      
-      // Main render function
-      const render = async () => {
-        const u = getCurrentUserSync();
-        const hash = location.hash.slice(1) || 'index';
-        document.querySelectorAll('main > section').forEach(section => { section.classList.add('hidden'); });
-        await renderHeader();
-        await renderBanners();
-        if (hash !== 'index' && hash !== 'login' && hash !== 'register-options' && hash !== 'register-shipper' && hash !== 'register-transporter') {
-          const hasAccess = await checkPageAccess(hash);
-          if (!hasAccess) {
-            showNotification('You do not have permission to access this page', 'error');
-            if (u) {
-              location.hash = u.data.user.role === 'shipper' ? 'shipper-dashboard' : 'transporter-dashboard';
-            } else {
-              location.hash = 'login';
-            }
-            return;
-          }
-        }
-        switch (hash) {
-          case 'index': setHidden('page-index', false); break;
-          case 'login': setHidden('page-login', false); break;
-          case 'register-options': setHidden('page-register-options', false); break;
-          case 'register-shipper': setHidden('page-register-shipper', false); break;
-          case 'register-transporter': setHidden('page-register-transporter', false); break;
-          case 'shipper-dashboard': setHidden('page-shipper-dashboard', false); await renderShipper(); break;
-          case 'shipper-post': setHidden('page-shipper-post', false); break;
-          case 'shipper-profile': setHidden('page-shipper-profile', false); await renderShipperProfile(); break;
-          case 'transporter-dashboard': setHidden('page-transporter-dashboard', false); await renderTransporter(); break;
-          case 'transporter-profile': setHidden('page-transporter-profile', false); await renderTransporterProfile(); break;
-          case 'market': setHidden('page-market', false); await renderMarket(); break;
-          case 'messages': setHidden('page-messages', false); await renderMessages(); break;
-          case 'control':
-            if (isAdmin(u)) {
-              setHidden('page-control', false);
-              await renderControl();
-              await renderUserAccessControl();
-            } else {
-              showNotification('Access denied', 'error');
-              location.hash = 'index';
-            }
-            break;
-          default: location.hash = 'index'; break;
-        }
-      };
-      
-      // Initialize app
-      const init = () => {
-        el('formLogin').onsubmit = async e => {
-          e.preventDefault();
-          const email = el('loginEmail').value;
-          const password = el('loginPassword').value;
-          setButtonLoading('formLogin button[type="submit"]', true);
-          try {
-            const user = await login(email, password);
-            if (user) {
-              location.hash = user.data.user.role === 'shipper' ? 'shipper-dashboard' : user.data.user.role === 'transporter' ? 'transporter-dashboard' : 'control';
-              render();
-            }
-          } finally { setButtonLoading('formLogin button[type="submit"]', false); }
-        };
-        el('formRegShipper').onsubmit = async e => {
-          e.preventDefault();
-          const formData = new FormData(e.target);
-          const data = Object.fromEntries(formData.entries());
-          data.role = 'shipper';
-          setButtonLoading('formRegShipper button[type="submit"]', true);
-          try {
-            await registerUser(data);
-            location.hash = 'login';
-            render();
-          } finally { setButtonLoading('formRegShipper button[type="submit"]', false); }
-        };
-        el('formRegTransporter').onsubmit = async e => {
-          e.preventDefault();
-          const formData = new FormData(e.target);
-          const data = Object.fromEntries(formData.entries());
-          data.role = 'transporter';
-          setButtonLoading('formRegTransporter button[type="submit"]', true);
-          try {
-            await registerUser(data);
-            location.hash = 'login';
-            render();
-          } finally { setButtonLoading('formRegTransporter button[type="submit"]', false); }
-        };
-        el('formPostLoad').onsubmit = async e => {
-          e.preventDefault();
-          const formData = new FormData(e.target);
-          const data = Object.fromEntries(formData.entries());
-          setButtonLoading('formPostLoad button[type="submit"]', true);
-          try {
-            await postLoad(data);
-            location.hash = getCurrentUserSync().data.user.role === 'shipper' ? 'shipper-dashboard' : 'transporter-dashboard';
-            render();
-          } finally { setButtonLoading('formPostLoad button[type="submit"]', false); }
-        };
-        el('formSendMsg').onsubmit = async e => {
-          e.preventDefault();
-          const formData = new FormData(e.target);
-          const data = Object.fromEntries(formData.entries());
-          setButtonLoading('formSendMsg button[type="submit"]', true);
-          try {
-            await sendMessage(data.to, data.body);
-            e.target.reset();
-            render();
-          } finally { setButtonLoading('formSendMsg button[type="submit"]', false); }
-        };
-        el('btnLogout').onclick = logout;
-        el('btnMarketFilterLoads').onclick = async () => {
-          const origin = el('marketFilterOrigin').value;
-          const destination = el('marketFilterDest').value;
-          try {
-            const loads = await getLoads({ origin, destination });
-            const tbody = el('tableMarketLoads').querySelector('tbody');
-            tbody.innerHTML = '';
-            if (!loads || loads.length === 0) { tbody.innerHTML = '<tr><td colspan="9" class="muted">No loads found matching your criteria.</td></tr>'; return; }
-            loads.forEach(load => {
-              const row = document.createElement('tr');
-              if (isLoadExpired(load)) row.classList.add('expired');
-              const postedDate = new Date(load.created_at).toLocaleDateString();
-              const expiryDate = new Date(load.expires_at).toLocaleDateString();
-              row.innerHTML = `<td>${sanitize(load.ref)}</td><td>${sanitize(load.origin)}</td><td>${sanitize(load.destination)}</td><td>${postedDate}</td><td>${expiryDate}</td><td>${sanitize(load.cargo_type)}</td><td>${load.weight}</td><td>${sanitize(load.notes || '')}</td><td>${sanitize(load.shipper_name || 'Unknown')}</td>`;
-              tbody.appendChild(row);
-            });
-          } catch (error) { console.error('Error filtering loads:', error); }
-        };
-        window.addEventListener('hashchange', render);
-        render();
-      };
-      
-      if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', init);
-      } else {
-        init();
-      }
-    })();
-    </script>
-  </body>
-</html>
+            })();
+          </script>
+          </body>
+          </html>
