@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!DOCTYPE html>									
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -1820,15 +1820,9 @@
                   case 'market': setHidden('page-market', false); await renderMarket(); break;
                   case 'messages': setHidden('page-messages', false); await renderMessages(); break;
                   case 'control':
-                    if (isAdmin(u)) {
-                      setHidden('page-control', false);
-                      await renderControl();
-                      await renderUserAccessControl();
-                    } else {
-                      showNotification('Access denied', 'error');
-                      location.hash = 'index';
-                    }
-                    break;
+    setHidden('page-control', false);
+    await renderUserAccessControl();
+    break;
                   default: location.hash = 'index'; break;
                 }
               };
@@ -1926,3 +1920,4 @@
           </script>
           </body>
           </html>
+
