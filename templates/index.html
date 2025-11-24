@@ -1454,7 +1454,90 @@
               selectUserForAccess.appendChild(option);
             });
             
-            // Add event listener for loading user access
+            // Add event listener for loading user access// Replace the btnLoadUserAccess and btnSaveUserAccess event handlers in renderUserAccessControl function:
+
+                        // Add event listener for loading user access
+                        const btnLoadUserAccess = el('btnLoadUserAccess');
+                        if (btnLoadUserAccess) {
+                        btnLoadUserAccess.onclick = async () => {
+                          const userId = selectUserForAccess.value;
+                          if (!userId) {
+                            showNotification('Please select a user', 'error');
+                            return;
+                          }
+                          
+                          setButtonLoading('btnLoadUserAccess', true);
+                          
+                          try {
+                            const userAccess = await getUserAccess(userId);
+                            
+                            // Update toggle switches based on current settings
+                            const marketToggle = el('access-market');
+                            const postLoadToggle = el('access-post-load');
+                            
+                            if (marketToggle) {
+                              marketToggle.checked = userAccess && userAccess.pages && userAccess.pages.market ? 
+                                userAccess.pages.market.enabled : false;
+                            }
+                            
+                            if (postLoadToggle) {
+                              postLoadToggle.checked = userAccess && userAccess.pages && userAccess.pages['shipper-post'] ? 
+                                userAccess.pages['shipper-post'].enabled : false;
+                            }
+                          } catch (error) {
+                            console.error('Failed to load user access:', error);
+                            showNotification('Failed to load user access: ' + error.message, 'error');
+                          } finally {
+                            setButtonLoading('btnLoadUserAccess', false);
+                          }
+                        };
+
+// Add event listener for saving user access
+const btnSaveUserAccess = el('btnSaveUserAccess');
+if (btnSaveUserAccess) {
+  btnSaveUserAccess.onclick = async () => {
+    const userId = selectUserForAccess.value;
+    if (!userId) {
+      showNotification('Please select a user', 'error');
+      return;
+    }
+    
+    const marketToggle = el('access-market');
+    const postLoadToggle = el('access-post-load');
+    
+    const accessData = {
+      pages: {
+        market: {
+          enabled: marketToggle ? marketToggle.checked : false
+        },
+        'shipper-post': {
+          enabled: postLoadToggle ? postLoadToggle.checked : false
+        }
+      }
+    };
+    
+    setButtonLoading('btnSaveUserAccess', true);
+    
+    try {
+      await updateUserAccess(userId, accessData);
+      showNotification('User access updated successfully', 'success');
+    } catch (error) {
+      console.error('Failed to update user access:', error);
+      showNotification('Failed to update user access: ' + error.message, 'error');
+    } finally {
+      setButtonLoading('btnSaveUserAccess', false);
+    }
+  };
+}
+
+// Also, make sure the buttons are properly referenced in the HTML:
+// The buttons should have these IDs:
+// - btnLoadUserAccess
+// - btnSaveUserAccess
+
+// If they don't exist, add them to the HTML:
+<button id="btnLoadUserAccess" class="btn">Load</button>
+<button id="btnSaveUserAccess" class="btn primary">Save User Access</button>
             const btnLoadUserAccess = el('btnLoadUserAccess');
             if (btnLoadUserAccess) {
               btnLoadUserAccess.onclick = async () => {
