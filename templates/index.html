@@ -379,7 +379,7 @@
           </div>
           <div>
             <label for="loginPassword">Password</label>
-            <input required type="password" id="loginPassword" name="password" placeholder="•••••••" autocomplete="current-password" />
+            <input required type="password" id="loginPassword" name="password" placeholder="••••••••" autocomplete="current-password" />
           </div>
         </div>
         <div class="toolbar" style="margin-top:12px">
@@ -524,16 +524,11 @@
       <div id="dashBannerTransporter" class="banner hidden" role="alert"></div>
       <div class="card">
         <div class="toolbar">
-          <h3>Load Market Board</h3>
-          <div style="display:flex;gap:8px">
-            <input id="filterOrigin" placeholder="Filter by origin" aria-label="Filter by origin" />
-            <input id="filterDest" placeholder="Filter by destination" aria-label="Filter by destination" />
-            <button id="btnFilterLoads" class="btn">Filter</button>
-          </div>
+          <h3>Your Posted Loads</h3>
         </div>
         <div class="table-container" style="overflow-x:auto">
-          <table id="tableLoads" aria-label="Load market board"><thead><tr>
-            <th scope="col">Ref</th><th scope="col">Origin</th><th scope="col">Destination</th><th scope="col">Date</th><th scope="col">Expires</th><th scope="col">Cargo</th><th scope="col">Weight</th><th scope="col">Notes</th><th scope="col">Posted By</th>
+          <table id="tableMyLoads" aria-label="Your posted loads"><thead><tr>
+            <th scope="col">Ref</th><th scope="col">Origin</th><th scope="col">Destination</th><th scope="col">Date</th><th scope="col">Expires</th><th scope="col">Cargo</th><th scope="col">Weight</th><th scope="col">Notes</th><th scope="col">Actions</th>
           </tr></thead><tbody></tbody></table>
         </div>
       </div>
@@ -646,48 +641,43 @@
         </div>
       </div>
       
-      <!-- Unified Access Control Section -->
+      <!-- User Page Access Control Section -->
       <div class="card">
         <div class="access-control-header">
-          <h3>Access Control Management</h3>
+          <h3>User Page Access Control</h3>
           <button id="btnRefreshAccessControl" class="btn">Refresh</button>
         </div>
         
         <div class="access-control-section">
-          <h4>Broadcasts</h4>
-          <div class="grid two">
-            <div>
-              <label for="adminIndexBanner">Index Banner</label>
-              <input id="adminIndexBanner" placeholder="Short notice shown on Index" />
-            </div>
-            <div>
-              <label for="adminDashBanner">Dashboard Banner</label>
-              <input id="adminDashBanner" placeholder="Shown on all dashboards" />
-            </div>
-          </div>
-          <div class="toolbar" style="margin-top:12px">
-            <button id="btnSaveBanners" class="btn primary">Save Banners</button>
-            <button id="btnClearBanners" class="btn">Clear Banners</button>
-          </div>
-        </div>
-        
-        <div class="access-control-section">
-          <h4>Page Access Control</h4>
-          <div id="pageAccessContainer" class="page-access-container"></div>
-          <div class="toolbar" style="margin-top:12px">
-            <button id="btnSavePageAccess" class="btn primary">Save Page Access</button>
-          </div>
-        </div>
-        
-        <div class="access-control-section">
-          <h4>User Access Control</h4>
           <div class="select-with-actions">
             <select id="selectUserForAccess">
               <option value="">-- Select User --</option>
             </select>
             <button id="btnLoadUserAccess" class="btn">Load</button>
           </div>
-          <div id="userAccessContainer" class="page-access-container"></div>
+          
+          <div id="userAccessContainer" class="page-access-container">
+            <div class="page-access-item">
+              <div class="page-access-header">
+                <div class="page-access-title">Market Page</div>
+                <div class="toggle-switch">
+                  <input type="checkbox" id="access-market">
+                  <span class="toggle-slider"></span>
+                </div>
+              </div>
+            </div>
+            
+            <div class="page-access-item">
+              <div class="page-access-header">
+                <div class="page-access-title">Post Load Page</div>
+                <div class="toggle-switch">
+                  <input type="checkbox" id="access-post-load">
+                  <span class="toggle-slider"></span>
+                </div>
+              </div>
+            </div>
+          </div>
+          
           <div class="toolbar" style="margin-top:12px">
             <button id="btnSaveUserAccess" class="btn primary">Save User Access</button>
           </div>
@@ -735,7 +725,7 @@
   <!-- Notification Container -->
   <div id="notificationContainer"></div>
         <script>
-    // MakiwaFreight App Frontend (Corrected for Initial Load)
+    // MakiwaFreight App Frontend (Updated with User Page Access Control)
     (function() {
       'use strict';
       
@@ -1278,6 +1268,33 @@
         }
       };
       
+      // New function to update user access control
+      const updateUserAccess = async (userId, access) => {
+        try {
+          await apiRequest(`/admin/users/${userId}/access`, {
+            method: 'PUT',
+            body: JSON.stringify(access)
+          });
+          showNotification('User access updated successfully', 'success');
+        } catch (error) {
+          console.error('Update user access error:', error);
+          showNotification('Failed to update user access: ' + error.message, 'error');
+          throw error;
+        }
+      };
+      
+      // Get user access control settings
+      const getUserAccess = async (userId) => {
+        try {
+          const response = await apiRequest(`/admin/users/${userId}/access`);
+          return response.data || response;
+        } catch (error) {
+          console.error('Get user access error:', error);
+          showNotification('Failed to get user access: ' + error.message, 'error');
+          throw error;
+        }
+      };
+      
       // Check if user can access a specific page based on default role settings
       const canAccessPage = (user, pageId) => {
         if (!user) return false;
@@ -1291,8 +1308,6 @@
         return false;
       };
       
-      // *** START: NEW ACCESS CONTROL FUNCTIONS ***
-      
       // Check if a user has access to a page, including custom overrides
       const checkPageAccess = async (pageId) => {
         try {
@@ -1303,13 +1318,11 @@
           if (canAccessPage(user, pageId)) return true;
           
           // If default access is denied, check for custom user-specific overrides
-          const acl = await getAccessControl();
-          const userEmail = user.data.user.email;
+          const userId = user.data.user.id;
+          const userAccess = await getUserAccess(userId);
           
-          if (acl.users && acl.users[userEmail] && 
-              acl.users[userEmail].pages && 
-              acl.users[userEmail].pages[pageId]) {
-            return acl.users[userEmail].pages[pageId].enabled === true;
+          if (userAccess && userAccess.pages && userAccess.pages[pageId]) {
+            return userAccess.pages[pageId].enabled === true;
           }
           
           return false;
@@ -1319,69 +1332,100 @@
         }
       };
       
-      // Populate the page access control section in the admin panel
-      const populatePageAccess = async () => {
+      // Render user access control
+      const renderUserAccessControl = async () => {
+        const u = getCurrentUserSync();
+        if (!isAdmin(u)) return;
+        
         try {
-          const acl = await getAccessControl();
-          const pageAccessContainer = el('pageAccessContainer');
+          const users = await getUsers();
+          const selectUserForAccess = el('selectUserForAccess');
+          if (!selectUserForAccess) return;
           
-          if (!pageAccessContainer) return;
+          selectUserForAccess.innerHTML = '<option value="">-- Select User --</option>';
+          users.forEach(user => {
+            const option = document.createElement('option');
+            option.value = user.id;
+            option.textContent = `${user.name} (${user.email})`;
+            selectUserForAccess.appendChild(option);
+          });
           
-          pageAccessContainer.innerHTML = '';
-          
-          // Create page access controls for each page
-          for (const [pageId, pageInfo] of Object.entries(PAGES)) {
-            const pageAccessItem = document.createElement('div');
-            pageAccessItem.className = 'page-access-item';
-            
-            const pageAccessHeader = document.createElement('div');
-            pageAccessHeader.className = 'page-access-header';
-            
-            const pageTitle = document.createElement('div');
-            pageTitle.className = 'page-access-title';
-            pageTitle.textContent = pageInfo.name;
-            
-            pageAccessHeader.appendChild(pageTitle);
-            pageAccessItem.appendChild(pageAccessHeader);
-            
-            const roleCheckboxes = document.createElement('div');
-            roleCheckboxes.className = 'role-checkboxes';
-            
-            // Create a checkbox for each role
-            ROLES.forEach(role => {
-              const roleCheckboxItem = document.createElement('div');
-              roleCheckboxItem.className = 'role-checkbox-item';
-              
-              const checkbox = document.createElement('input');
-              checkbox.type = 'checkbox';
-              checkbox.id = `page-${pageId}-role-${role}`;
-              checkbox.setAttribute('data-page', pageId);
-              checkbox.setAttribute('data-role', role);
-              
-              // Check if this role has access to this page in the current ACL
-              if (acl.pages && acl.pages[pageId] && acl.pages[pageId].roles && acl.pages[pageId].roles.includes(role)) {
-                checkbox.checked = true;
+          // Add event listener for loading user access
+          const btnLoadUserAccess = el('btnLoadUserAccess');
+          if (btnLoadUserAccess) {
+            btnLoadUserAccess.onclick = async () => {
+              const userId = selectUserForAccess.value;
+              if (!userId) {
+                showNotification('Please select a user', 'error');
+                return;
               }
               
-              const label = document.createElement('label');
-              label.htmlFor = `page-${pageId}-role-${role}`;
-              label.textContent = role;
+              setButtonLoading('btnLoadUserAccess', true);
               
-              roleCheckboxItem.appendChild(checkbox);
-              roleCheckboxItem.appendChild(label);
-              roleCheckboxes.appendChild(roleCheckboxItem);
-            });
-            
-            pageAccessItem.appendChild(roleCheckboxes);
-            pageAccessContainer.appendChild(pageAccessItem);
+              try {
+                const userAccess = await getUserAccess(userId);
+                
+                // Update the toggle switches based on current settings
+                const marketToggle = el('access-market');
+                const postLoadToggle = el('access-post-load');
+                
+                if (marketToggle) {
+                  marketToggle.checked = userAccess && userAccess.pages && userAccess.pages.market ? 
+                    userAccess.pages.market.enabled : false;
+                }
+                
+                if (postLoadToggle) {
+                  postLoadToggle.checked = userAccess && userAccess.pages && userAccess.pages['shipper-post'] ? 
+                    userAccess.pages['shipper-post'].enabled : false;
+                }
+              } catch (error) {
+                console.error('Failed to load user access:', error);
+                showNotification('Failed to load user access: ' + error.message, 'error');
+              } finally {
+                setButtonLoading('btnLoadUserAccess', false);
+              }
+            };
+          }
+          
+          // Add event listener for saving user access
+          const btnSaveUserAccess = el('btnSaveUserAccess');
+          if (btnSaveUserAccess) {
+            btnSaveUserAccess.onclick = async () => {
+              const userId = selectUserForAccess.value;
+              if (!userId) {
+                showNotification('Please select a user', 'error');
+                return;
+              }
+              
+              setButtonLoading('btnSaveUserAccess', true);
+              
+              try {
+                const access = {
+                  pages: {
+                    market: {
+                      enabled: el('access-market').checked
+                    },
+                    'shipper-post': {
+                      enabled: el('access-post-load').checked
+                    }
+                  }
+                };
+                
+                await updateUserAccess(userId, access);
+                showNotification('User access updated successfully', 'success');
+              } catch (error) {
+                console.error('Failed to save user access:', error);
+                showNotification('Failed to save user access: ' + error.message, 'error');
+              } finally {
+                setButtonLoading('btnSaveUserAccess', false);
+              }
+            };
           }
         } catch (error) {
-          console.error('Populate page access error:', error);
-          showNotification('Failed to populate page access: ' + error.message, 'error');
+          console.error('Failed to render user access control:', error);
+          showNotification('Failed to load user access control settings', 'error');
         }
       };
-      
-      // *** END: NEW ACCESS CONTROL FUNCTIONS ***
       
       // Router
       const pages = {
@@ -1574,7 +1618,10 @@
         if (!u) return;
         
         try {
-          const tb = el('tableLoads');
+          // Fixed: Use correct user ID from nested structure
+          const userId = u.data.user.id;
+          const rows = await getLoads({ shipper_id: userId });
+          const tb = el('tableMyLoads');
           if (!tb) return;
           
           const tbody = tb.querySelector('tbody');
@@ -1582,27 +1629,20 @@
           
           tbody.innerHTML = '';
           
-          const fo = el('filterOrigin');
-          const fd = el('filterDest');
-          
-          const filters = {};
-          if (fo && fo.value.trim()) filters.origin = fo.value.trim();
-          if (fd && fd.value.trim()) filters.destination = fd.value.trim();
-          
-          let rows = await getLoads(filters);
-          rows = rows.filter(l => !isLoadExpired(l));
-          
           if (rows.length === 0) {
             const emptyRow = document.createElement('tr');
-            emptyRow.innerHTML = '<td colspan="9" style="text-align:center">No loads available</td>';
+            emptyRow.innerHTML = '<td colspan="9" style="text-align:center">No loads posted yet</td>';
             tbody.appendChild(emptyRow);
             return;
           }
           
           for (const l of rows) {
+            const expired = isLoadExpired(l);
             const expiryDate = l.expires_at ? new Date(l.expires_at).toLocaleDateString() : 'N/A';
             
             const tr = document.createElement('tr');
+            if (expired) tr.classList.add('expired');
+            
             tr.innerHTML = `
               <td>${sanitize(l.ref)}</td>
               <td>${sanitize(l.origin)}</td>
@@ -1612,9 +1652,53 @@
               <td>${sanitize(l.cargo_type)}</td>
               <td>${sanitize(l.weight)}</td>
               <td>${sanitize(l.notes || '')}</td>
-              <td>${sanitize(l.shipper || '')}</td>`;
+              <td>
+                <button class="btn" data-edit="${l.id}" aria-label="Edit load ${l.ref}">Edit</button>
+                <button class="btn danger" data-del="${l.id}" aria-label="Delete load ${l.ref}">Delete</button>
+              </td>`;
             tbody.appendChild(tr);
           }
+          
+          tbody.querySelectorAll('[data-del]').forEach(b => {
+            b.onclick = () => {
+              if (confirm('Are you sure you want to delete this load?')) {
+                handleError(async () => {
+                  await deleteLoad(b.dataset.del);
+                  render();
+                }, 'Failed to delete load');
+              }
+            };
+          });
+          
+          tbody.querySelectorAll('[data-edit]').forEach(b => {
+            b.onclick = () => {
+              const l = rows.find(x => x.id === b.dataset.edit);
+              if (!l) return;
+              
+              const origin = prompt('Origin', l.origin);
+              if (origin === null) return;
+              
+              const destination = prompt('Destination', l.destination);
+              if (destination === null) return;
+              
+              const date = prompt('Date (YYYY-MM-DD)', l.date);
+              if (date === null) return;
+              
+              const cargo_type = prompt('Cargo', l.cargo_type);
+              if (cargo_type === null) return;
+              
+              const weight = prompt('Weight', l.weight);
+              if (weight === null) return;
+              
+              const notes = prompt('Notes', l.notes || '');
+              if (notes === null) return;
+              
+              handleError(async () => {
+                await updateLoad(l.id, { origin, destination, date, cargo_type, weight, notes });
+                render();
+              }, 'Failed to update load');
+            };
+          });
         } catch (error) {
           console.error('Failed to render transporter dashboard:', error);
         }
@@ -1632,6 +1716,7 @@
           if (fo && fo.value.trim()) filters.origin = fo.value.trim();
           if (fd && fd.value.trim()) filters.destination = fd.value.trim();
           
+          // Get all loads for market page (not filtered by shipper_id)
           let rows = await getLoads(filters);
           rows = rows.filter(l => !isLoadExpired(l));
           
@@ -1663,7 +1748,7 @@
               <td>${sanitize(l.cargo_type)}</td>
               <td>${sanitize(l.weight)}</td>
               <td>${sanitize(l.notes || '')}</td>
-              <td>${sanitize(l.shipper || '')}</td>`;
+              <td>${sanitize(l.shipper_name || 'N/A')}</td>`;
             tbody.appendChild(tr);
           }
         } catch (error) {
@@ -1865,8 +1950,8 @@
           renderLoadDropdown();
           renderUserDropdowns();
           
-          // *** NEW: Call to populate page access control ***
-          await populatePageAccess();
+          // Render user access control
+          await renderUserAccessControl();
         } catch (error) {
           console.error('Failed to render admin panel:', error);
         }
