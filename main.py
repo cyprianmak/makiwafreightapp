@@ -1,14 +1,15 @@
-from flask import Flask, render_template, jsonify, request
+from flask import Flask, render_template, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
+from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timedelta
 import uuid
 import json
 import os
-from werkzeug.security import generate_password_hash, check_password_hash
+from sqlalchemy import text
 
 app = Flask(__name__)
 
-# Configure the database properly for Render PostgreSQL
+# Configure database properly for Render PostgreSQL
 if os.environ.get('RENDER'):
     database_url = os.environ.get('DATABASE_URL')
     if database_url:
@@ -43,13 +44,11 @@ else:
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
-# Add debug route after initializing the database
-from sqlalchemy import text
-
+# Add debug route after initializing database
 @app.route("/api/debug/db")
 def debug_db():
     try:
-        # First, test the basic database connection
+        # First, test basic database connection
         db.session.execute(text("SELECT 1"))
         db.session.commit()
         connection_status = "OK"
@@ -85,6 +84,7 @@ def debug_db():
         message_count = Message.query.count()
         access_control_count = AccessControl.query.count()
         banner_count = Banner.query.count()
+        user_access_control_count = UserAccessControl.query.count()
         
         # List users
         users = []
@@ -112,6 +112,7 @@ def debug_db():
             "load_count": load_count,
             "message_count": message_count,
             "access_control_count": access_control_count,
+            "user_access_control_count": user_access_control_count,
             "banner_count": banner_count,
             "users": users,
             "environment": os.environ.get('RENDER', 'local')
@@ -176,6 +177,14 @@ class AccessControl(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     data = db.Column(db.Text)  # JSON string containing access control data
 
+class UserAccessControl(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.String(36), db.ForeignKey('user.id'), nullable=False)
+    pages = db.Column(db.Text)  # JSON string containing page access data
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    user = db.relationship('User', backref=db.backref('access_controls', lazy=True))
+
 class Banner(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     index = db.Column(db.String(200))
@@ -229,7 +238,7 @@ def get_access_control():
     default_data = get_default_access_control_data()
     updated = False
     
-    # Ensure pages exists and has the required structure
+    # Ensure pages exists and has required structure
     if 'pages' not in data or not isinstance(data['pages'], dict):
         data['pages'] = default_data['pages']
         updated = True
@@ -242,7 +251,7 @@ def get_access_control():
             data['pages']['market'] = default_data['pages']['market']
             updated = True
     
-    # Ensure banners exists and has the required structure
+    # Ensure banners exists and has required structure
     if 'banners' not in data or not isinstance(data['banners'], dict):
         data['banners'] = default_data['banners']
         updated = True
@@ -300,7 +309,7 @@ def initialize_data():
         # Check if tables exist by trying to query them
         tables_exist = False
         try:
-            # Try to query the User table
+            # Try to query User table
             user_count = User.query.count()
             print(f"Database tables exist with {user_count} users")
             tables_exist = True
@@ -400,7 +409,7 @@ def backup_data():
                 '-f', backup_path
             ], env=env, check=True)
         else:
-            # For SQLite, copy the database file
+            # For SQLite, copy database file
             backup_path = os.path.join(backup_dir, f'makiwafreight_backup_{timestamp}.db')
             import shutil
             shutil.copy2(db_path, backup_path)
@@ -485,7 +494,7 @@ def restore_data():
                 '-f', backup_file
             ], env=env, check=True)
         else:
-            # For SQLite, restore the database file
+            # For SQLite, restore database file
             import shutil
             shutil.copy2(backup_file, db_path)
         
@@ -570,6 +579,7 @@ def api_info():
                 "users_me": "/api/users/me",
                 "admin_banners": "/api/admin/banners",
                 "admin_access_control": "/api/admin/access-control",
+                "admin_user_access": "/api/admin/users/<user_id>/access",
                 "debug_db": "/api/debug/db",
                 "admin_backup": "/api/admin/backup",
                 "admin_restore": "/api/admin/restore",
@@ -887,6 +897,95 @@ def update_admin_access_control():
             "error": str(e)
         }), 500
 
+# User-specific access control endpoints
+@app.route('/api/admin/users/<string:user_id>/access', methods=['GET'])
+def get_user_access(user_id):
+    try:
+        user = check_auth(request)
+        if not user or user.role != 'admin':
+            return jsonify({
+                "success": False,
+                "message": "Access denied",
+                "error": "Admin access required"
+            }), 403
+        
+        # Get user access control settings
+        user_access = UserAccessControl.query.filter_by(user_id=user_id).first()
+        
+        if not user_access:
+            # Create default access control for this user if it doesn't exist
+            user_access = UserAccessControl(
+                user_id=user_id,
+                pages=json.dumps({
+                    'market': {'enabled': False},
+                    'shipper-post': {'enabled': False}
+                })
+            )
+            db.session.add(user_access)
+            db.session.commit()
+        
+        return jsonify({
+            "success": True,
+            "message": "User access retrieved",
+            "data": {
+                "user_id": user_id,
+                "pages": json.loads(user_access.pages) if user_access else {}
+            }
+        })
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": "Failed to retrieve user access",
+            "error": str(e)
+        }), 500
+
+@app.route('/api/admin/users/<string:user_id>/access', methods=['PUT'])
+def update_user_access(user_id):
+    try:
+        user = check_auth(request)
+        if not user or user.role != 'admin':
+            return jsonify({
+                "success": False,
+                "message": "Access denied",
+                "error": "Admin access required"
+            }), 403
+        
+        data = request.get_json()
+        if not data or 'pages' not in data:
+            return jsonify({
+                "success": False,
+                "message": "Pages data is required",
+                "error": "Invalid request format"
+            }), 400
+        
+        # Get or create user access control
+        user_access = UserAccessControl.query.filter_by(user_id=user_id).first()
+        if not user_access:
+            user_access = UserAccessControl(
+                user_id=user_id,
+                pages=json.dumps(data['pages'])
+            )
+            db.session.add(user_access)
+        else:
+            user_access.pages = json.dumps(data['pages'])
+        
+        db.session.commit()
+        
+        return jsonify({
+            "success": True,
+            "message": "User access updated successfully",
+            "data": {
+                "user_id": user_id,
+                "pages": data['pages']
+            }
+        })
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": "Failed to update user access",
+            "error": str(e)
+        }), 500
+
 # Load endpoints
 @app.route('/api/loads', methods=['GET', 'POST'])
 def handle_loads():
@@ -907,7 +1006,7 @@ def handle_loads():
                     "cargo_type": load.cargo_type,
                     "weight": load.weight,
                     "notes": load.notes,
-                    "shipper": load.shipper.name if load.shipper else None,
+                    "shipper_name": load.shipper.name if load.shipper else None,
                     "expires_at": load.expires_at.isoformat(),
                     "created_at": load.created_at.isoformat()
                 })
@@ -925,6 +1024,15 @@ def handle_loads():
                     "message": "Authentication required",
                     "error": "Please login to post loads"
                 }), 401
+            
+            # Check if post loads is enabled
+            ac_data = get_access_control()
+            if not ac_data.get('post_loads_enabled', True):
+                return jsonify({
+                    "success": False,
+                    "message": "Load posting is currently disabled",
+                    "error": "Please contact administrator"
+                }), 403
             
             data = request.get_json()
             required_fields = ['ref', 'origin', 'destination', 'date', 'cargo_type', 'weight']
@@ -994,7 +1102,7 @@ def update_load_endpoint(load_id):
                 "error": "Load does not exist"
             }), 404
         
-        # Only the shipper who posted the load can update it
+        # Only shipper who posted load can update it
         if load.shipper_id != user.id:
             return jsonify({
                 "success": False,
@@ -1060,7 +1168,7 @@ def delete_load_endpoint(load_id):
                 "error": "Load does not exist"
             }), 404
         
-        # Only the shipper who posted the load can delete it
+        # Only shipper who posted load can delete it
         if load.shipper_id != user.id:
             return jsonify({
                 "success": False,
@@ -1284,7 +1392,7 @@ def reset_password():
             "error": str(e)
         }), 500
 
-# Initialize the application
+# Initialize application
 if __name__ == '__main__':
     initialize_data()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
