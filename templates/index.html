@@ -8,7 +8,6 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';" />
   <title>MakiwaFreight Load Board</title>
   <style>
-    /* Your existing CSS styles remain unchanged */
     :root{--bg:#0b1220;--panel:#121a2b;--panel-2:#1b2742;--text:#d7e7ff;--muted:#8fb7ff;--accent:#4da3ff;--accent-2:#73c1ff;--good:#22c55e;--warn:#f59e0b;--bad:#ef4444;--border:#2a3b5f;--chip:#0e1a33}*{box-sizing:border-box}html,body{height:100%}body{margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:linear-gradient(180deg,var(--bg),#0d1426 40%,#0a1120);color:var(--text)}a{color:var(--accent)}.container{max-width:1100px;margin:0 auto;padding:24px}header{position:sticky;top:0;z-index:10;background:rgba(11,18,32,0.8);backdrop-filter:blur(8px);border-bottom:1px solid var(--border)}.nav{display:flex;gap:12px;align-items:center;justify-content:space-between}.brand{display:flex;gap:12px;align-items:center}.logo{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:grid;place-items:center;font-weight:800;color:#08203a}.brand h1{font-size:18px;margin:0;color:var(--text)}.auth-area{display:flex;gap:8px;align-items:center}.nav-links{display:flex;gap:8px;flex-wrap:wrap}button,.btn{border:1px solid var(--border);background:linear-gradient(180deg,var(--panel),var(--panel-2));color:var(--text);padding:10px 14px;border-radius:12px;cursor:pointer;font-weight:600;transition:all .15s ease;text-decoration:none;display:inline-flex;align-items:center;gap:8px}button:hover,.btn:hover{transform:translateY(-1px);border-color:var(--accent)}.btn.ghost{background:transparent}.btn.primary{background:linear-gradient(180deg,var(--accent),var(--accent-2));color:#0a1a2e;border-color:transparent}.grid{display:grid;gap:16px}.two{grid-template-columns:repeat(2,minmax(0,1fr))}.three{grid-template-columns:repeat(3,minmax(0,1fr))}@media (max-width:900px){.two,.three{grid-template-columns:1fr}}.card{border:1px solid var(--border);border-radius:16px;padding:16px;background:linear-gradient(180deg,var(--panel),var(--panel-2));box-shadow:0 10px 30px rgba(0,0,0,0.25)}.card h3{margin:0 0 8px}.muted{color:var(--muted)}.kpi{display:flex;gap:14px;align-items:center}.chip{background:var(--chip);border:1px solid var(--border);border-radius:999px;padding:6px 10px;font-size:12px}.danger{color:var(--bad)}.success{color:var(--good)}.warn{color:var(--warn)}.hidden{display:none !important}input,select,textarea{width:100%;padding:10px 12px;border-radius:12px;border:1px solid var(--border);background:#0c1530;color:var(--text)}label{font-size:12px;color:var(--muted)}form .grid{margin-top:8px}table{width:100%;border-collapse:separate;border-spacing:0 8px}th,td{padding:10px 12px;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}th{font-weight:700;text-align:left;color:var(--muted);background:#0f1940}tr td:first-child,tr th:first-child{border-left:1px solid var(--border);border-top-left-radius:12px;border-bottom-left-radius:12px}tr td:last-child,tr th:last-child{border-right:1px solid var(--border);border-top-right-radius:12px;border-bottom-right-radius:12px}.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between}.banner{border:1px dashed var(--border);padding:10px 14px;border-radius:12px;background:#0d1836;color:var(--muted)}.footer{opacity:.75;font-size:12px;text-align:center;padding:24px}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}.checkbox-group{display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:10px;margin-top:10px}.checkbox-item{display:flex;align-items:center;gap:8px}.checkbox-item input{width:auto}.expired{opacity:0.6; text-decoration: line-through;}.profile-header{display:flex;align-items:center;gap:16px;margin-bottom:16px}.profile-avatar{width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:800;color:#08203a}.profile-info h2{margin:0 0 4px}.profile-info .muted{margin:0}.status-indicator{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px}.status-active{background-color:var(--good)}.status-inactive{background-color:var(--bad)}.profile-details{background:var(--panel-2);border-radius:12px;padding:16px;margin-bottom:16px}.profile-details h3{margin:0 0 12px;color:var(--accent)}.detail-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)}.detail-row:last-child{border-bottom:none}.detail-label{color:var(--muted)}.detail-value{font-weight:500}.editable-section{margin-top:20px}.editable-section h3{margin:0 0 12px;color:var(--accent)}.form-notice{background:var(--panel-2);border-left:4px solid var(--accent);padding:10px 14px;border-radius:8px;margin-bottom:16px;font-size:14px}.recommendations-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:20px;margin-top:20px}.recommendation-card{padding:20px;border:1px solid var(--border);border-radius:12px;background:var(--panel-2);box-shadow:0 4px 12px rgba(0,0,0,0.1)}.recommendation-card h3{margin-top:0;color:var(--accent);margin-bottom:10px}
     
     /* Notification styles */
@@ -677,6 +676,36 @@
                 </div>
               </div>
             </div>
+            
+            <div class="page-access-item">
+              <div class="page-access-header">
+                <div class="page-access-title">Shipper Dashboard</div>
+                <div class="toggle-switch">
+                  <input type="checkbox" id="access-shipper-dashboard">
+                  <span class="toggle-slider"></span>
+                </div>
+              </div>
+            </div>
+            
+            <div class="page-access-item">
+              <div class="page-access-header">
+                <div class="page-access-title">Transporter Dashboard</div>
+                <div class="toggle-switch">
+                  <input type="checkbox" id="access-transporter-dashboard">
+                  <span class="toggle-slider"></span>
+                </div>
+              </div>
+            </div>
+            
+            <div class="page-access-item">
+              <div class="page-access-header">
+                <div class="page-access-title">Messages</div>
+                <div class="toggle-switch">
+                  <input type="checkbox" id="access-messages">
+                  <span class="toggle-slider"></span>
+                </div>
+              </div>
+            </div>
           </div>
           
           <div class="toolbar" style="margin-top:12px">
@@ -725,7 +754,7 @@
   
   <!-- Notification Container -->
   <div id="notificationContainer"></div>
-    <script>
+      <script>
     // MakiwaFreight App Frontend (Fixed Version)
     (function() {
       'use strict';
@@ -1088,7 +1117,7 @@
           return message;
         } catch (error) {
           console.error('Send message error:', error);
-          if (error.message.includes('not being sent to user with the specified email')) {
+          if (error.message.includes('not being sent to user with specified email')) {
             showNotification('Failed to send message: Recipient email not found in the system', 'error');
           } else {
             showNotification('Failed to send message: ' + error.message, 'error');
@@ -1571,8 +1600,14 @@
                 const userAccess = await getUserAccess(userId);
                 const marketToggle = el('access-market');
                 const postLoadToggle = el('access-post-load');
+                const shipperDashboardToggle = el('access-shipper-dashboard');
+                const transporterDashboardToggle = el('access-transporter-dashboard');
+                const messagesToggle = el('access-messages');
                 if (marketToggle) marketToggle.checked = userAccess && userAccess.pages && userAccess.pages.market ? userAccess.pages.market.enabled : false;
                 if (postLoadToggle) postLoadToggle.checked = userAccess && userAccess.pages && userAccess.pages['shipper-post'] ? userAccess.pages['shipper-post'].enabled : false;
+                if (shipperDashboardToggle) shipperDashboardToggle.checked = userAccess && userAccess.pages && userAccess.pages['shipper-dashboard'] ? userAccess.pages['shipper-dashboard'].enabled : false;
+                if (transporterDashboardToggle) transporterDashboardToggle.checked = userAccess && userAccess.pages && userAccess.pages['transporter-dashboard'] ? userAccess.pages['transporter-dashboard'].enabled : false;
+                if (messagesToggle) messagesToggle.checked = userAccess && userAccess.pages && userAccess.pages.messages ? userAccess.pages.messages.enabled : false;
               } catch (error) { console.error('Failed to load user access:', error); showNotification('Failed to load user access: ' + error.message, 'error'); }
               finally { setButtonLoading('btnLoadUserAccess', false); }
             };
@@ -1585,10 +1620,16 @@
               if (!userId) { showNotification('Please select a user', 'error'); return; }
               const marketToggle = el('access-market');
               const postLoadToggle = el('access-post-load');
+              const shipperDashboardToggle = el('access-shipper-dashboard');
+              const transporterDashboardToggle = el('access-transporter-dashboard');
+              const messagesToggle = el('access-messages');
               const accessData = {
                 pages: {
                   market: { enabled: marketToggle ? marketToggle.checked : false },
-                  'shipper-post': { enabled: postLoadToggle ? postLoadToggle.checked : false }
+                  'shipper-post': { enabled: postLoadToggle ? postLoadToggle.checked : false },
+                  'shipper-dashboard': { enabled: shipperDashboardToggle ? shipperDashboardToggle.checked : false },
+                  'transporter-dashboard': { enabled: transporterDashboardToggle ? transporterDashboardToggle.checked : false },
+                  messages: { enabled: messagesToggle ? messagesToggle.checked : false }
                 }
               };
               setButtonLoading('btnSaveUserAccess', true);
