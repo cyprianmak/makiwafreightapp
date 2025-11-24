@@ -8,6 +8,7 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';" />
   <title>MakiwaFreight Load Board</title>
   <style>
+    /* Your existing CSS styles remain unchanged */
     :root{--bg:#0b1220;--panel:#121a2b;--panel-2:#1b2742;--text:#d7e7ff;--muted:#8fb7ff;--accent:#4da3ff;--accent-2:#73c1ff;--good:#22c55e;--warn:#f59e0b;--bad:#ef4444;--border:#2a3b5f;--chip:#0e1a33}*{box-sizing:border-box}html,body{height:100%}body{margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:linear-gradient(180deg,var(--bg),#0d1426 40%,#0a1120);color:var(--text)}a{color:var(--accent)}.container{max-width:1100px;margin:0 auto;padding:24px}header{position:sticky;top:0;z-index:10;background:rgba(11,18,32,0.8);backdrop-filter:blur(8px);border-bottom:1px solid var(--border)}.nav{display:flex;gap:12px;align-items:center;justify-content:space-between}.brand{display:flex;gap:12px;align-items:center}.logo{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:grid;place-items:center;font-weight:800;color:#08203a}.brand h1{font-size:18px;margin:0;color:var(--text)}.auth-area{display:flex;gap:8px;align-items:center}.nav-links{display:flex;gap:8px;flex-wrap:wrap}button,.btn{border:1px solid var(--border);background:linear-gradient(180deg,var(--panel),var(--panel-2));color:var(--text);padding:10px 14px;border-radius:12px;cursor:pointer;font-weight:600;transition:all .15s ease;text-decoration:none;display:inline-flex;align-items:center;gap:8px}button:hover,.btn:hover{transform:translateY(-1px);border-color:var(--accent)}.btn.ghost{background:transparent}.btn.primary{background:linear-gradient(180deg,var(--accent),var(--accent-2));color:#0a1a2e;border-color:transparent}.grid{display:grid;gap:16px}.two{grid-template-columns:repeat(2,minmax(0,1fr))}.three{grid-template-columns:repeat(3,minmax(0,1fr))}@media (max-width:900px){.two,.three{grid-template-columns:1fr}}.card{border:1px solid var(--border);border-radius:16px;padding:16px;background:linear-gradient(180deg,var(--panel),var(--panel-2));box-shadow:0 10px 30px rgba(0,0,0,0.25)}.card h3{margin:0 0 8px}.muted{color:var(--muted)}.kpi{display:flex;gap:14px;align-items:center}.chip{background:var(--chip);border:1px solid var(--border);border-radius:999px;padding:6px 10px;font-size:12px}.danger{color:var(--bad)}.success{color:var(--good)}.warn{color:var(--warn)}.hidden{display:none !important}input,select,textarea{width:100%;padding:10px 12px;border-radius:12px;border:1px solid var(--border);background:#0c1530;color:var(--text)}label{font-size:12px;color:var(--muted)}form .grid{margin-top:8px}table{width:100%;border-collapse:separate;border-spacing:0 8px}th,td{padding:10px 12px;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}th{font-weight:700;text-align:left;color:var(--muted);background:#0f1940}tr td:first-child,tr th:first-child{border-left:1px solid var(--border);border-top-left-radius:12px;border-bottom-left-radius:12px}tr td:last-child,tr th:last-child{border-right:1px solid var(--border);border-top-right-radius:12px;border-bottom-right-radius:12px}.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between}.banner{border:1px dashed var(--border);padding:10px 14px;border-radius:12px;background:#0d1836;color:var(--muted)}.footer{opacity:.75;font-size:12px;text-align:center;padding:24px}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}.checkbox-group{display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:10px;margin-top:10px}.checkbox-item{display:flex;align-items:center;gap:8px}.checkbox-item input{width:auto}.expired{opacity:0.6; text-decoration: line-through;}.profile-header{display:flex;align-items:center;gap:16px;margin-bottom:16px}.profile-avatar{width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:800;color:#08203a}.profile-info h2{margin:0 0 4px}.profile-info .muted{margin:0}.status-indicator{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px}.status-active{background-color:var(--good)}.status-inactive{background-color:var(--bad)}.profile-details{background:var(--panel-2);border-radius:12px;padding:16px;margin-bottom:16px}.profile-details h3{margin:0 0 12px;color:var(--accent)}.detail-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)}.detail-row:last-child{border-bottom:none}.detail-label{color:var(--muted)}.detail-value{font-weight:500}.editable-section{margin-top:20px}.editable-section h3{margin:0 0 12px;color:var(--accent)}.form-notice{background:var(--panel-2);border-left:4px solid var(--accent);padding:10px 14px;border-radius:8px;margin-bottom:16px;font-size:14px}.recommendations-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:20px;margin-top:20px}.recommendation-card{padding:20px;border:1px solid var(--border);border-radius:12px;background:var(--panel-2);box-shadow:0 4px 12px rgba(0,0,0,0.1)}.recommendation-card h3{margin-top:0;color:var(--accent);margin-bottom:10px}
     
     /* Notification styles */
@@ -724,758 +725,756 @@
   
   <!-- Notification Container -->
   <div id="notificationContainer"></div>
-      <script>
-      // MakiwaFreight App Frontend (Updated with User Page Access Control)
-      (function() {
-        'use strict';
+  <script>
+  // MakiwaFreight App Frontend (Fixed Version)
+  (function() {
+    'use strict';
+    
+    // Configuration
+    const API_BASE = '/api';
+    const LOAD_EXPIRY_DAYS = 7;
+    
+    // Page definitions for access control
+    const PAGES = {
+      'shipper-dashboard': { name: 'Shipper Dashboard', roles: ['shipper'] },
+      'shipper-post': { name: 'Post Load', roles: ['admin', 'shipper', 'transporter'] },
+      'shipper-profile': { name: 'Shipper Profile', roles: ['shipper'] },
+      'transporter-dashboard': { name: 'Transporter Dashboard', roles: ['transporter'] },
+      'transporter-profile': { name: 'Transporter Profile', roles: ['transporter'] },
+      'market': { name: 'Market', roles: ['shipper', 'transporter'] },
+      'messages': { name: 'Messages', roles: ['shipper', 'transporter'] },
+      'control': { name: 'Admin Control', roles: ['admin'] }
+    };
+    
+    // Role definitions
+    const ROLES = ['admin', 'shipper', 'transporter'];
+    
+    // Global variable to store access control data
+    let accessControlData = {};
+    
+    // Utility functions
+    const now = () => new Date().toISOString();
+    const el = id => document.getElementById(id);
+    const setText = (id, txt) => { const e = el(id); if(e) e.textContent = txt; };
+    const setHidden = (id, hid) => { const e = el(id); if(e) e.classList[hid ? 'add' : 'remove']('hidden'); };
+    
+    // Sanitize input to prevent XSS
+    const sanitize = str => {
+      if (!str) return '';
+      return str.toString()
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    };
+    
+    // Validate email format
+    const isValidEmail = email => {
+      const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      return re.test(email);
+    };
+    
+    // Error handling wrapper
+    const handleError = async (fn, fallbackMsg = 'An error occurred') => {
+      try {
+        return await fn();
+      } catch (error) {
+        console.error('MakiwaFreight Error:', error);
+        showNotification(fallbackMsg + ': ' + error.message, 'error');
+        return null;
+      }
+    };
+    
+    // Calculate expiry date (7 days from now)
+    const calculateExpiryDate = () => {
+      const expiryDate = new Date();
+      expiryDate.setDate(expiryDate.getDate() + LOAD_EXPIRY_DAYS);
+      return expiryDate.toISOString();
+    };
+    
+    // Check if a load has expired
+    const isLoadExpired = load => {
+      if (!load.expires_at) return false;
+      return new Date(load.expires_at) < new Date();
+    };
+    
+    // Get current user synchronously (from stored data)
+    const getCurrentUserSync = () => {
+      try {
+        const userData = sessionStorage.getItem('currentUser');
+        if (userData) {
+          return JSON.parse(userData);
+        }
+        return null;
+      } catch (error) {
+        console.error('Error getting current user:', error);
+        return null;
+      }
+    };
+    
+    // Show loading state on a button
+    const setButtonLoading = (buttonId, isLoading) => {
+      const button = el(buttonId);
+      if (!button) return;
+      
+      if (isLoading) {
+        button.classList.add('loading');
+        button.disabled = true;
         
-        // Configuration
-        const API_BASE = '/api';
-        const LOAD_EXPIRY_DAYS = 7;
+        if (!button.querySelector('.loading')) {
+          const spinner = document.createElement('span');
+          spinner.className = 'loading';
+          button.appendChild(spinner);
+        }
+      } else {
+        button.classList.remove('loading');
+        button.disabled = false;
         
-        // Page definitions for access control
-        const PAGES = {
-          'shipper-dashboard': { name: 'Shipper Dashboard', roles: ['shipper'] },
-          'shipper-post': { name: 'Post Load', roles: ['admin', 'shipper', 'transporter'] },
-          'shipper-profile': { name: 'Shipper Profile', roles: ['shipper'] },
-          'transporter-dashboard': { name: 'Transporter Dashboard', roles: ['transporter'] },
-          'transporter-profile': { name: 'Transporter Profile', roles: ['transporter'] },
-          'market': { name: 'Market', roles: ['shipper', 'transporter'] },
-          'messages': { name: 'Messages', roles: ['shipper', 'transporter'] },
-          'control': { name: 'Admin Control', roles: ['admin'] }
-        };
+        const spinner = button.querySelector('.loading');
+        if (spinner) {
+          spinner.remove();
+        }
+      }
+    };
+    
+    // Show loading state on a container
+    const setContainerLoading = (containerId, isLoading, message = 'Loading...') => {
+      const container = el(containerId);
+      if (!container) return;
+      
+      if (isLoading) {
+        container.innerHTML = `<div class="muted">${message}</div>`;
+      }
+    };
+    
+    // Notification system
+    function showNotification(message, type = 'info') {
+      const notification = document.createElement('div');
+      notification.className = `notification ${type}`;
+      notification.textContent = message;
+      
+      document.getElementById('notificationContainer').appendChild(notification);
+      
+      setTimeout(() => {
+        notification.classList.add('show');
+      }, 10);
+      
+      setTimeout(() => {
+        notification.classList.remove('show');
+        setTimeout(() => {
+          notification.remove();
+        }, 300);
+      }, 5000);
+    }
+    
+    // API helper functions that call correct backend endpoints
+    
+    const apiRequest = async (endpoint, options = {}) => {
+      const headers = {
+        'Content-Type': 'application/json',
+        ...options.headers
+      };
+      
+      // Add authorization header if user is logged in
+      const user = getCurrentUserSync();
+      if (user && user.data && user.data.token) {
+        headers['Authorization'] = `Bearer ${user.data.token}`;
+      }
+      
+      try {
+        const response = await fetch(`${API_BASE}${endpoint}`, {
+          ...options,
+          headers
+        });
         
-        // Role definitions
-        const ROLES = ['admin', 'shipper', 'transporter'];
-        
-        // Global variable to store access control data
-        let accessControlData = {};
-        
-        // Utility functions
-        const now = () => new Date().toISOString();
-        const el = id => document.getElementById(id);
-        const setText = (id, txt) => { const e = el(id); if(e) e.textContent = txt; };
-        const setHidden = (id, hid) => { const e = el(id); if(e) e.classList[hid ? 'add' : 'remove']('hidden'); };
-        
-        // Sanitize input to prevent XSS
-        const sanitize = str => {
-          if (!str) return '';
-          return str.toString()
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#039;');
-        };
-        
-        // Validate email format
-        const isValidEmail = email => {
-          const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-          return re.test(email);
-        };
-        
-        // Error handling wrapper
-        const handleError = async (fn, fallbackMsg = 'An error occurred') => {
-          try {
-            return await fn();
-          } catch (error) {
-            console.error('MakiwaFreight Error:', error);
-            showNotification(fallbackMsg + ': ' + error.message, 'error');
-            return null;
-          }
-        };
-        
-        // Calculate expiry date (7 days from now)
-        const calculateExpiryDate = () => {
-          const expiryDate = new Date();
-          expiryDate.setDate(expiryDate.getDate() + LOAD_EXPIRY_DAYS);
-          return expiryDate.toISOString();
-        };
-        
-        // Check if a load has expired
-        const isLoadExpired = load => {
-          if (!load.expires_at) return false;
-          return new Date(load.expires_at) < new Date();
-        };
-        
-        // Get current user synchronously (from stored data)
-        const getCurrentUserSync = () => {
-          try {
-            const userData = sessionStorage.getItem('currentUser');
-            if (userData) {
-              return JSON.parse(userData);
-            }
-            return null;
-          } catch (error) {
-            console.error('Error getting current user:', error);
-            return null;
-          }
-        };
-        
-        // Show loading state on a button
-        const setButtonLoading = (buttonId, isLoading) => {
-          const button = el(buttonId);
-          if (!button) return;
-          
-          if (isLoading) {
-            button.classList.add('loading');
-            button.disabled = true;
-            
-            if (!button.querySelector('.loading')) {
-              const spinner = document.createElement('span');
-              spinner.className = 'loading';
-              button.appendChild(spinner);
-            }
-          } else {
-            button.classList.remove('loading');
-            button.disabled = false;
-            
-            const spinner = button.querySelector('.loading');
-            if (spinner) {
-              spinner.remove();
-            }
-          }
-        };
-        
-        // Show loading state on a container
-        const setContainerLoading = (containerId, isLoading, message = 'Loading...') => {
-          const container = el(containerId);
-          if (!container) return;
-          
-          if (isLoading) {
-            container.innerHTML = `<div class="muted">${message}</div>`;
-          }
-        };
-        
-        // Notification system
-        function showNotification(message, type = 'info') {
-          const notification = document.createElement('div');
-          notification.className = `notification ${type}`;
-          notification.textContent = message;
-          
-          document.getElementById('notificationContainer').appendChild(notification);
-          
-          setTimeout(() => {
-            notification.classList.add('show');
-          }, 10);
-          
-          setTimeout(() => {
-            notification.classList.remove('show');
-            setTimeout(() => {
-              notification.remove();
-            }, 300);
-          }, 5000);
+        if (!response.ok) {
+          const error = await response.json().catch(() => ({}));
+          throw new Error(error.error || `API error: ${response.status}`);
         }
         
-        // API helper functions that call correct backend endpoints
+        return await response.json();
+      } catch (error) {
+        if (error instanceof TypeError && error.message.includes('fetch')) {
+          throw new Error('Network error. Please check your connection and try again.');
+        }
+        throw error;
+      }
+    };
+    
+    // Authentication API functions
+    const login = async (email, password) => {
+      if (!email || !password) return null;
+      
+      email = email.trim().toLowerCase();
+      
+      try {
+        // Fixed: Changed from '/users/login' to '/auth/login'
+        const user = await apiRequest('/auth/login', {
+          method: 'POST',
+          body: JSON.stringify({ email, password })
+        });
         
-        const apiRequest = async (endpoint, options = {}) => {
-          const headers = {
-            'Content-Type': 'application/json',
-            ...options.headers
+        if (user) {
+          sessionStorage.setItem('currentUser', JSON.stringify(user));
+          showNotification('Login successful', 'success');
+          return user;
+        }
+        return null;
+      } catch (error) {
+        console.error('Login error:', error);
+        showNotification('Login failed: ' + error.message, 'error');
+        return null;
+      }
+    };
+    
+    const logout = () => {
+      sessionStorage.removeItem('currentUser');
+      showNotification('Logged out successfully', 'info');
+      location.hash = '#login';
+      render();
+    };
+    
+    // User API functions
+    const registerUser = async (data) => {
+      if (!data.name || !data.email || !data.password || !data.phone) {
+        throw new Error('All required fields must be filled');
+      }
+      
+      if (!isValidEmail(data.email)) {
+        throw new Error('Please enter a valid email address');
+      }
+      
+      const sanitizedData = {
+        name: sanitize(data.name),
+        company: sanitize(data.company || ''),
+        email: data.email.trim().toLowerCase(),
+        phone: sanitize(data.phone),
+        password: data.password,
+        address: sanitize(data.address || ''),
+        role: data.role,
+        vehicle_info: sanitize(data.vehicle_info || '')
+      };
+      
+      try {
+        // Fixed: Changed from '/users/register' to '/auth/register'
+        const user = await apiRequest('/auth/register', {
+          method: 'POST',
+          body: JSON.stringify(sanitizedData)
+        });
+        
+        showNotification('Registration successful', 'success');
+        return user;
+      } catch (error) {
+        console.error('Registration error:', error);
+        showNotification('Registration failed: ' + error.message, 'error');
+        throw error;
+      }
+    };
+    
+    const updateUserProfile = async (profileData) => {
+      if (!profileData) throw new Error('Profile data is required');
+      
+      const sanitizedData = {};
+      for (const key in profileData) {
+        if (['name', 'phone', 'address', 'password'].includes(key)) {
+          sanitizedData[key] = profileData[key];
+        }
+      }
+      
+      try {
+        // Fixed: Changed from `/users/${userId}` to `/users/me`
+        const user = await apiRequest('/users/me', {
+          method: 'PUT',
+          body: JSON.stringify(sanitizedData)
+        });
+        
+        const currentUser = getCurrentUserSync();
+        if (currentUser) {
+          const updatedUser = { ...currentUser, ...sanitizedData };
+          sessionStorage.setItem('currentUser', JSON.stringify(updatedUser));
+        }
+        
+        showNotification('Profile updated successfully', 'success');
+        return user;
+      } catch (error) {
+        console.error('Profile update error:', error);
+        showNotification('Profile update failed: ' + error.message, 'error');
+        throw error;
+      }
+    };
+    
+    // Load API functions
+    const postLoad = async (payload) => {
+      if (!payload.origin || !payload.destination || !payload.date || !payload.cargo_type || !payload.weight) {
+        throw new Error('All required fields must be filled');
+      }
+      
+      const user = getCurrentUserSync();
+      if (!user) throw new Error('User not logged in');
+      
+      // Generate a reference number
+      const ref = 'LD' + Date.now().toString().slice(-6);
+      
+      // Fixed: Removed shipper_id from payload as backend will determine it from auth
+      // Fixed: Added ref field with generated reference number
+      const sanitizedPayload = {
+        ref: ref,
+        origin: sanitize(payload.origin),
+        destination: sanitize(payload.destination),
+        date: payload.date,
+        cargo_type: sanitize(payload.cargo_type),
+        weight: parseFloat(payload.weight),
+        notes: sanitize(payload.notes || '')
+      };
+      
+      try {
+        const load = await apiRequest('/loads', {
+          method: 'POST',
+          body: JSON.stringify(sanitizedPayload)
+        });
+        
+        showNotification('Load posted successfully', 'success');
+        return load;
+      } catch (error) {
+        console.error('Post load error:', error);
+        showNotification('Failed to post load: ' + error.message, 'error');
+        throw error;
+      }
+    };
+    
+    const getLoads = async (filters = {}) => {
+      try {
+        // Fixed: Get all loads and filter on client side
+        const response = await apiRequest('/loads');
+        let loads = response.data ? response.data.loads : response;
+        
+        // Filter by shipper if specified
+        if (filters.shipper_id) {
+          loads = loads.filter(l => l.shipper_id === filters.shipper_id);
+        }
+        
+        // Apply other filters
+        if (filters.origin) {
+          loads = loads.filter(l => l.origin.toLowerCase().includes(filters.origin.toLowerCase()));
+        }
+        if (filters.destination) {
+          loads = loads.filter(l => l.destination.toLowerCase().includes(filters.destination.toLowerCase()));
+        }
+        
+        return loads;
+      } catch (error) {
+        console.error('Get loads error:', error);
+        showNotification('Failed to get loads: ' + error.message, 'error');
+        throw error;
+      }
+    };
+    
+    const updateLoad = async (loadId, patch) => {
+      if (!loadId) throw new Error('Load ID is required');
+      
+      const sanitizedPatch = {};
+      for (const key in patch) {
+        if (key === 'weight') {
+          sanitizedPatch[key] = parseFloat(patch[key]);
+        } else {
+          sanitizedPatch[key] = sanitize(patch[key]);
+        }
+      }
+      
+      try {
+        const load = await apiRequest(`/loads/${loadId}`, {
+          method: 'PUT',
+          body: JSON.stringify(sanitizedPatch)
+        });
+        
+        showNotification('Load updated successfully', 'success');
+        return load;
+      } catch (error) {
+        console.error('Update load error:', error);
+        showNotification('Failed to update load: ' + error.message, 'error');
+        throw error;
+      }
+    };
+    
+    const deleteLoad = async (loadId) => {
+      if (!loadId) throw new Error('Load ID is required');
+      
+      try {
+        await apiRequest(`/loads/${loadId}`, { method: 'DELETE' });
+        showNotification('Load deleted successfully', 'success');
+      } catch (error) {
+        console.error('Delete load error:', error);
+        showNotification('Failed to delete load: ' + error.message, 'error');
+        throw error;
+      }
+    };
+    
+    // Message API functions
+    const sendMessage = async (toEmail, body) => {
+      if (!toEmail || !body) {
+        throw new Error('Recipient and message are required');
+      }
+      
+      const user = getCurrentUserSync();
+      if (!user) throw new Error('User not logged in');
+      
+      if (!isValidEmail(toEmail)) {
+        throw new Error('Please enter a valid recipient email');
+      }
+      
+      try {
+        // Fixed: Changed sender_id to sender_email to match the backend
+        // Fixed: Correctly extract email from user object
+        const userEmail = user.data.user.email;
+        const message = await apiRequest('/messages', {
+          method: 'POST',
+          body: JSON.stringify({ 
+            sender_email: userEmail, 
+            recipient_email: toEmail, 
+            body: sanitize(body) 
+          })
+        });
+        
+        showNotification('Message sent successfully', 'success');
+        return message;
+      } catch (error) {
+        console.error('Send message error:', error);
+        // Enhanced error message to be more specific
+        if (error.message.includes('not being sent to user with the specified email')) {
+          showNotification('Failed to send message: Recipient email not found in the system', 'error');
+        } else {
+          showNotification('Failed to send message: ' + error.message, 'error');
+        }
+        throw error;
+      }
+    };
+    
+    const getMessages = async () => {
+      const user = getCurrentUserSync();
+      if (!user) throw new Error('User not logged in');
+      
+      try {
+        // Fixed: Changed from '/messages/${user.id}' to '/messages'
+        const response = await apiRequest('/messages');
+        const messages = response.data ? response.data.messages : response;
+        
+        // Filter messages for current user
+        const userEmail = user.data.user.email;
+        return messages.filter(m => 
+          m.sender_email === userEmail || m.recipient_email === userEmail
+        );
+      } catch (error) {
+        console.error('Get messages error:', error);
+        showNotification('Failed to get messages: ' + error.message, 'error');
+        throw error;
+      }
+    };
+    
+    const deleteMessage = async (messageId) => {
+      if (!messageId) throw new Error('Message ID is required');
+      
+      try {
+        await apiRequest(`/messages/${messageId}`, { method: 'DELETE' });
+        showNotification('Message deleted successfully', 'success');
+      } catch (error) {
+        console.error('Delete message error:', error);
+        showNotification('Failed to delete message: ' + error.message, 'error');
+        throw error;
+      }
+    };
+    
+    // Admin API functions
+    const isAdmin = u => u && u.data && u.data.user && u.data.user.role === 'admin';
+    
+    const getUsers = async () => {
+      try {
+        const response = await apiRequest('/users');
+        return response.data ? response.data.users : response;
+      } catch (error) {
+        console.error('Get users error:', error);
+        showNotification('Failed to get users: ' + error.message, 'error');
+        throw error;
+      }
+    };
+    
+    const deleteUser = async (email) => {
+      if (!email) throw new Error('Email is required');
+      
+      try {
+        await apiRequest(`/admin/users/${encodeURIComponent(email)}`, { method: 'DELETE' });
+        showNotification('User deleted successfully', 'success');
+      } catch (error) {
+        console.error('Delete user error:', error);
+        showNotification('Failed to delete user: ' + error.message, 'error');
+        throw error;
+      }
+    };
+    
+    const resetPassword = async (email, newPass) => {
+      if (!email || !newPass) throw new Error('Email and password are required');
+      
+      try {
+        await apiRequest('/admin/reset-password', {
+          method: 'POST',
+          body: JSON.stringify({ email, new_password: newPass })
+        });
+        showNotification('Password reset successfully', 'success');
+      } catch (error) {
+        console.error('Reset password error:', error);
+        showNotification('Failed to reset password: ' + error.message, 'error');
+        throw error;
+      }
+    };
+    
+    const getBanners = async () => {
+      try {
+        const response = await apiRequest('/admin/banners');
+        return response.data || response;
+      } catch (error) {
+        console.error('Get banners error:', error);
+        showNotification('Failed to get banners: ' + error.message, 'error');
+        throw error;
+      }
+    };
+    
+    const updateBanners = async (banners) => {
+      try {
+        await apiRequest('/admin/banners', {
+          method: 'PUT',
+          body: JSON.stringify(banners)
+        });
+        showNotification('Banners updated successfully', 'success');
+        return banners;
+      } catch (error) {
+        console.error('Update banners error:', error);
+        showNotification('Failed to update banners: ' + error.message, 'error');
+        throw error;
+      }
+    };
+    
+    const getAccessControl = async () => {
+      try {
+        const response = await apiRequest('/admin/access-control');
+        return response.data || response;
+      } catch (error) {
+        console.error('Get access control error:', error);
+        showNotification('Failed to get access control: ' + error.message, 'error');
+        throw error;
+      }
+    };
+    
+    const updateAccessControl = async (acl) => {
+      try {
+        await apiRequest('/admin/access-control', {
+          method: 'PUT',
+          body: JSON.stringify(acl)
+        });
+        showNotification('Access control updated successfully', 'success');
+        return acl;
+      } catch (error) {
+        console.error('Update access control error:', error);
+        showNotification('Failed to update access control: ' + error.message, 'error');
+        throw error;
+      }
+    };
+    
+    // New function to update user access control
+    const updateUserAccess = async (userId, access) => {
+      try {
+        await apiRequest(`/admin/users/${userId}/access`, {
+          method: 'PUT',
+          body: JSON.stringify(access)
+        });
+        showNotification('User access updated successfully', 'success');
+      } catch (error) {
+        console.error('Update user access error:', error);
+        showNotification('Failed to update user access: ' + error.message, 'error');
+        throw error;
+      }
+    };
+    
+    // Get user access control settings
+    const getUserAccess = async (userId) => {
+      try {
+        const response = await apiRequest(`/admin/users/${userId}/access`);
+        return response.data || response;
+      } catch (error) {
+        console.error('Get user access error:', error);
+        showNotification('Failed to get user access: ' + error.message, 'error');
+        throw error;
+      }
+    };
+    
+    // Check if user can access a specific page based on default role settings
+    const canAccessPage = (user, pageId) => {
+      if (!user) return false;
+      if (isAdmin(user)) return true;
+      
+      const page = PAGES[pageId];
+      if (page && page.roles.includes(user.data.user.role)) {
+        return true;
+      }
+      
+      return false;
+    };
+    
+    // Check if a user has access to a page, including custom overrides
+    const checkPageAccess = async (pageId) => {
+      try {
+        const user = getCurrentUserSync();
+        if (!user) return false;
+        
+        // First, check default role-based access
+        if (canAccessPage(user, pageId)) return true;
+        
+        // If default access is denied, check for custom user-specific overrides
+        const userId = user.data.user.id;
+        const userAccess = await getUserAccess(userId);
+        
+        if (userAccess && userAccess.pages && userAccess.pages[pageId]) {
+          return userAccess.pages[pageId].enabled === true;
+        }
+        
+        return false;
+      } catch (error) {
+        console.error('Check page access error:', error);
+        return false;
+      }
+    };
+    
+    // Populate page access control section in admin panel
+    const populatePageAccess = async () => {
+      try {
+        const acl = await getAccessControl();
+        const pageAccessContainer = el('pageAccessContainer');
+        
+        if (!pageAccessContainer) return;
+        
+        pageAccessContainer.innerHTML = '';
+        
+        // Create page access controls for each page
+        for (const [pageId, pageInfo] of Object.entries(PAGES)) {
+          if (pageId === 'index' || pageId === 'register-options' || pageId === 'login') continue;
+          
+          const pageAccessItem = document.createElement('div');
+          pageAccessItem.className = 'page-access-item';
+          
+          const pageAccessHeader = document.createElement('div');
+          pageAccessHeader.className = 'page-access-header';
+          
+          const pageTitle = document.createElement('div');
+          pageTitle.className = 'page-access-title';
+          pageTitle.textContent = pageInfo.name;
+          
+          pageAccessHeader.appendChild(pageTitle);
+          pageAccessItem.appendChild(pageAccessHeader);
+          
+          const roleCheckboxes = document.createElement('div');
+          roleCheckboxes.className = 'role-checkboxes';
+          
+          // Create a checkbox for each role
+          ROLES.forEach(role => {
+            const roleCheckboxItem = document.createElement('div');
+            roleCheckboxItem.className = 'role-checkbox-item';
+            
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.id = `page-${pageId}-role-${role}`;
+            checkbox.setAttribute('data-page', pageId);
+            checkbox.setAttribute('data-role', role);
+            
+            // Check if this role has access to this page in the current ACL
+            if (acl.pages && acl.pages[pageId] && acl.pages[pageId].roles && acl.pages[pageId].roles.includes(role)) {
+              checkbox.checked = true;
+            }
+            
+            const label = document.createElement('label');
+            label.htmlFor = `page-${pageId}-role-${role}`;
+            label.textContent = role;
+            
+            roleCheckboxItem.appendChild(checkbox);
+            roleCheckboxItem.appendChild(label);
+            roleCheckboxes.appendChild(roleCheckboxItem);
+          });
+          
+          pageAccessItem.appendChild(roleCheckboxes);
+          pageAccessContainer.appendChild(pageAccessItem);
+        }
+        
+        // Add event listener for saving page access
+        const btnSavePageAccess = el('btnSavePageAccess');
+        if (btnSavePageAccess) {
+          btnSavePageAccess.onclick = async () => {
+            const newAcl = { pages: {} };
+            
+            // Collect all the checkbox states
+            document.querySelectorAll('[data-page]').forEach(checkbox => {
+              const pageId = checkbox.getAttribute('data-page');
+              const role = checkbox.getAttribute('data-role');
+              
+              if (!newAcl.pages[pageId]) {
+                newAcl.pages[pageId] = { roles: [] };
+              }
+              
+              if (checkbox.checked) {
+                newAcl.pages[pageId].roles.push(role);
+              }
+            });
+            
+            try {
+              await updateAccessControl(newAcl);
+              showNotification('Page access updated successfully', 'success');
+            } catch (error) {
+              console.error('Failed to update page access:', error);
+              showNotification('Failed to update page access: ' + error.message, 'error');
+            }
           };
-          
-          // Add authorization header if user is logged in
-          const user = getCurrentUserSync();
-          if (user && user.data && user.data.token) {
-            headers['Authorization'] = `Bearer ${user.data.token}`;
-          }
-          
-          try {
-            const response = await fetch(`${API_BASE}${endpoint}`, {
-              ...options,
-              headers
-            });
-            
-            if (!response.ok) {
-              const error = await response.json().catch(() => ({}));
-              throw new Error(error.error || `API error: ${response.status}`);
+        }
+      } catch (error) {
+        console.error('Populate page access error:', error);
+        showNotification('Failed to populate page access: ' + error.message, 'error');
+      }
+    };
+    
+    // Render user access control
+    const renderUserAccessControl = async () => {
+      const u = getCurrentUserSync();
+      if (!isAdmin(u)) return;
+      
+      try {
+        const users = await getUsers();
+        const selectUserForAccess = el('selectUserForAccess');
+        if (!selectUserForAccess) return;
+        
+        selectUserForAccess.innerHTML = '<option value="">-- Select User --</option>';
+        users.forEach(user => {
+          const option = document.createElement('option');
+          option.value = user.id;
+          option.textContent = `${user.name} (${user.email})`;
+          selectUserForAccess.appendChild(option);
+        });
+        
+        // Add event listener for loading user access
+        const btnLoadUserAccess = el('btnLoadUserAccess');
+        if (btnLoadUserAccess) {
+          btnLoadUserAccess.onclick = async () => {
+            const userId = selectUserForAccess.value;
+            if (!userId) {
+              showNotification('Please select a user', 'error');
+              return;
             }
             
-            return await response.json();
-          } catch (error) {
-            if (error instanceof TypeError && error.message.includes('fetch')) {
-              throw new Error('Network error. Please check your connection and try again.');
-            }
-            throw error;
-          }
-        };
-        
-        // Authentication API functions
-        const login = async (email, password) => {
-          if (!email || !password) return null;
-          
-          email = email.trim().toLowerCase();
-          
-          try {
-            // Fixed: Changed from '/users/login' to '/auth/login'
-            const user = await apiRequest('/auth/login', {
-              method: 'POST',
-              body: JSON.stringify({ email, password })
-            });
+            setButtonLoading('btnLoadUserAccess', true);
             
-            if (user) {
-              sessionStorage.setItem('currentUser', JSON.stringify(user));
-              showNotification('Login successful', 'success');
-              return user;
-            }
-            return null;
-          } catch (error) {
-            console.error('Login error:', error);
-            showNotification('Login failed: ' + error.message, 'error');
-            return null;
-          }
-        };
-        
-        const logout = () => {
-          sessionStorage.removeItem('currentUser');
-          showNotification('Logged out successfully', 'info');
-          location.hash = '#login';
-          render();
-        };
-        
-        // User API functions
-        const registerUser = async (data) => {
-          if (!data.name || !data.email || !data.password || !data.phone) {
-            throw new Error('All required fields must be filled');
-          }
-          
-          if (!isValidEmail(data.email)) {
-            throw new Error('Please enter a valid email address');
-          }
-          
-          const sanitizedData = {
-            name: sanitize(data.name),
-            company: sanitize(data.company || ''),
-            email: data.email.trim().toLowerCase(),
-            phone: sanitize(data.phone),
-            password: data.password,
-            address: sanitize(data.address || ''),
-            role: data.role,
-            vehicle_info: sanitize(data.vehicle_info || '')
-          };
-          
-          try {
-            // Fixed: Changed from '/users/register' to '/auth/register'
-            const user = await apiRequest('/auth/register', {
-              method: 'POST',
-              body: JSON.stringify(sanitizedData)
-            });
-            
-            showNotification('Registration successful', 'success');
-            return user;
-          } catch (error) {
-            console.error('Registration error:', error);
-            showNotification('Registration failed: ' + error.message, 'error');
-            throw error;
-          }
-        };
-        
-        const updateUserProfile = async (profileData) => {
-          if (!profileData) throw new Error('Profile data is required');
-          
-          const sanitizedData = {};
-          for (const key in profileData) {
-            if (['name', 'phone', 'address', 'password'].includes(key)) {
-              sanitizedData[key] = profileData[key];
-            }
-          }
-          
-          try {
-            // Fixed: Changed from `/users/${userId}` to `/users/me`
-            const user = await apiRequest('/users/me', {
-              method: 'PUT',
-              body: JSON.stringify(sanitizedData)
-            });
-            
-            const currentUser = getCurrentUserSync();
-            if (currentUser) {
-              const updatedUser = { ...currentUser, ...sanitizedData };
-              sessionStorage.setItem('currentUser', JSON.stringify(updatedUser));
-            }
-            
-            showNotification('Profile updated successfully', 'success');
-            return user;
-          } catch (error) {
-            console.error('Profile update error:', error);
-            showNotification('Profile update failed: ' + error.message, 'error');
-            throw error;
-          }
-        };
-        
-        // Load API functions
-        const postLoad = async (payload) => {
-          if (!payload.origin || !payload.destination || !payload.date || !payload.cargo_type || !payload.weight) {
-            throw new Error('All required fields must be filled');
-          }
-          
-          const user = getCurrentUserSync();
-          if (!user) throw new Error('User not logged in');
-          
-          // Generate a reference number
-          const ref = 'LD' + Date.now().toString().slice(-6);
-          
-          // Fixed: Removed shipper_id from payload as backend will determine it from auth
-          // Fixed: Added ref field with generated reference number
-          const sanitizedPayload = {
-            ref: ref,
-            origin: sanitize(payload.origin),
-            destination: sanitize(payload.destination),
-            date: payload.date,
-            cargo_type: sanitize(payload.cargo_type),
-            weight: parseFloat(payload.weight),
-            notes: sanitize(payload.notes || '')
-          };
-          
-          try {
-            const load = await apiRequest('/loads', {
-              method: 'POST',
-              body: JSON.stringify(sanitizedPayload)
-            });
-            
-            showNotification('Load posted successfully', 'success');
-            return load;
-          } catch (error) {
-            console.error('Post load error:', error);
-            showNotification('Failed to post load: ' + error.message, 'error');
-            throw error;
-          }
-        };
-        
-        const getLoads = async (filters = {}) => {
-          try {
-            // Fixed: Get all loads and filter on client side
-            const response = await apiRequest('/loads');
-            let loads = response.data ? response.data.loads : response;
-            
-            // Filter by shipper if specified
-            if (filters.shipper_id) {
-              loads = loads.filter(l => l.shipper_id === filters.shipper_id);
-            }
-            
-            // Apply other filters
-            if (filters.origin) {
-              loads = loads.filter(l => l.origin.toLowerCase().includes(filters.origin.toLowerCase()));
-            }
-            if (filters.destination) {
-              loads = loads.filter(l => l.destination.toLowerCase().includes(filters.destination.toLowerCase()));
-            }
-            
-            return loads;
-          } catch (error) {
-            console.error('Get loads error:', error);
-            showNotification('Failed to get loads: ' + error.message, 'error');
-            throw error;
-          }
-        };
-        
-        const updateLoad = async (loadId, patch) => {
-          if (!loadId) throw new Error('Load ID is required');
-          
-          const sanitizedPatch = {};
-          for (const key in patch) {
-            if (key === 'weight') {
-              sanitizedPatch[key] = parseFloat(patch[key]);
-            } else {
-              sanitizedPatch[key] = sanitize(patch[key]);
-            }
-          }
-          
-          try {
-            const load = await apiRequest(`/loads/${loadId}`, {
-              method: 'PUT',
-              body: JSON.stringify(sanitizedPatch)
-            });
-            
-            showNotification('Load updated successfully', 'success');
-            return load;
-          } catch (error) {
-            console.error('Update load error:', error);
-            showNotification('Failed to update load: ' + error.message, 'error');
-            throw error;
-          }
-        };
-        
-        const deleteLoad = async (loadId) => {
-          if (!loadId) throw new Error('Load ID is required');
-          
-          try {
-            await apiRequest(`/loads/${loadId}`, { method: 'DELETE' });
-            showNotification('Load deleted successfully', 'success');
-          } catch (error) {
-            console.error('Delete load error:', error);
-            showNotification('Failed to delete load: ' + error.message, 'error');
-            throw error;
-          }
-        };
-        
-        // Message API functions
-        const sendMessage = async (toEmail, body) => {
-          if (!toEmail || !body) {
-            throw new Error('Recipient and message are required');
-          }
-          
-          const user = getCurrentUserSync();
-          if (!user) throw new Error('User not logged in');
-          
-          if (!isValidEmail(toEmail)) {
-            throw new Error('Please enter a valid recipient email');
-          }
-          
-          try {
-            // Fixed: Changed sender_id to sender_email to match the backend
-            // Fixed: Correctly extract email from user object
-            const userEmail = user.data.user.email;
-            const message = await apiRequest('/messages', {
-              method: 'POST',
-              body: JSON.stringify({ 
-                sender_email: userEmail, 
-                recipient_email: toEmail, 
-                body: sanitize(body) 
-              })
-            });
-            
-            showNotification('Message sent successfully', 'success');
-            return message;
-          } catch (error) {
-            console.error('Send message error:', error);
-            // Enhanced error message to be more specific
-            if (error.message.includes('not being sent to user with the specified email')) {
-              showNotification('Failed to send message: Recipient email not found in the system', 'error');
-            } else {
-              showNotification('Failed to send message: ' + error.message, 'error');
-            }
-            throw error;
-          }
-        };
-        
-        const getMessages = async () => {
-          const user = getCurrentUserSync();
-          if (!user) throw new Error('User not logged in');
-          
-          try {
-            // Fixed: Changed from '/messages/${user.id}' to '/messages'
-            const response = await apiRequest('/messages');
-            const messages = response.data ? response.data.messages : response;
-            
-            // Filter messages for current user
-            const userEmail = user.data.user.email;
-            return messages.filter(m => 
-              m.sender_email === userEmail || m.recipient_email === userEmail
-            );
-          } catch (error) {
-            console.error('Get messages error:', error);
-            showNotification('Failed to get messages: ' + error.message, 'error');
-            throw error;
-          }
-        };
-        
-        const deleteMessage = async (messageId) => {
-          if (!messageId) throw new Error('Message ID is required');
-          
-          try {
-            await apiRequest(`/messages/${messageId}`, { method: 'DELETE' });
-            showNotification('Message deleted successfully', 'success');
-          } catch (error) {
-            console.error('Delete message error:', error);
-            showNotification('Failed to delete message: ' + error.message, 'error');
-            throw error;
-          }
-        };
-        
-        // Admin API functions
-        const isAdmin = u => u && u.data && u.data.user && u.data.user.role === 'admin';
-        
-        const getUsers = async () => {
-          try {
-            const response = await apiRequest('/users');
-            return response.data ? response.data.users : response;
-          } catch (error) {
-            console.error('Get users error:', error);
-            showNotification('Failed to get users: ' + error.message, 'error');
-            throw error;
-          }
-        };
-        
-        const deleteUser = async (email) => {
-          if (!email) throw new Error('Email is required');
-          
-          try {
-            await apiRequest(`/admin/users/${encodeURIComponent(email)}`, { method: 'DELETE' });
-            showNotification('User deleted successfully', 'success');
-          } catch (error) {
-            console.error('Delete user error:', error);
-            showNotification('Failed to delete user: ' + error.message, 'error');
-            throw error;
-          }
-        };
-        
-        const resetPassword = async (email, newPass) => {
-          if (!email || !newPass) throw new Error('Email and password are required');
-          
-          try {
-            await apiRequest('/admin/reset-password', {
-              method: 'POST',
-              body: JSON.stringify({ email, new_password: newPass })
-            });
-            showNotification('Password reset successfully', 'success');
-          } catch (error) {
-            console.error('Reset password error:', error);
-            showNotification('Failed to reset password: ' + error.message, 'error');
-            throw error;
-          }
-        };
-        
-        const getBanners = async () => {
-          try {
-            const response = await apiRequest('/admin/banners');
-            return response.data || response;
-          } catch (error) {
-            console.error('Get banners error:', error);
-            showNotification('Failed to get banners: ' + error.message, 'error');
-            throw error;
-          }
-        };
-        
-        const updateBanners = async (banners) => {
-          try {
-            await apiRequest('/admin/banners', {
-              method: 'PUT',
-              body: JSON.stringify(banners)
-            });
-            showNotification('Banners updated successfully', 'success');
-            return banners;
-          } catch (error) {
-            console.error('Update banners error:', error);
-            showNotification('Failed to update banners: ' + error.message, 'error');
-            throw error;
-          }
-        };
-        
-        const getAccessControl = async () => {
-          try {
-            const response = await apiRequest('/admin/access-control');
-            return response.data || response;
-          } catch (error) {
-            console.error('Get access control error:', error);
-            showNotification('Failed to get access control: ' + error.message, 'error');
-            throw error;
-          }
-        };
-        
-        const updateAccessControl = async (acl) => {
-          try {
-            await apiRequest('/admin/access-control', {
-              method: 'PUT',
-              body: JSON.stringify(acl)
-            });
-            showNotification('Access control updated successfully', 'success');
-            return acl;
-          } catch (error) {
-            console.error('Update access control error:', error);
-            showNotification('Failed to update access control: ' + error.message, 'error');
-            throw error;
-          }
-        };
-        
-        // New function to update user access control
-        const updateUserAccess = async (userId, access) => {
-          try {
-            await apiRequest(`/admin/users/${userId}/access`, {
-              method: 'PUT',
-              body: JSON.stringify(access)
-            });
-            showNotification('User access updated successfully', 'success');
-          } catch (error) {
-            console.error('Update user access error:', error);
-            showNotification('Failed to update user access: ' + error.message, 'error');
-            throw error;
-          }
-        };
-        
-        // Get user access control settings
-        const getUserAccess = async (userId) => {
-          try {
-            const response = await apiRequest(`/admin/users/${userId}/access`);
-            return response.data || response;
-          } catch (error) {
-            console.error('Get user access error:', error);
-            showNotification('Failed to get user access: ' + error.message, 'error');
-            throw error;
-          }
-        };
-        
-        // Check if user can access a specific page based on default role settings
-        const canAccessPage = (user, pageId) => {
-          if (!user) return false;
-          if (isAdmin(user)) return true;
-          
-          const page = PAGES[pageId];
-          if (page && page.roles.includes(user.data.user.role)) {
-            return true;
-          }
-          
-          return false;
-        };
-        
-        // Check if a user has access to a page, including custom overrides
-        const checkPageAccess = async (pageId) => {
-          try {
-            const user = getCurrentUserSync();
-            if (!user) return false;
-            
-            // First, check default role-based access
-            if (canAccessPage(user, pageId)) return true;
-            
-            // If default access is denied, check for custom user-specific overrides
-            const userId = user.data.user.id;
-            const userAccess = await getUserAccess(userId);
-            
-            if (userAccess && userAccess.pages && userAccess.pages[pageId]) {
-              return userAccess.pages[pageId].enabled === true;
-            }
-            
-            return false;
-          } catch (error) {
-            console.error('Check page access error:', error);
-            return false;
-          }
-        };
-        
-        // Populate page access control section in admin panel
-        const populatePageAccess = async () => {
-          try {
-            const acl = await getAccessControl();
-            const pageAccessContainer = el('pageAccessContainer');
-            
-            if (!pageAccessContainer) return;
-            
-            pageAccessContainer.innerHTML = '';
-            
-            // Create page access controls for each page
-            for (const [pageId, pageInfo] of Object.entries(PAGES)) {
-              if (pageId === 'index' || pageId === 'register-options' || pageId === 'login') continue;
+            try {
+              const userAccess = await getUserAccess(userId);
               
-              const pageAccessItem = document.createElement('div');
-              pageAccessItem.className = 'page-access-item';
+              // Update toggle switches based on current settings
+              const marketToggle = el('access-market');
+              const postLoadToggle = el('access-post-load');
               
-              const pageAccessHeader = document.createElement('div');
-              pageAccessHeader.className = 'page-access-header';
-              
-              const pageTitle = document.createElement('div');
-              pageTitle.className = 'page-access-title';
-              pageTitle.textContent = pageInfo.name;
-              
-              pageAccessHeader.appendChild(pageTitle);
-              pageAccessItem.appendChild(pageAccessHeader);
-              
-              const roleCheckboxes = document.createElement('div');
-              roleCheckboxes.className = 'role-checkboxes';
-              
-              // Create a checkbox for each role
-              ROLES.forEach(role => {
-                const roleCheckboxItem = document.createElement('div');
-                roleCheckboxItem.className = 'role-checkbox-item';
-                
-                const checkbox = document.createElement('input');
-                checkbox.type = 'checkbox';
-                checkbox.id = `page-${pageId}-role-${role}`;
-                checkbox.setAttribute('data-page', pageId);
-                checkbox.setAttribute('data-role', role);
-                
-                // Check if this role has access to this page in the current ACL
-                if (acl.pages && acl.pages[pageId] && acl.pages[pageId].roles && acl.pages[pageId].roles.includes(role)) {
-                  checkbox.checked = true;
-                }
-                
-                const label = document.createElement('label');
-                label.htmlFor = `page-${pageId}-role-${role}`;
-                label.textContent = role;
-                
-                roleCheckboxItem.appendChild(checkbox);
-                roleCheckboxItem.appendChild(label);
-                roleCheckboxes.appendChild(roleCheckboxItem);
-              });
-              
-              pageAccessItem.appendChild(roleCheckboxes);
-              pageAccessContainer.appendChild(pageAccessItem);
-            }
-            
-            // Add event listener for saving page access
-            const btnSavePageAccess = el('btnSavePageAccess');
-            if (btnSavePageAccess) {
-              btnSavePageAccess.onclick = async () => {
-                const newAcl = { pages: {} };
-                
-                // Collect all the checkbox states
-                document.querySelectorAll('[data-page]').forEach(checkbox => {
-                  const pageId = checkbox.getAttribute('data-page');
-                  const role = checkbox.getAttribute('data-role');
-                  
-                  if (!newAcl.pages[pageId]) {
-                    newAcl.pages[pageId] = { roles: [] };
-                  }
-                  
-                  if (checkbox.checked) {
-                    newAcl.pages[pageId].roles.push(role);
-                  }
-                });
-                
-                try {
-                  await updateAccessControl(newAcl);
-                  showNotification('Page access updated successfully', 'success');
-                } catch (error) {
-                  console.error('Failed to update page access:', error);
-                  showNotification('Failed to update page access: ' + error.message, 'error');
-                }
-              };
-            }
-          } catch (error) {
-            console.error('Populate page access error:', error);
-            showNotification('Failed to populate page access: ' + error.message, 'error');
-          }
-        };
-        
-        // Render user access control
-        const renderUserAccessControl = async () => {
-          const u = getCurrentUserSync();
-          if (!isAdmin(u)) return;
-          
-          try {
-            const users = await getUsers();
-            const selectUserForAccess = el('selectUserForAccess');
-            if (!selectUserForAccess) return;
-            
-            selectUserForAccess.innerHTML = '<option value="">-- Select User --</option>';
-            users.forEach(user => {
-              const option = document.createElement('option');
-              option.value = user.id;
-              option.textContent = `${user.name} (${user.email})`;
-              selectUserForAccess.appendChild(option);
-            });
-            
-            // Add event listener for loading user access// Replace the btnLoadUserAccess and btnSaveUserAccess event handlers in renderUserAccessControl function:
-
-                        // Add event listener for loading user access
-                        const btnLoadUserAccess = el('btnLoadUserAccess');
-                        if (btnLoadUserAccess) {
-                        btnLoadUserAccess.onclick = async () => {
-                          const userId = selectUserForAccess.value;
-                          if (!userId) {
-                            showNotification('Please select a user', 'error');
-                            return;
-                          }
-                          
-                          setButtonLoading('btnLoadUserAccess', true);
-                          
-                          try {
-                            const userAccess = await getUserAccess(userId);
-                            
-                            // Update toggle switches based on current settings
-                            const marketToggle = el('access-market');
-                            const postLoadToggle = el('access-post-load');
-                            
-                            if (marketToggle) {
+              if (marketToggle) {
                               marketToggle.checked = userAccess && userAccess.pages && userAccess.pages.market ? 
                                 userAccess.pages.market.enabled : false;
                             }
