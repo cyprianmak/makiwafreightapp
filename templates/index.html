@@ -1,4 +1,4 @@
-<!DOCTYPE html>									
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -1822,6 +1822,7 @@
                   case 'control':
     setHidden('page-control', false);
     await renderUserAccessControl();
+    attachAccessToggleListeners();
     break;
                   default: location.hash = 'index'; break;
                 }
@@ -1917,7 +1918,47 @@
                 init();
               }
             })();
-          </script>
+          
+function attachAccessToggleListeners() {
+
+  const marketToggle = el('access-market');
+  const postLoadToggle = el('access-post-load');
+  const shipperDashboardToggle = el('access-shipper-dashboard');
+  const transporterDashboardToggle = el('access-transporter-dashboard');
+  const messagesToggle = el('access-messages');
+
+  const select = el('selectUserForAccess');
+
+  function update(field, value) {
+    const userId = select.value;
+    if (!userId) return;
+
+    getUserAccess(userId).then(access => {
+      const updated = access || { pages: {} };
+      if (!updated.pages) updated.pages = {};
+      updated.pages[field] = { enabled: value };
+      updateUserAccess(userId, updated);
+    });
+  }
+
+  if (marketToggle)
+    marketToggle.onchange = () => update('market', marketToggle.checked);
+
+  if (postLoadToggle)
+    postLoadToggle.onchange = () => update('shipper-post', postLoadToggle.checked);
+
+  if (shipperDashboardToggle)
+    shipperDashboardToggle.onchange = () => update('shipper-dashboard', shipperDashboardToggle.checked);
+
+  if (transporterDashboardToggle)
+    transporterDashboardToggle.onchange = () => update('transporter-dashboard', transporterDashboardToggle.checked);
+
+  if (messagesToggle)
+    messagesToggle.onchange = () => update('messages', messagesToggle.checked);
+}
+
+</script>
           </body>
           </html>
+
 
