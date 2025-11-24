@@ -1575,81 +1575,118 @@
         } catch (error) { console.error('Error rendering control panel:', error); }
       };
       
-      const renderUserAccessControl = async () => {
-          const u = getCurrentUserSync();
-          if (!isAdmin(u)) return;
-          
-          try {
-            const users = await getUsers();
-            const selectUserForAccess = el('selectUserForAccess');
-            if (!selectUserForAccess) return;
+        const renderUserAccessControl = async () => {
+            const u = getCurrentUserSync();
+            if (!isAdmin(u)) return;
             
-            selectUserForAccess.innerHTML = '<option value="">-- Select User --</option>';
-            users.forEach(user => {
-              const option = document.createElement('option');
-              option.value = user.id;
-              option.textContent = `${user.name} (${user.email})`;
-              selectUserForAccess.appendChild(option);
-            });
-            
-            // Get all toggle switches
-            const marketToggle = el('access-market');
-            const postLoadToggle = el('access-post-load');
-            const shipperDashboardToggle = el('access-shipper-dashboard');
-            const transporterDashboardToggle = el('access-transporter-dashboard');
-            const messagesToggle = el('access-messages');
-            
-            // Store the current access data
-            let currentAccessData = {};
-            
-            // Add event listener for loading user access
-            const btnLoadUserAccess = el('btnLoadUserAccess');
-            if (btnLoadUserAccess) {
-              btnLoadUserAccess.onclick = async () => {
-                const userId = selectUserForAccess.value;
-                if (!userId) {
-                  showNotification('Please select a user', 'error');
-                  return;
+            try {
+              const users = await getUsers();
+              const selectUserForAccess = el('selectUserForAccess');
+              if (!selectUserForAccess) return;
+              
+              // Populate user dropdown
+              selectUserForAccess.innerHTML = '<option value="">-- Select User --</option>';
+              users.forEach(user => {
+                const option = document.createElement('option');
+                option.value = user.id;
+                option.textContent = `${user.name} (${user.email})`;
+                selectUserForAccess.appendChild(option);
+              });
+        
+              // Get all toggle switches
+              const marketToggle = el('access-market');
+              const postLoadToggle = el('access-post-load');
+              const shipperDashboardToggle = el('access-shipper-dashboard');
+              const transporterDashboardToggle = el('access-transporter-dashboard');
+              const messagesToggle = el('access-messages');
+        
+              // This will hold the current access state in memory
+              let currentAccessData = { pages: {} };
+        
+              // Function to update the in-memory state when a toggle changes
+              const updateAccessState = () => {
+                if (!currentAccessData.pages) {
+                  currentAccessData.pages = {};
                 }
-                
-                setButtonLoading('btnLoadUserAccess', true);
-                
-                try {
-                  const userAccess = await getUserAccess(userId);
-                  currentAccessData = userAccess || { pages: {} };
-                  
-                  // Update toggle switches based on current settings
-                  if (marketToggle) {
-                    marketToggle.checked = currentAccessData.pages && currentAccessData.pages.market ? 
-                      currentAccessData.pages.market.enabled : false;
-                  }
-                  
-                  if (postLoadToggle) {
-                    postLoadToggle.checked = currentAccessData.pages && currentAccessData.pages['shipper-post'] ? 
-                      currentAccessData.pages['shipper-post'].enabled : false;
-                  }
-                  
-                  if (shipperDashboardToggle) {
-                    shipperDashboardToggle.checked = currentAccessData.pages && currentAccessData.pages['shipper-dashboard'] ? 
-                      currentAccessData.pages['shipper-dashboard'].enabled : false;
-                  }
-                  
-                  if (transporterDashboardToggle) {
-                    transporterDashboardToggle.checked = currentAccessData.pages && currentAccessData.pages['transporter-dashboard'] ? 
-                      currentAccessData.pages['transporter-dashboard'].enabled : false;
-                  }
-                  
-                  if (messagesToggle) {
-                    messagesToggle.checked = currentAccessData.pages && currentAccessData.pages.messages ? 
-                      currentAccessData.pages.messages.enabled : false;
-                  }
-                } catch (error) {
-                  console.error('Failed to load user access:', error);
-                  showNotification('Failed to load user access: ' + error.message, 'error');
-                } finally {
-                  setButtonLoading('btnLoadUserAccess', false);
-                }
+                currentAccessData.pages.market = { enabled: marketToggle ? marketToggle.checked : false };
+                currentAccessData.pages['shipper-post'] = { enabled: postLoadToggle ? postLoadToggle.checked : false };
+                currentAccessData.pages['shipper-dashboard'] = { enabled: shipperDashboardToggle ? shipperDashboardToggle.checked : false };
+                currentAccessData.pages['transporter-dashboard'] = { enabled: transporterDashboardToggle ? transporterDashboardToggle.checked : false };
+                currentAccessData.pages.messages = { enabled: messagesToggle ? messagesToggle.checked : false };
               };
+        
+              // Add event listeners to all toggles to update the state
+              if (marketToggle) marketToggle.addEventListener('change', updateAccessState);
+              if (postLoadToggle) postLoadToggle.addEventListener('change', updateAccessState);
+              if (shipperDashboardToggle) shipperDashboardToggle.addEventListener('change', updateAccessState);
+              if (transporterDashboardToggle) transporterDashboardToggle.addEventListener('change', updateAccessState);
+              if (messagesToggle) messagesToggle.addEventListener('change', updateAccessState);
+        
+              // Event listener for the "Load" button
+              const btnLoadUserAccess = el('btnLoadUserAccess');
+              if (btnLoadUserAccess) {
+                btnLoadUserAccess.onclick = async () => {
+                  const userId = selectUserForAccess.value;
+                  if (!userId) {
+                    showNotification('Please select a user', 'error');
+                    return;
+                  }
+                  
+                  setButtonLoading('btnLoadUserAccess', true);
+                  
+                  try {
+                    // Fetch the user's current access from the server
+                    const userAccess = await getUserAccess(userId);
+                    currentAccessData = userAccess || { pages: {} }; // Update our state with server data
+                    
+                    // Update the UI to match the loaded data
+                    if (marketToggle) marketToggle.checked = currentAccessData.pages.market ? currentAccessData.pages.market.enabled : false;
+                    if (postLoadToggle) postLoadToggle.checked = currentAccessData.pages['shipper-post'] ? currentAccessData.pages['shipper-post'].enabled : false;
+                    if (shipperDashboardToggle) shipperDashboardToggle.checked = currentAccessData.pages['shipper-dashboard'] ? currentAccessData.pages['shipper-dashboard'].enabled : false;
+                    if (transporterDashboardToggle) transporterDashboardToggle.checked = currentAccessData.pages['transporter-dashboard'] ? currentAccessData.pages['transporter-dashboard'].enabled : false;
+                    if (messagesToggle) messagesToggle.checked = currentAccessData.pages.messages ? currentAccessData.pages.messages.enabled : false;
+        
+                  } catch (error) {
+                    console.error('Failed to load user access:', error);
+                    showNotification('Failed to load user access: ' + error.message, 'error');
+                  } finally {
+                    setButtonLoading('btnLoadUserAccess', false);
+                  }
+                };
+              }
+              
+              // Event listener for the "Save" button
+              const btnSaveUserAccess = el('btnSaveUserAccess');
+              if (btnSaveUserAccess) {
+                btnSaveUserAccess.onclick = async () => {
+                  const userId = selectUserForAccess.value;
+                  if (!userId) {
+                    showNotification('Please select a user', 'error');
+                    return;
+                  }
+                  
+                  // Use the in-memory state which has all the latest changes
+                  const accessData = currentAccessData;
+                  
+                  setButtonLoading('btnSaveUserAccess', true);
+                  
+                  try {
+                    await updateUserAccess(userId, accessData);
+                    showNotification('User access updated successfully', 'success');
+                  } catch (error) {
+                    console.error('Failed to update user access:', error);
+                    showNotification('Failed to update user access: ' + error.message, 'error');
+                  } finally {
+                    setButtonLoading('btnSaveUserAccess', false);
+                  }
+                };
+              }
+              
+            } catch (error) {
+              console.error('Render user access control error:', error);
+              showNotification('Failed to render user access control: ' + error.message, 'error');
+            }
+          };
             }
             
             // Add event listener for saving user access
