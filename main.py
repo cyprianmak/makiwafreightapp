@@ -90,11 +90,11 @@ def debug_db():
         users = []
         for user in User.query.all():
             users.append({
-                "id": user.id,
-                "name": user.name,
-                "email": user.email,
-                "role": user.role,
-                "created_at": user.created_at.isoformat()
+                "id": User.id,
+                "name": User.name,
+                "email": User.email,
+                "role": User.role,
+                "created_at": User.created_at.isoformat()
             })
         
         # Get database type
@@ -303,8 +303,8 @@ def update_banners(banners):
     
     return update_access_control(ac_data)
 
-# Initialize admin user and database
-def initialize_data():
+# Add this function to create tables if they don't exist
+def create_tables():
     with app.app_context():
         # Check if tables exist by trying to query them
         tables_exist = False
@@ -324,6 +324,35 @@ def initialize_data():
             print("Database tables created")
         else:
             print("Database tables already exist, skipping table creation")
+        
+        # Check if user_access_control table exists
+        try:
+            user_access_count = UserAccessControl.query.count()
+            print(f"User access control table exists with {user_access_count} records")
+        except Exception as e:
+            print(f"Error checking user_access_control table: {e}")
+            # Create the table using raw SQL as fallback
+            try:
+                db.session.execute(text("""
+                    CREATE TABLE IF NOT EXISTS user_access_control (
+                        id SERIAL PRIMARY KEY,
+                        user_id VARCHAR(36) NOT NULL,
+                        pages TEXT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """))
+                db.session.commit()
+                print("User access control table created successfully")
+            except Exception as sql_error:
+                print(f"Error creating user_access_control table with SQL: {sql_error}")
+                # Final fallback - create all tables
+                db.create_all()
+
+# Initialize admin user and database
+def initialize_data():
+    with app.app_context():
+        # Create tables if they don't exist
+        create_tables()
         
         # Check if admin user exists
         admin_email = 'cyprianmak@gmail.com'
