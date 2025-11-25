@@ -44,6 +44,62 @@ else:
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
+# Add this function to check if a column exists in a table
+def column_exists(table_name, column_name):
+    try:
+        if 'postgresql' in app.config['SQLALCHEMY_DATABASE_URI']:
+            # For PostgreSQL
+            result = db.session.execute(text(f"""
+                SELECT column_name 
+                FROM information_schema.columns 
+                WHERE table_name = '{table_name}' AND column_name = '{column_name}'
+            """))
+        else:
+            # For SQLite
+            result = db.session.execute(text(f"PRAGMA table_info({table_name})"))
+            columns = [row[1] for row in result]
+            return column_name in columns
+        
+        return result.rowcount > 0
+    except Exception as e:
+        print(f"Error checking if column exists: {e}")
+        return False
+
+# Add this function to add the membership_number column if it doesn't exist
+def add_membership_number_column():
+    try:
+        if not column_exists('user', 'membership_number'):
+            print("Adding membership_number column to user table...")
+            if 'postgresql' in app.config['SQLALCHEMY_DATABASE_URI']:
+                # For PostgreSQL
+                db.session.execute(text("""
+                    ALTER TABLE "user" 
+                    ADD COLUMN membership_number VARCHAR(20) UNIQUE NOT NULL DEFAULT 'TEMP001'
+                """))
+            else:
+                # For SQLite
+                db.session.execute(text("""
+                    ALTER TABLE "user" 
+                    ADD COLUMN membership_number VARCHAR(20) UNIQUE NOT NULL DEFAULT 'TEMP001'
+                """))
+            
+            db.session.commit()
+            print("membership_number column added successfully")
+            
+            # Update all existing users with unique membership numbers
+            users = User.query.all()
+            for user in users:
+                if not user.membership_number or user.membership_number == 'TEMP001':
+                    user.membership_number = generate_membership_number()
+            
+            db.session.commit()
+            print("Updated existing users with membership numbers")
+        else:
+            print("membership_number column already exists")
+    except Exception as e:
+        print(f"Error adding membership_number column: {e}")
+        db.session.rollback()
+
 # Add debug route after initializing database
 @app.route("/api/debug/db")
 def debug_db():
@@ -258,7 +314,7 @@ def ensure_membership_numbers():
         print("Checking for users without membership numbers...")
         # This query works even if the column doesn't exist yet, it will just fail gracefully
         users_without_membership = User.query.filter(
-            (User.membership_number.is_(None)) | (User.membership_number == '')
+            (User.membership_number.is_(None)) | (User.membership_number == '') | (User.membership_number == 'TEMP001')
         ).all()
         
         if users_without_membership:
@@ -437,7 +493,10 @@ def initialize_data():
         # Create tables if they don't exist
         create_tables()
         
-        # Ensure all users have membership numbers after table creation
+        # Add membership_number column if it doesn't exist
+        add_membership_number_column()
+        
+        # Ensure all users have membership numbers
         ensure_membership_numbers()
         
         # Check if admin user exists
