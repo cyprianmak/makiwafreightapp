@@ -44,185 +44,6 @@ else:
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
-# Add this function to check if a column exists in a table
-def column_exists(table_name, column_name):
-    try:
-        if 'postgresql' in app.config['SQLALCHEMY_DATABASE_URI']:
-            # For PostgreSQL
-            result = db.session.execute(text(f"""
-                SELECT column_name 
-                FROM information_schema.columns 
-                WHERE table_name = '{table_name}' AND column_name = '{column_name}'
-            """))
-        else:
-            # For SQLite
-            result = db.session.execute(text(f"PRAGMA table_info({table_name})"))
-            columns = [row[1] for row in result]
-            return column_name in columns
-        
-        return result.rowcount > 0
-    except Exception as e:
-        print(f"Error checking if column exists: {e}")
-        return False
-
-# Add this function to add the membership_number column if it doesn't exist
-def add_membership_number_column():
-    try:
-        # Close any existing transactions
-        db.session.rollback()
-        
-        if not column_exists('user', 'membership_number'):
-            print("Adding membership_number column to user table...")
-            if 'postgresql' in app.config['SQLALCHEMY_DATABASE_URI']:
-                # For PostgreSQL - add column without unique constraint first
-                db.session.execute(text("""
-                    ALTER TABLE "user" 
-                    ADD COLUMN membership_number VARCHAR(20)
-                """))
-                db.session.commit()
-                print("membership_number column added successfully (without unique constraint)")
-                
-                # Now update all existing users with unique membership numbers
-                users = db.session.execute(text("SELECT id FROM \"user\"")).fetchall()
-                for i, user in enumerate(users):
-                    membership_num = f"MF{str(i+1).zfill(6)}"
-                    db.session.execute(text(f"""
-                        UPDATE "user" 
-                        SET membership_number = '{membership_num}' 
-                        WHERE id = '{user[0]}'
-                    """))
-                db.session.commit()
-                print("Updated existing users with membership numbers")
-                
-                # Now add the unique constraint
-                db.session.execute(text("""
-                    ALTER TABLE "user" 
-                    ADD CONSTRAINT user_membership_number_key UNIQUE (membership_number)
-                """))
-                db.session.commit()
-                print("Added unique constraint to membership_number column")
-                
-                # Finally, make the column NOT NULL
-                db.session.execute(text("""
-                    ALTER TABLE "user" 
-                    ALTER COLUMN membership_number SET NOT NULL
-                """))
-                db.session.commit()
-                print("Made membership_number column NOT NULL")
-            else:
-                # For SQLite
-                db.session.execute(text("""
-                    ALTER TABLE "user" 
-                    ADD COLUMN membership_number VARCHAR(20)
-                """))
-                db.session.commit()
-                print("membership_number column added successfully")
-                
-                # Update all existing users with unique membership numbers
-                users = db.session.execute(text("SELECT id FROM user")).fetchall()
-                for i, user in enumerate(users):
-                    membership_num = f"MF{str(i+1).zfill(6)}"
-                    db.session.execute(text(f"""
-                        UPDATE user 
-                        SET membership_number = '{membership_num}' 
-                        WHERE id = '{user[0]}'
-                    """))
-                db.session.commit()
-                print("Updated existing users with membership numbers")
-        else:
-            print("membership_number column already exists")
-    except Exception as e:
-        print(f"Error adding membership_number column: {e}")
-        db.session.rollback()
-
-# Add debug route after initializing database
-@app.route("/api/debug/db")
-def debug_db():
-    try:
-        # First, test basic database connection
-        db.session.execute(text("SELECT 1"))
-        db.session.commit()
-        connection_status = "OK"
-    except Exception as e:
-        db.session.rollback()
-        connection_status = "ERROR"
-        connection_error = str(e)
-
-    # Now gather detailed database information
-    try:
-        # Check if database file exists (only for SQLite)
-        db_exists = False
-        file_stats = {}
-        db_path = None
-        
-        if 'sqlite' in app.config['SQLALCHEMY_DATABASE_URI']:
-            db_path = app.config['SQLALCHEMY_DATABASE_URI'].replace('sqlite:///', '')
-            db_exists = os.path.exists(db_path)
-            
-            # Get file stats
-            if db_exists:
-                stat = os.stat(db_path)
-                file_stats = {
-                    "size": stat.st_size,
-                    "created": datetime.fromtimestamp(stat.st_ctime).isoformat(),
-                    "modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
-                    "accessed": datetime.fromtimestamp(stat.st_atime).isoformat()
-                }
-        
-        # Count records in each table
-        user_count = User.query.count()
-        load_count = Load.query.count()
-        message_count = Message.query.count()
-        access_control_count = AccessControl.query.count()
-        banner_count = Banner.query.count()
-        user_access_control_count = UserAccessControl.query.count()
-        
-        # List users
-        users = []
-        for user in User.query.all():
-            users.append({
-                "id": user.id,
-                "name": user.name,
-                "email": user.email,
-                "role": user.role,
-                "membership_number": getattr(user, 'membership_number', None),
-                "created_at": user.created_at.isoformat()
-            })
-        
-        # Get database type
-        database_type = "PostgreSQL" if 'postgresql' in app.config['SQLALCHEMY_DATABASE_URI'] else "SQLite"
-        
-        # Prepare response
-        response = {
-            "database_type": database_type,
-            "database_uri": app.config['SQLALCHEMY_DATABASE_URI'],
-            "database_path": db_path,
-            "database_exists": db_exists,
-            "file_stats": file_stats,
-            "connection_status": connection_status,
-            "user_count": user_count,
-            "load_count": load_count,
-            "message_count": message_count,
-            "access_control_count": access_control_count,
-            "user_access_control_count": user_access_control_count,
-            "banner_count": banner_count,
-            "users": users,
-            "environment": os.environ.get('RENDER', 'local')
-        }
-        
-        # Add connection error if there was one
-        if connection_status == "ERROR":
-            response["connection_error"] = connection_error
-        
-        return jsonify(response), 200
-        
-    except Exception as e:
-        return jsonify({
-            "database_type": db.engine.name if hasattr(db, 'engine') else "Unknown",
-            "connection_status": "ERROR",
-            "error": str(e)
-        }), 500
-
 # Define database models
 class User(db.Model):
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
@@ -234,7 +55,7 @@ class User(db.Model):
     phone = db.Column(db.String(20))
     address = db.Column(db.String(200))
     vehicle_info = db.Column(db.String(200))
-    membership_number = db.Column(db.String(20), unique=True, nullable=False)  # Added for membership numbers
+    membership_number = db.Column(db.String(20), unique=True, nullable=True)  # Start as nullable
     token = db.Column(db.String(36))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
@@ -338,6 +159,89 @@ def generate_membership_number():
     except Exception:
         # If anything goes wrong (e.g., table doesn't exist yet), start from 1
         return f"MF000001"
+
+# Add this function to check if a column exists in a table
+def column_exists(table_name, column_name):
+    try:
+        if 'postgresql' in app.config['SQLALCHEMY_DATABASE_URI']:
+            # For PostgreSQL
+            result = db.session.execute(text(f"""
+                SELECT column_name 
+                FROM information_schema.columns 
+                WHERE table_name = '{table_name}' AND column_name = '{column_name}'
+            """))
+        else:
+            # For SQLite
+            result = db.session.execute(text(f"PRAGMA table_info({table_name})"))
+            columns = [row[1] for row in result]
+            return column_name in columns
+        
+        return result.rowcount > 0
+    except Exception as e:
+        print(f"Error checking if column exists: {e}")
+        return False
+
+# Add this function to add the membership_number column if it doesn't exist
+def add_membership_number_column():
+    try:
+        # Close any existing transactions
+        db.session.rollback()
+        
+        if not column_exists('user', 'membership_number'):
+            print("Adding membership_number column to user table...")
+            if 'postgresql' in app.config['SQLALCHEMY_DATABASE_URI']:
+                # For PostgreSQL - add column without constraints first
+                db.session.execute(text("""
+                    ALTER TABLE "user" 
+                    ADD COLUMN membership_number VARCHAR(20)
+                """))
+                db.session.commit()
+                print("membership_number column added successfully (without unique constraint)")
+                
+                # Now update all existing users with unique membership numbers
+                users = db.session.execute(text("SELECT id FROM \"user\"")).fetchall()
+                for i, user in enumerate(users):
+                    membership_num = f"MF{str(i+1).zfill(6)}"
+                    db.session.execute(text(f"""
+                        UPDATE "user" 
+                        SET membership_number = '{membership_num}' 
+                        WHERE id = '{user[0]}'
+                    """))
+                db.session.commit()
+                print("Updated existing users with membership numbers")
+                
+                # Now add unique constraint
+                db.session.execute(text("""
+                    ALTER TABLE "user" 
+                    ADD CONSTRAINT user_membership_number_key UNIQUE (membership_number)
+                """))
+                db.session.commit()
+                print("Added unique constraint to membership_number column")
+            else:
+                # For SQLite
+                db.session.execute(text("""
+                    ALTER TABLE "user" 
+                    ADD COLUMN membership_number VARCHAR(20)
+                """))
+                db.session.commit()
+                print("membership_number column added successfully")
+                
+                # Update all existing users with unique membership numbers
+                users = db.session.execute(text("SELECT id FROM user")).fetchall()
+                for i, user in enumerate(users):
+                    membership_num = f"MF{str(i+1).zfill(6)}"
+                    db.session.execute(text(f"""
+                        UPDATE user 
+                        SET membership_number = '{membership_num}' 
+                        WHERE id = '{user[0]}'
+                    """))
+                db.session.commit()
+                print("Updated existing users with membership numbers")
+        else:
+            print("membership_number column already exists")
+    except Exception as e:
+        print(f"Error adding membership_number column: {e}")
+        db.session.rollback()
 
 # Helper function to ensure all users have a membership number
 def ensure_membership_numbers():
@@ -580,206 +484,91 @@ def initialize_data():
             print(f"Error checking/creating access control data: {e}")
             db.session.rollback()
 
-# Backup and restore endpoints
-@app.route('/api/admin/backup', methods=['POST'])
-def backup_data():
+# Add debug route after initializing database
+@app.route("/api/debug/db")
+def debug_db():
     try:
-        user = check_auth(request)
-        if not user or user.role != 'admin':
-            return jsonify({
-                "success": False,
-                "message": "Access denied",
-                "error": "Admin access required"
-            }), 403
-        
-        # Create backup directory if it doesn't exist
-        backup_dir = '/opt/render/project/.render/backups'
-        if not os.path.exists(backup_dir):
-            os.makedirs(backup_dir)
-        
-        # Generate backup filename with timestamp
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        
-        if 'postgresql' in app.config['SQLALCHEMY_DATABASE_URI']:
-            # For PostgreSQL, use pg_dump
-            import subprocess
-            backup_path = os.path.join(backup_dir, f'makiwafreight_backup_{timestamp}.sql')
-            
-            # Extract database connection details from URI
-            db_uri = app.config['SQLALCHEMY_DATABASE_URI']
-            # Parse URI to get connection details
-            # Format: postgresql://username:password@host:port/database
-            uri_parts = db_uri.replace('postgresql://', '').split('@')
-            user_pass = uri_parts[0].split(':')
-            host_db_port = uri_parts[1].split('/')
-            host_port = host_db_port[0].split(':')
-            
-            username = user_pass[0]
-            password = user_pass[1] if len(user_pass) > 1 else ''
-            host = host_port[0]
-            port = host_port[1] if len(host_port) > 1 else '5432'
-            database = host_db_port[1]
-            
-            # Set password environment variable for pg_dump
-            env = os.environ.copy()
-            env['PGPASSWORD'] = password
-            
-            # Run pg_dump command
-            subprocess.run([
-                'pg_dump',
-                '-h', host,
-                '-p', port,
-                '-U', username,
-                '-d', database,
-                '-f', backup_path
-            ], env=env, check=True)
-        else:
-            # For SQLite, copy database file
-            backup_path = os.path.join(backup_dir, f'makiwafreight_backup_{timestamp}.db')
-            import shutil
-            shutil.copy2(db_path, backup_path)
-        
-        return jsonify({
-            "success": True,
-            "message": "Backup created successfully",
-            "data": {
-                "backup_path": backup_path,
-                "timestamp": timestamp
-            }
-        })
+        # First, test basic database connection
+        db.session.execute(text("SELECT 1"))
+        db.session.commit()
+        connection_status = "OK"
     except Exception as e:
-        return jsonify({
-            "success": False,
-            "message": "Backup failed",
-            "error": str(e)
-        }), 500
+        db.session.rollback()
+        connection_status = "ERROR"
+        connection_error = str(e)
 
-@app.route('/api/admin/restore', methods=['POST'])
-def restore_data():
+    # Now gather detailed database information
     try:
-        user = check_auth(request)
-        if not user or user.role != 'admin':
-            return jsonify({
-                "success": False,
-                "message": "Access denied",
-                "error": "Admin access required"
-            }), 403
+        # Check if database file exists (only for SQLite)
+        db_exists = False
+        file_stats = {}
+        db_path = None
         
-        data = request.get_json()
-        backup_file = data.get('backup_file')
-        
-        if not backup_file:
-            return jsonify({
-                "success": False,
-                "message": "Backup file is required",
-                "error": "Please provide a backup file path"
-            }), 400
-        
-        # Check if backup file exists
-        if not os.path.exists(backup_file):
-            return jsonify({
-                "success": False,
-                "message": "Backup file not found",
-                "error": f"Backup file {backup_file} does not exist"
-            }), 404
-        
-        # Close all database connections
-        db.session.remove()
-        
-        if 'postgresql' in app.config['SQLALCHEMY_DATABASE_URI']:
-            # For PostgreSQL, use psql to restore
-            import subprocess
+        if 'sqlite' in app.config['SQLALCHEMY_DATABASE_URI']:
+            db_path = app.config['SQLALCHEMY_DATABASE_URI'].replace('sqlite:///', '')
+            db_exists = os.path.exists(db_path)
             
-            # Extract database connection details from URI
-            db_uri = app.config['SQLALCHEMY_DATABASE_URI']
-            # Parse URI to get connection details
-            # Format: postgresql://username:password@host:port/database
-            uri_parts = db_uri.replace('postgresql://', '').split('@')
-            user_pass = uri_parts[0].split(':')
-            host_db_port = uri_parts[1].split('/')
-            host_port = host_db_port[0].split(':')
-            
-            username = user_pass[0]
-            password = user_pass[1] if len(user_pass) > 1 else ''
-            host = host_port[0]
-            port = host_port[1] if len(host_port) > 1 else '5432'
-            database = host_db_port[1]
-            
-            # Set password environment variable for psql
-            env = os.environ.copy()
-            env['PGPASSWORD'] = password
-            
-            # Run psql command to restore
-            subprocess.run([
-                'psql',
-                '-h', host,
-                '-p', port,
-                '-U', username,
-                '-d', database,
-                '-f', backup_file
-            ], env=env, check=True)
-        else:
-            # For SQLite, restore database file
-            import shutil
-            shutil.copy2(backup_file, db_path)
+            # Get file stats
+            if db_exists:
+                stat = os.stat(db_path)
+                file_stats = {
+                    "size": stat.st_size,
+                    "created": datetime.fromtimestamp(stat.st_ctime).isoformat(),
+                    "modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
+                    "accessed": datetime.fromtimestamp(stat.st_atime).isoformat()
+                }
         
-        # Reinitialize the database
-        initialize_data()
+        # Count records in each table
+        user_count = User.query.count()
+        load_count = Load.query.count()
+        message_count = Message.query.count()
+        access_control_count = AccessControl.query.count()
+        banner_count = Banner.query.count()
+        user_access_control_count = UserAccessControl.query.count()
         
-        return jsonify({
-            "success": True,
-            "message": "Data restored successfully",
-            "data": {
-                "backup_file": backup_file
-            }
-        })
+        # List users
+        users = []
+        for user in User.query.all():
+            users.append({
+                "id": user.id,
+                "name": user.name,
+                "email": user.email,
+                "role": user.role,
+                "membership_number": getattr(user, 'membership_number', None),
+                "created_at": user.created_at.isoformat()
+            })
+        
+        # Get database type
+        database_type = "PostgreSQL" if 'postgresql' in app.config['SQLALCHEMY_DATABASE_URI'] else "SQLite"
+        
+        # Prepare response
+        response = {
+            "database_type": database_type,
+            "database_uri": app.config['SQLALCHEMY_DATABASE_URI'],
+            "database_path": db_path,
+            "database_exists": db_exists,
+            "file_stats": file_stats,
+            "connection_status": connection_status,
+            "user_count": user_count,
+            "load_count": load_count,
+            "message_count": message_count,
+            "access_control_count": access_control_count,
+            "user_access_control_count": user_access_control_count,
+            "banner_count": banner_count,
+            "users": users,
+            "environment": os.environ.get('RENDER', 'local')
+        }
+        
+        # Add connection error if there was one
+        if connection_status == "ERROR":
+            response["connection_error"] = connection_error
+        
+        return jsonify(response), 200
+        
     except Exception as e:
         return jsonify({
-            "success": False,
-            "message": "Restore failed",
-            "error": str(e)
-        }), 500
-
-@app.route('/api/admin/list-backups', methods=['GET'])
-def list_backups():
-    try:
-        user = check_auth(request)
-        if not user or user.role != 'admin':
-            return jsonify({
-                "success": False,
-                "message": "Access denied",
-                "error": "Admin access required"
-            }), 403
-        
-        backup_dir = '/opt/render/project/.render/backups'
-        backups = []
-        
-        if os.path.exists(backup_dir):
-            for filename in os.listdir(backup_dir):
-                if filename.startswith('makiwafreight_backup_') and (filename.endswith('.db') or filename.endswith('.sql')):
-                    file_path = os.path.join(backup_dir, filename)
-                    stat = os.stat(file_path)
-                    backups.append({
-                        "filename": filename,
-                        "path": file_path,
-                        "size": stat.st_size,
-                        "created": datetime.fromtimestamp(stat.st_ctime).isoformat()
-                    })
-        
-        # Sort backups by creation time (newest first)
-        backups.sort(key=lambda x: x['created'], reverse=True)
-        
-        return jsonify({
-            "success": True,
-            "message": "Backups retrieved",
-            "data": {
-                "backups": backups
-            }
-        })
-    except Exception as e:
-        return jsonify({
-            "success": False,
-            "message": "Failed to retrieve backups",
+            "database_type": db.engine.name if hasattr(db, 'engine') else "Unknown",
+            "connection_status": "ERROR",
             "error": str(e)
         }), 500
 
