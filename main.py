@@ -1,7 +1,7 @@
 from flask import Flask, render_template, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import datetime, timedelta, UTC
+from datetime import datetime, timedelta, timezone
 import uuid
 import json
 import os
@@ -43,10 +43,15 @@ else:
         print(f"⚙️ Using local SQLite at: {db_path}")
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    'pool_recycle': 300,
+    'pool_pre_ping': True
+}
 db = SQLAlchemy(app)
 
 # Define database models
 class User(db.Model):
+    __tablename__ = 'users'
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     name = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(100), unique=True, nullable=False)
@@ -56,9 +61,9 @@ class User(db.Model):
     phone = db.Column(db.String(20))
     address = db.Column(db.String(200))
     vehicle_info = db.Column(db.String(200))
-    membership_number = db.Column(db.String(20), unique=True, nullable=True)  # Start as nullable
+    membership_number = db.Column(db.String(20), unique=True, nullable=True)
     token = db.Column(db.String(36))
-    created_at = db.Column(db.DateTime, default=lambda: datetime.now(UTC))
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -67,6 +72,7 @@ class User(db.Model):
         return check_password_hash(self.password_hash, password)
 
 class Load(db.Model):
+    __tablename__ = 'loads'
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     ref = db.Column(db.String(10), nullable=False)
     origin = db.Column(db.String(100), nullable=False)
@@ -75,9 +81,9 @@ class Load(db.Model):
     cargo_type = db.Column(db.String(50), nullable=False)
     weight = db.Column(db.Float, nullable=False)
     notes = db.Column(db.Text)
-    shipper_id = db.Column(db.String(36), db.ForeignKey('user.id'), nullable=False)
+    shipper_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False)
     expires_at = db.Column(db.DateTime, nullable=False)
-    created_at = db.Column(db.DateTime, default=lambda: datetime.now(UTC))
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     
     # Relationship to get shipper info
     shipper = db.relationship('User', foreign_keys=[shipper_id])
@@ -100,11 +106,12 @@ class Load(db.Model):
         }
 
 class Message(db.Model):
+    __tablename__ = 'messages'
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     sender_membership = db.Column(db.String(20), nullable=False)
     recipient_membership = db.Column(db.String(20), nullable=False)
     body = db.Column(db.Text, nullable=False)
-    created_at = db.Column(db.DateTime, default=lambda: datetime.now(UTC))
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     
     def to_dict(self):
         return {
@@ -116,18 +123,21 @@ class Message(db.Model):
         }
 
 class AccessControl(db.Model):
+    __tablename__ = 'access_control'
     id = db.Column(db.Integer, primary_key=True)
     data = db.Column(db.Text)  # JSON string containing access control data
 
 class UserAccessControl(db.Model):
+    __tablename__ = 'user_access_control'
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.String(36), db.ForeignKey('user.id'), nullable=False)
+    user_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False)
     pages = db.Column(db.Text)  # JSON string containing page access data
-    created_at = db.Column(db.DateTime, default=lambda: datetime.now(UTC))
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     
     user = db.relationship('User', backref=db.backref('access_controls', lazy=True))
 
 class Banner(db.Model):
+    __tablename__ = 'banners'
     id = db.Column(db.Integer, primary_key=True)
     index = db.Column(db.String(200))
     dashboard = db.Column(db.String(200))
@@ -157,117 +167,10 @@ def generate_membership_number():
                 next_id = 1
         
         return f"MF{str(next_id).zfill(6)}"
-    except Exception:
+    except Exception as e:
+        print(f"Error generating membership number: {e}")
         # If anything goes wrong (e.g., table doesn't exist yet), start from 1
         return f"MF000001"
-
-# Add this function to check if a column exists in a table
-def column_exists(table_name, column_name):
-    try:
-        if 'postgresql' in app.config['SQLALCHEMY_DATABASE_URI']:
-            # For PostgreSQL
-            result = db.session.execute(text(f"""
-                SELECT column_name 
-                FROM information_schema.columns 
-                WHERE table_name = '{table_name}' AND column_name = '{column_name}'
-            """))
-        else:
-            # For SQLite
-            result = db.session.execute(text(f"PRAGMA table_info({table_name})"))
-            columns = [row[1] for row in result]
-            return column_name in columns
-        
-        return result.rowcount > 0
-    except Exception as e:
-        print(f"Error checking if column exists: {e}")
-        return False
-
-# Add this function to add the membership_number column if it doesn't exist
-def add_membership_number_column():
-    try:
-        # Close any existing transactions
-        db.session.rollback()
-        
-        if not column_exists('user', 'membership_number'):
-            print("Adding membership_number column to user table...")
-            if 'postgresql' in app.config['SQLALCHEMY_DATABASE_URI']:
-                # For PostgreSQL - add column without constraints first
-                db.session.execute(text("""
-                    ALTER TABLE "user" 
-                    ADD COLUMN membership_number VARCHAR(20)
-                """))
-                db.session.commit()
-                print("membership_number column added successfully (without unique constraint)")
-                
-                # Now update all existing users with unique membership numbers
-                users = db.session.execute(text("SELECT id FROM \"user\"")).fetchall()
-                for i, user in enumerate(users):
-                    membership_num = f"MF{str(i+1).zfill(6)}"
-                    db.session.execute(text(f"""
-                        UPDATE "user" 
-                        SET membership_number = '{membership_num}' 
-                        WHERE id = '{user[0]}'
-                    """))
-                db.session.commit()
-                print("Updated existing users with membership numbers")
-                
-                # Now add unique constraint
-                db.session.execute(text("""
-                    ALTER TABLE "user" 
-                    ADD CONSTRAINT user_membership_number_key UNIQUE (membership_number)
-                """))
-                db.session.commit()
-                print("Added unique constraint to membership_number column")
-            else:
-                # For SQLite
-                db.session.execute(text("""
-                    ALTER TABLE "user" 
-                    ADD COLUMN membership_number VARCHAR(20)
-                """))
-                db.session.commit()
-                print("membership_number column added successfully")
-                
-                # Update all existing users with unique membership numbers
-                users = db.session.execute(text("SELECT id FROM user")).fetchall()
-                for i, user in enumerate(users):
-                    membership_num = f"MF{str(i+1).zfill(6)}"
-                    db.session.execute(text(f"""
-                        UPDATE user 
-                        SET membership_number = '{membership_num}' 
-                        WHERE id = '{user[0]}'
-                    """))
-                db.session.commit()
-                print("Updated existing users with membership numbers")
-        else:
-            print("membership_number column already exists")
-    except Exception as e:
-        print(f"Error adding membership_number column: {e}")
-        db.session.rollback()
-
-# Helper function to ensure all users have a membership number
-def ensure_membership_numbers():
-    """
-    Checks for users without a membership number and assigns them one.
-    This is a one-time migration helper.
-    """
-    try:
-        print("Checking for users without membership numbers...")
-        # This query works even if the column doesn't exist yet, it will just fail gracefully
-        users_without_membership = User.query.filter(
-            (User.membership_number.is_(None)) | (User.membership_number == '')
-        ).all()
-        
-        if users_without_membership:
-            print(f"Found {len(users_without_membership)} users without membership numbers. Assigning...")
-            for user in users_without_membership:
-                user.membership_number = generate_membership_number()
-            db.session.commit()
-            print("Membership numbers assigned successfully.")
-        else:
-            print("All users have membership numbers.")
-    except Exception as e:
-        print(f"Could not update membership numbers (this is ok on first run): {e}")
-        db.session.rollback()
 
 # Helper functions
 def check_auth(request):
@@ -276,182 +179,146 @@ def check_auth(request):
         return None
     token = token.split(' ')[1]
     
-    # Use Session.get() instead of Query.get() for SQLAlchemy 2.0 compatibility
-    session = Session.object_session(db.session) or db.session
-    return session.get(User, token)
+    try:
+        return User.query.filter_by(token=token).first()
+    except Exception as e:
+        print(f"Auth error: {e}")
+        return None
 
 def get_default_access_control_data():
     return {
         'pages': {
             'post_load': {
-                'allowed_roles': ['admin', 'shipper', 'transporter']  # All roles can post loads
+                'allowed_roles': ['admin', 'shipper', 'transporter']
             },
             'market': {
-                'allowed_roles': ['admin', 'shipper', 'transporter']  # All roles can access market
+                'allowed_roles': ['admin', 'shipper', 'transporter']
             }
         },
         'banners': {
             'index': '',
             'dashboard': ''
         },
-        'post_loads_enabled': True,  # Global setting to control post loads access
-        'user_access': {}  # User-specific access control
+        'post_loads_enabled': True,
+        'user_access': {}
     }
 
 def get_access_control():
-    ac = AccessControl.query.first()
-    if not ac:
-        # Initialize with default structure
-        default_data = get_default_access_control_data()
-        ac = AccessControl(data=json.dumps(default_data))
-        db.session.add(ac)
-        db.session.commit()
-        return default_data
-    
     try:
-        data = json.loads(ac.data)
-    except:
-        # If data is corrupted, reset to default
-        default_data = get_default_access_control_data()
-        ac.data = json.dumps(default_data)
-        db.session.commit()
-        return default_data
+        ac = AccessControl.query.first()
+        if not ac:
+            # Initialize with default structure
+            default_data = get_default_access_control_data()
+            ac = AccessControl(data=json.dumps(default_data))
+            db.session.add(ac)
+            db.session.commit()
+            return default_data
         
-    default_data = get_default_access_control_data()
-    updated = False
-    
-    # Ensure pages exists and has required structure
-    if 'pages' not in data or not isinstance(data['pages'], dict):
-        data['pages'] = default_data['pages']
-        updated = True
-    else:
-        # Ensure post_load and market exist
-        if 'post_load' not in data['pages'] or not isinstance(data['pages'].get('post_load'), dict):
-            data['pages']['post_load'] = default_data['pages']['post_load']
+        try:
+            data = json.loads(ac.data)
+        except:
+            # If data is corrupted, reset to default
+            default_data = get_default_access_control_data()
+            ac.data = json.dumps(default_data)
+            db.session.commit()
+            return default_data
+            
+        default_data = get_default_access_control_data()
+        updated = False
+        
+        # Ensure pages exists and has required structure
+        if 'pages' not in data or not isinstance(data['pages'], dict):
+            data['pages'] = default_data['pages']
             updated = True
-        if 'market' not in data['pages'] or not isinstance(data['pages'].get('market'), dict):
-            data['pages']['market'] = default_data['pages']['market']
-            updated = True
-    
-    # Ensure banners exists and has required structure
-    if 'banners' not in data or not isinstance(data['banners'], dict):
-        data['banners'] = default_data['banners']
-        updated = True
-    else:
-        for key in ['index', 'dashboard']:
-            if key not in data['banners']:
-                data['banners'][key] = default_data['banners'][key]
+        else:
+            # Ensure post_load and market exist
+            if 'post_load' not in data['pages'] or not isinstance(data['pages'].get('post_load'), dict):
+                data['pages']['post_load'] = default_data['pages']['post_load']
                 updated = True
-    
-    # Ensure post_loads_enabled exists
-    if 'post_loads_enabled' not in data:
-        data['post_loads_enabled'] = default_data['post_loads_enabled']
-        updated = True
-    
-    # Ensure user_access exists
-    if 'user_access' not in data:
-        data['user_access'] = default_data['user_access']
-        updated = True
-    
-    if updated:
-        ac.data = json.dumps(data)
-        db.session.commit()
-    return data
+            if 'market' not in data['pages'] or not isinstance(data['pages'].get('market'), dict):
+                data['pages']['market'] = default_data['pages']['market']
+                updated = True
+        
+        # Ensure banners exists and has required structure
+        if 'banners' not in data or not isinstance(data['banners'], dict):
+            data['banners'] = default_data['banners']
+            updated = True
+        else:
+            for key in ['index', 'dashboard']:
+                if key not in data['banners']:
+                    data['banners'][key] = default_data['banners'][key]
+                    updated = True
+        
+        # Ensure post_loads_enabled exists
+        if 'post_loads_enabled' not in data:
+            data['post_loads_enabled'] = default_data['post_loads_enabled']
+            updated = True
+        
+        # Ensure user_access exists
+        if 'user_access' not in data:
+            data['user_access'] = default_data['user_access']
+            updated = True
+        
+        if updated:
+            ac.data = json.dumps(data)
+            db.session.commit()
+        return data
+    except Exception as e:
+        print(f"Error in get_access_control: {e}")
+        return get_default_access_control_data()
 
 def update_access_control(data):
-    ac = AccessControl.query.first()
-    if not ac:
-        ac = AccessControl()
-        db.session.add(ac)
-    
-    ac.data = json.dumps(data)
-    db.session.commit()
-    return data
+    try:
+        ac = AccessControl.query.first()
+        if not ac:
+            ac = AccessControl()
+            db.session.add(ac)
+        
+        ac.data = json.dumps(data)
+        db.session.commit()
+        return data
+    except Exception as e:
+        print(f"Error updating access control: {e}")
+        db.session.rollback()
+        return data
 
 def get_banners():
-    ac_data = get_access_control()
-    return {
-        'index': ac_data.get('banners', {}).get('index', ''),
-        'dashboard': ac_data.get('banners', {}).get('dashboard', '')
-    }
+    try:
+        ac_data = get_access_control()
+        return {
+            'index': ac_data.get('banners', {}).get('index', ''),
+            'dashboard': ac_data.get('banners', {}).get('dashboard', '')
+        }
+    except Exception as e:
+        print(f"Error getting banners: {e}")
+        return {'index': '', 'dashboard': ''}
 
 def update_banners(banners):
-    ac_data = get_access_control()
-    if 'banners' not in ac_data:
-        ac_data['banners'] = {}
-    
-    ac_data['banners']['index'] = banners.get('index', '')
-    ac_data['banners']['dashboard'] = banners.get('dashboard', '')
-    
-    return update_access_control(ac_data)
+    try:
+        ac_data = get_access_control()
+        if 'banners' not in ac_data:
+            ac_data['banners'] = {}
+        
+        ac_data['banners']['index'] = banners.get('index', '')
+        ac_data['banners']['dashboard'] = banners.get('dashboard', '')
+        
+        return update_access_control(ac_data)
+    except Exception as e:
+        print(f"Error updating banners: {e}")
+        return banners
 
-# Add this function to create tables if they don't exist
-def create_tables():
-    with app.app_context():
-        # Close any existing transactions
-        db.session.rollback()
-        
-        # Check if tables exist by trying to query them
-        tables_exist = False
-        try:
-            # Try to query User table
-            user_count = db.session.execute(text("SELECT COUNT(*) FROM \"user\"")).scalar()
-            print(f"Database tables exist with {user_count} users")
-            tables_exist = True
-        except Exception as e:
-            print(f"Error querying User table (this is ok on first run): {e}")
-            tables_exist = False
-        
-        # Only create tables if they don't exist
-        if not tables_exist:
-            print("Creating database tables...")
-            db.create_all()
-            db.session.commit()
-            print("Database tables created")
-        else:
-            print("Database tables already exist, skipping table creation")
-        
-        # Check if user_access_control table exists
-        try:
-            user_access_count = UserAccessControl.query.count()
-            print(f"User access control table exists with {user_access_count} records")
-        except Exception as e:
-            print(f"Error checking user_access_control table: {e}")
-            # Create table using raw SQL as fallback
-            try:
-                db.session.execute(text("""
-                    CREATE TABLE IF NOT EXISTS user_access_control (
-                        id SERIAL PRIMARY KEY,
-                        user_id VARCHAR(36) NOT NULL,
-                        pages TEXT,
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                    )
-                """))
-                db.session.commit()
-                print("User access control table created successfully")
-            except Exception as sql_error:
-                print(f"Error creating user_access_control table with SQL: {sql_error}")
-                # Final fallback - create all tables
-                db.create_all()
-
-# Initialize admin user and database
+# Initialize database
 def initialize_data():
     with app.app_context():
-        # Close any existing transactions
-        db.session.rollback()
-        
-        # Create tables if they don't exist
-        create_tables()
-        
-        # Add membership_number column if it doesn't exist
-        add_membership_number_column()
-        
-        # Ensure all users have membership numbers
-        ensure_membership_numbers()
-        
-        # Check if admin user exists
-        admin_email = 'cyprianmak@gmail.com'
         try:
+            print("Initializing database...")
+            
+            # Create all tables
+            db.create_all()
+            print("✅ Database tables created")
+            
+            # Check if admin user exists
+            admin_email = 'cyprianmak@gmail.com'
             admin = User.query.filter_by(email=admin_email).first()
             
             if not admin:
@@ -460,20 +327,16 @@ def initialize_data():
                     name="Admin",
                     email=admin_email,
                     role="admin",
-                    membership_number=generate_membership_number()  # Generate membership number for admin
+                    membership_number="MF000001"
                 )
                 admin.set_password("Muchandida@1")
                 db.session.add(admin)
                 db.session.commit()
-                print("Admin user created")
+                print("✅ Admin user created")
             else:
-                print("Admin user already exists")
-        except Exception as e:
-            print(f"Error checking/creating admin user: {e}")
-            db.session.rollback()
-        
-        # Check if access control data exists
-        try:
+                print("✅ Admin user already exists")
+            
+            # Check if access control data exists
             ac = AccessControl.query.first()
             if not ac:
                 print("Creating access control data...")
@@ -481,100 +344,15 @@ def initialize_data():
                 ac = AccessControl(data=json.dumps(default_data))
                 db.session.add(ac)
                 db.session.commit()
-                print("Access control data created")
+                print("✅ Access control data created")
             else:
-                print("Access control data already exists")
-        except Exception as e:
-            print(f"Error checking/creating access control data: {e}")
-            db.session.rollback()
-
-# Add debug route after initializing database
-@app.route("/api/debug/db")
-def debug_db():
-    try:
-        # First, test basic database connection
-        db.session.execute(text("SELECT 1"))
-        db.session.commit()
-        connection_status = "OK"
-    except Exception as e:
-        db.session.rollback()
-        connection_status = "ERROR"
-        connection_error = str(e)
-
-    # Now gather detailed database information
-    try:
-        # Check if database file exists (only for SQLite)
-        db_exists = False
-        file_stats = {}
-        db_path = None
-        
-        if 'sqlite' in app.config['SQLALCHEMY_DATABASE_URI']:
-            db_path = app.config['SQLALCHEMY_DATABASE_URI'].replace('sqlite:///', '')
-            db_exists = os.path.exists(db_path)
+                print("✅ Access control data already exists")
+                
+            print("✅ Database initialization complete")
             
-            # Get file stats
-            if db_exists:
-                stat = os.stat(db_path)
-                file_stats = {
-                    "size": stat.st_size,
-                    "created": datetime.fromtimestamp(stat.st_ctime).isoformat(),
-                    "modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
-                    "accessed": datetime.fromtimestamp(stat.st_atime).isoformat()
-                }
-        
-        # Count records in each table
-        user_count = User.query.count()
-        load_count = Load.query.count()
-        message_count = Message.query.count()
-        access_control_count = AccessControl.query.count()
-        banner_count = Banner.query.count()
-        user_access_control_count = UserAccessControl.query.count()
-        
-        # List users
-        users = []
-        for user in User.query.all():
-            users.append({
-                "id": user.id,
-                "name": user.name,
-                "email": user.email,
-                "role": user.role,
-                "membership_number": getattr(user, 'membership_number', None),
-                "created_at": user.created_at.isoformat()
-            })
-        
-        # Get database type
-        database_type = "PostgreSQL" if 'postgresql' in app.config['SQLALCHEMY_DATABASE_URI'] else "SQLite"
-        
-        # Prepare response
-        response = {
-            "database_type": database_type,
-            "database_uri": app.config['SQLALCHEMY_DATABASE_URI'],
-            "database_path": db_path,
-            "database_exists": db_exists,
-            "file_stats": file_stats,
-            "connection_status": connection_status,
-            "user_count": user_count,
-            "load_count": load_count,
-            "message_count": message_count,
-            "access_control_count": access_control_count,
-            "user_access_control_count": user_access_control_count,
-            "banner_count": banner_count,
-            "users": users,
-            "environment": os.environ.get('RENDER', 'local')
-        }
-        
-        # Add connection error if there was one
-        if connection_status == "ERROR":
-            response["connection_error"] = connection_error
-        
-        return jsonify(response), 200
-        
-    except Exception as e:
-        return jsonify({
-            "database_type": db.engine.name if hasattr(db, 'engine') else "Unknown",
-            "connection_status": "ERROR",
-            "error": str(e)
-        }), 500
+        except Exception as e:
+            print(f"❌ Error during database initialization: {e}")
+            db.session.rollback()
 
 # Routes
 @app.route('/')
@@ -598,10 +376,7 @@ def api_info():
                 "admin_banners": "/api/admin/banners",
                 "admin_access_control": "/api/admin/access-control",
                 "admin_user_access": "/api/admin/users/<user_id>/access",
-                "debug_db": "/api/debug/db",
-                "admin_backup": "/api/admin/backup",
-                "admin_restore": "/api/admin/restore",
-                "admin_list_backups": "/api/admin/list-backups"
+                "debug_db": "/api/debug/db"
             },
             "status": "running",
             "version": "1.0.0"
@@ -610,21 +385,40 @@ def api_info():
 
 @app.route('/api/health')
 def health():
-    return jsonify({
-        "success": True,
-        "message": "Service is healthy",
-        "data": {"status": "healthy"}
-    })
+    try:
+        # Test database connection
+        db.session.execute(text("SELECT 1"))
+        return jsonify({
+            "success": True,
+            "message": "Service is healthy",
+            "data": {
+                "status": "healthy",
+                "database": "connected"
+            }
+        })
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": "Service has issues",
+            "error": str(e)
+        }), 500
 
 # Auth endpoints
 @app.route('/api/auth/register', methods=['POST'])
 def register():
     try:
         data = request.get_json()
+        if not data:
+            return jsonify({
+                "success": False,
+                "message": "Registration failed",
+                "error": "No JSON data provided"
+            }), 400
+            
         name = data.get('name')
         email = data.get('email')
         password = data.get('password')
-        role = data.get('role', 'user')  # Default role
+        role = data.get('role', 'shipper')  # Default to shipper
         
         # Validate required fields
         if not name or not email or not password:
@@ -650,7 +444,11 @@ def register():
             name=name,
             email=email,
             role=role,
-            membership_number=membership_number  # Add membership number
+            membership_number=membership_number,
+            company=data.get('company', ''),
+            phone=data.get('phone', ''),
+            address=data.get('address', ''),
+            vehicle_info=data.get('vehicle_info', '')
         )
         new_user.set_password(password)
         
@@ -666,12 +464,13 @@ def register():
                     "name": new_user.name,
                     "email": new_user.email,
                     "role": new_user.role,
-                    "membership_number": new_user.membership_number  # Include in response
+                    "membership_number": new_user.membership_number
                 }
             },
-            "membership_number": membership_number  # Also include at top level for frontend
+            "membership_number": membership_number
         }), 201
     except Exception as e:
+        db.session.rollback()
         return jsonify({
             "success": False,
             "message": "Registration failed",
@@ -682,6 +481,13 @@ def register():
 def login():
     try:
         data = request.get_json()
+        if not data:
+            return jsonify({
+                "success": False,
+                "message": "Login failed",
+                "error": "No JSON data provided"
+            }), 400
+            
         email = data.get('email')
         password = data.get('password')
         
@@ -707,7 +513,7 @@ def login():
                         "name": user.name,
                         "email": user.email,
                         "role": user.role,
-                        "membership_number": user.membership_number  # Include in response
+                        "membership_number": user.membership_number
                     }
                 }
             })
@@ -718,6 +524,7 @@ def login():
                 "error": "Invalid credentials"
             }), 401
     except Exception as e:
+        db.session.rollback()
         return jsonify({
             "success": False,
             "message": "Login failed",
@@ -749,7 +556,7 @@ def get_current_user():
                     "phone": user.phone,
                     "address": user.address,
                     "vehicle_info": user.vehicle_info,
-                    "membership_number": user.membership_number,  # Include in response
+                    "membership_number": user.membership_number,
                     "created_at": user.created_at.isoformat()
                 }
             }
@@ -774,6 +581,12 @@ def update_current_user():
             }), 401
         
         data = request.get_json()
+        if not data:
+            return jsonify({
+                "success": False,
+                "message": "Update failed",
+                "error": "No JSON data provided"
+            }), 400
         
         # Update fields if provided
         if 'name' in data:
@@ -804,22 +617,325 @@ def update_current_user():
                     "phone": user.phone,
                     "address": user.address,
                     "vehicle_info": user.vehicle_info,
-                    "membership_number": user.membership_number  # Include in response
+                    "membership_number": user.membership_number
                 }
             }
         })
     except Exception as e:
+        db.session.rollback()
         return jsonify({
             "success": False,
             "message": "Profile update failed",
             "error": str(e)
         }), 500
 
-# Admin banners endpoints
+# Load endpoints
+@app.route('/api/loads', methods=['GET', 'POST'])
+def handle_loads():
+    try:
+        if request.method == 'GET':
+            # Get all loads (public access)
+            loads = Load.query.filter(Load.expires_at >= datetime.now(timezone.utc)).all()
+            result = []
+            for load in loads:
+                result.append({
+                    "id": load.id,
+                    "ref": load.ref,
+                    "origin": load.origin,
+                    "destination": load.destination,
+                    "date": load.date,
+                    "cargo_type": load.cargo_type,
+                    "weight": load.weight,
+                    "notes": load.notes,
+                    "shipper_name": load.shipper.name if load.shipper else "Unknown",
+                    "shipper_membership": load.shipper.membership_number if load.shipper else "Unknown",
+                    "expires_at": load.expires_at.isoformat(),
+                    "created_at": load.created_at.isoformat()
+                })
+            return jsonify({
+                "success": True,
+                "message": "Loads retrieved",
+                "data": {"loads": result}
+            })
+        
+        if request.method == 'POST':
+            # Create new load (requires authentication)
+            user = check_auth(request)
+            if not user:
+                return jsonify({
+                    "success": False,
+                    "message": "Authentication required",
+                    "error": "Please login to post loads"
+                }), 401
+            
+            data = request.get_json()
+            if not data:
+                return jsonify({
+                    "success": False,
+                    "message": "Load creation failed",
+                    "error": "No JSON data provided"
+                }), 400
+            
+            required_fields = ['origin', 'destination', 'date', 'cargo_type', 'weight']
+            for field in required_fields:
+                if field not in data:
+                    return jsonify({
+                        "success": False,
+                        "message": "Load creation failed",
+                        "error": f"Missing field: {field}"
+                    }), 400
+            
+            # Set expiration date (7 days from creation)
+            expires_at = datetime.now(timezone.utc) + timedelta(days=7)
+            
+            # Generate reference
+            ref = 'LD' + str(int(datetime.now(timezone.utc).timestamp()))[-6:]
+            
+            new_load = Load(
+                ref=ref,
+                origin=data['origin'],
+                destination=data['destination'],
+                date=data['date'],
+                cargo_type=data['cargo_type'],
+                weight=float(data['weight']),
+                notes=data.get('notes', ''),
+                shipper_id=user.id,
+                expires_at=expires_at
+            )
+            
+            db.session.add(new_load)
+            db.session.commit()
+            
+            return jsonify({
+                "success": True,
+                "message": "Load created successfully",
+                "data": {
+                    "load": {
+                        "id": new_load.id,
+                        "ref": new_load.ref,
+                        "origin": new_load.origin,
+                        "destination": new_load.destination,
+                        "expires_at": new_load.expires_at.isoformat()
+                    }
+                }
+            }), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            "success": False,
+            "message": "Operation failed",
+            "error": str(e)
+        }), 500
+
+# Update load endpoint
+@app.route('/api/loads/<load_id>', methods=['PUT'])
+def update_load_endpoint(load_id):
+    try:
+        user = check_auth(request)
+        if not user:
+            return jsonify({
+                "success": False,
+                "message": "Authentication required",
+                "error": "Please login to continue"
+            }), 401
+        
+        load = db.session.get(Load, load_id)
+        if not load:
+            return jsonify({
+                "success": False,
+                "message": "Load not found",
+                "error": "Load does not exist"
+            }), 404
+        
+        # Only shipper who posted load can update it
+        if load.shipper_id != user.id:
+            return jsonify({
+                "success": False,
+                "message": "Access denied",
+                "error": "You can only update your own loads"
+            }), 403
+        
+        data = request.get_json()
+        if not data:
+            return jsonify({
+                "success": False,
+                "message": "Update failed",
+                "error": "No JSON data provided"
+            }), 400
+        
+        # Update fields if provided
+        if 'origin' in data:
+            load.origin = data['origin']
+        if 'destination' in data:
+            load.destination = data['destination']
+        if 'date' in data:
+            load.date = data['date']
+        if 'cargo_type' in data:
+            load.cargo_type = data['cargo_type']
+        if 'weight' in data:
+            load.weight = float(data['weight'])
+        if 'notes' in data:
+            load.notes = data['notes']
+        
+        db.session.commit()
+        
+        return jsonify({
+            "success": True,
+            "message": "Load updated successfully",
+            "data": {
+                "load": {
+                    "id": load.id,
+                    "ref": load.ref,
+                    "origin": load.origin,
+                    "destination": load.destination,
+                    "expires_at": load.expires_at.isoformat()
+                }
+            }
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            "success": False,
+            "message": "Failed to update load",
+            "error": str(e)
+        }), 500
+
+# Delete load endpoint
+@app.route('/api/loads/<load_id>', methods=['DELETE'])
+def delete_load_endpoint(load_id):
+    try:
+        user = check_auth(request)
+        if not user:
+            return jsonify({
+                "success": False,
+                "message": "Authentication required",
+                "error": "Please login to continue"
+            }), 401
+        
+        load = db.session.get(Load, load_id)
+        if not load:
+            return jsonify({
+                "success": False,
+                "message": "Load not found",
+                "error": "Load does not exist"
+            }), 404
+        
+        # Only shipper who posted load can delete it
+        if load.shipper_id != user.id:
+            return jsonify({
+                "success": False,
+                "message": "Access denied",
+                "error": "You can only delete your own loads"
+            }), 403
+        
+        db.session.delete(load)
+        db.session.commit()
+        
+        return jsonify({
+            "success": True,
+            "message": "Load deleted successfully",
+            "data": {"load_id": load_id}
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            "success": False,
+            "message": "Failed to delete load",
+            "error": str(e)
+        }), 500
+
+# Message endpoints
+@app.route('/api/messages', methods=['GET', 'POST'])
+def handle_messages():
+    try:
+        user = check_auth(request)
+        if not user:
+            return jsonify({
+                "success": False,
+                "message": "Authentication required",
+                "error": "Please login to access messages"
+            }), 401
+        
+        if request.method == 'GET':
+            # Get user's messages using membership number
+            user_membership = user.membership_number or 'Admin'
+            messages = Message.query.filter(
+                (Message.sender_membership == user_membership) | 
+                (Message.recipient_membership == user_membership)
+            ).order_by(Message.created_at.desc()).all()
+            
+            result = []
+            for msg in messages:
+                result.append({
+                    "id": msg.id,
+                    "sender_membership": msg.sender_membership,
+                    "recipient_membership": msg.recipient_membership,
+                    "body": msg.body,
+                    "created_at": msg.created_at.isoformat()
+                })
+            return jsonify({
+                "success": True,
+                "message": "Messages retrieved",
+                "data": {"messages": result}
+            })
+        
+        if request.method == 'POST':
+            data = request.get_json()
+            if not data:
+                return jsonify({
+                    "success": False,
+                    "message": "Message not sent",
+                    "error": "No JSON data provided"
+                }), 400
+                
+            recipient_membership = data.get('recipient_membership')
+            body = data.get('body')
+            
+            if not recipient_membership or not body:
+                return jsonify({
+                    "success": False,
+                    "message": "Message not sent",
+                    "error": "Recipient membership number and message body required"
+                }), 400
+            
+            # Verify recipient exists (check by membership number)
+            recipient = User.query.filter_by(membership_number=recipient_membership).first()
+            if not recipient and recipient_membership != 'Admin':
+                return jsonify({
+                    "success": False,
+                    "message": "Message not sent",
+                    "error": "Recipient not found"
+                }), 404
+            
+            # Use current user's membership number or 'Admin' for admin users
+            sender_membership = user.membership_number or 'Admin'
+            
+            new_message = Message(
+                sender_membership=sender_membership,
+                recipient_membership=recipient_membership,
+                body=body
+            )
+            
+            db.session.add(new_message)
+            db.session.commit()
+            
+            return jsonify({
+                "success": True,
+                "message": "Message sent successfully",
+                "data": {"message_id": new_message.id}
+            }), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            "success": False,
+            "message": "Message operation failed",
+            "error": str(e)
+        }), 500
+
+# Admin endpoints
 @app.route('/api/admin/banners', methods=['GET'])
 def get_admin_banners():
     try:
-        # Check if user is admin
         user = check_auth(request)
         if not user or user.role != 'admin':
             return jsonify({
@@ -843,7 +959,6 @@ def get_admin_banners():
 @app.route('/api/admin/banners', methods=['POST'])
 def update_admin_banners():
     try:
-        # Check if user is admin
         user = check_auth(request)
         if not user or user.role != 'admin':
             return jsonify({
@@ -853,12 +968,11 @@ def update_admin_banners():
             }), 403
         
         data = request.get_json()
-        
-        if 'index' not in data or 'dashboard' not in data:
+        if not data:
             return jsonify({
                 "success": False,
                 "message": "Update failed",
-                "error": "Both index and dashboard banners are required"
+                "error": "No JSON data provided"
             }), 400
         
         updated_banners = update_banners(data)
@@ -878,7 +992,6 @@ def update_admin_banners():
 @app.route('/api/admin/access-control', methods=['GET'])
 def get_admin_access_control():
     try:
-        # Check if user is admin
         user = check_auth(request)
         if not user or user.role != 'admin':
             return jsonify({
@@ -902,7 +1015,6 @@ def get_admin_access_control():
 @app.route('/api/admin/access-control', methods=['PUT'])
 def update_admin_access_control():
     try:
-        # Check if user is admin
         user = check_auth(request)
         if not user or user.role != 'admin':
             return jsonify({
@@ -1015,301 +1127,6 @@ def update_user_access(user_id):
             "error": str(e)
         }), 500
 
-# Load endpoints
-@app.route('/api/loads', methods=['GET', 'POST'])
-def handle_loads():
-    try:
-        user = check_auth(request)
-        
-        # Get all loads (public access)
-        if request.method == 'GET':
-            # Use datetime.now(UTC) instead of datetime.utcnow()
-            loads = Load.query.filter(Load.expires_at >= datetime.now(UTC)).all()
-            result = []
-            for load in loads:
-                result.append({
-                    "id": load.id,
-                    "ref": load.ref,
-                    "origin": load.origin,
-                    "destination": load.destination,
-                    "date": load.date,
-                    "cargo_type": load.cargo_type,
-                    "weight": load.weight,
-                    "notes": load.notes,
-                    "shipper_name": load.shipper.name if load.shipper else None,
-                    "shipper_membership": load.shipper.membership_number if load.shipper else None,
-                    "expires_at": load.expires_at.isoformat(),
-                    "created_at": load.created_at.isoformat()
-                })
-            return jsonify({
-                "success": True,
-                "message": "Loads retrieved",
-                "data": {"loads": result}
-            })
-        
-        # Create new load (requires authentication)
-        if request.method == 'POST':
-            if not user:
-                return jsonify({
-                    "success": False,
-                    "message": "Authentication required",
-                    "error": "Please login to post loads"
-                }), 401
-            
-            # Check if post loads is enabled
-            ac_data = get_access_control()
-            if not ac_data.get('post_loads_enabled', True):
-                return jsonify({
-                    "success": False,
-                    "message": "Load posting is currently disabled",
-                    "error": "Please contact administrator"
-                }), 403
-            
-            data = request.get_json()
-            required_fields = ['ref', 'origin', 'destination', 'date', 'cargo_type', 'weight']
-            for field in required_fields:
-                if field not in data:
-                    return jsonify({
-                        "success": False,
-                        "message": "Load creation failed",
-                        "error": f"Missing field: {field}"
-                    }), 400
-            
-            # Set expiration date (7 days from creation) - using UTC
-            expires_at = datetime.now(UTC) + timedelta(days=7)
-            
-            new_load = Load(
-                ref=data['ref'],
-                origin=data['origin'],
-                destination=data['destination'],
-                date=data['date'],
-                cargo_type=data['cargo_type'],
-                weight=data['weight'],
-                notes=data.get('notes', ''),
-                shipper_id=user.id,
-                expires_at=expires_at
-            )
-            
-            db.session.add(new_load)
-            db.session.commit()
-            
-            return jsonify({
-                "success": True,
-                "message": "Load created successfully",
-                "data": {
-                    "load": {
-                        "id": new_load.id,
-                        "ref": new_load.ref,
-                        "origin": new_load.origin,
-                        "destination": new_load.destination,
-                        "expires_at": new_load.expires_at.isoformat()
-                    }
-                }
-            }), 201
-    except Exception as e:
-        return jsonify({
-            "success": False,
-            "message": "Operation failed",
-            "error": str(e)
-        }), 500
-
-# Update load endpoint
-@app.route('/api/loads/<load_id>', methods=['PUT'])
-def update_load_endpoint(load_id):
-    try:
-        user = check_auth(request)
-        if not user:
-            return jsonify({
-                "success": False,
-                "message": "Authentication required",
-                "error": "Please login to continue"
-            }), 401
-        
-        # Use Session.get() instead of Query.get() for SQLAlchemy 2.0 compatibility
-        session = Session.object_session(db.session) or db.session
-        load = session.get(Load, load_id)
-        
-        if not load:
-            return jsonify({
-                "success": False,
-                "message": "Load not found",
-                "error": "Load does not exist"
-            }), 404
-        
-        # Only shipper who posted load can update it
-        if load.shipper_id != user.id:
-            return jsonify({
-                "success": False,
-                "message": "Access denied",
-                "error": "You can only update your own loads"
-            }), 403
-        
-        data = request.get_json()
-        
-        # Update fields if provided
-        if 'origin' in data:
-            load.origin = data['origin']
-        if 'destination' in data:
-            load.destination = data['destination']
-        if 'date' in data:
-            load.date = data['date']
-        if 'cargo_type' in data:
-            load.cargo_type = data['cargo_type']
-        if 'weight' in data:
-            load.weight = data['weight']
-        if 'notes' in data:
-            load.notes = data['notes']
-        
-        db.session.commit()
-        
-        return jsonify({
-            "success": True,
-            "message": "Load updated successfully",
-            "data": {
-                "load": {
-                    "id": load.id,
-                    "ref": load.ref,
-                    "origin": load.origin,
-                    "destination": load.destination,
-                    "expires_at": load.expires_at.isoformat()
-                }
-            }
-        })
-    except Exception as e:
-        return jsonify({
-            "success": False,
-            "message": "Failed to update load",
-            "error": str(e)
-        }), 500
-
-# Delete load endpoint
-@app.route('/api/loads/<load_id>', methods=['DELETE'])
-def delete_load_endpoint(load_id):
-    try:
-        user = check_auth(request)
-        if not user:
-            return jsonify({
-                "success": False,
-                "message": "Authentication required",
-                "error": "Please login to continue"
-            }), 401
-        
-        # Use Session.get() instead of Query.get() for SQLAlchemy 2.0 compatibility
-        session = Session.object_session(db.session) or db.session
-        load = session.get(Load, load_id)
-        
-        if not load:
-            return jsonify({
-                "success": False,
-                "message": "Load not found",
-                "error": "Load does not exist"
-            }), 404
-        
-        # Only shipper who posted load can delete it
-        if load.shipper_id != user.id:
-            return jsonify({
-                "success": False,
-                "message": "Access denied",
-                "error": "You can only delete your own loads"
-            }), 403
-        
-        db.session.delete(load)
-        db.session.commit()
-        
-        return jsonify({
-            "success": True,
-            "message": "Load deleted successfully",
-            "data": {"load_id": load_id}
-        })
-    except Exception as e:
-        return jsonify({
-            "success": False,
-            "message": "Failed to delete load",
-            "error": str(e)
-        }), 500
-
-# Message endpoints
-@app.route('/api/messages', methods=['GET', 'POST'])
-def handle_messages():
-    try:
-        user = check_auth(request)
-        if not user:
-            return jsonify({
-                "success": False,
-                "message": "Authentication required",
-                "error": "Please login to access messages"
-            }), 401
-        
-        # Get user's messages
-        if request.method == 'GET':
-            # Use membership numbers instead of emails
-            user_membership = user.membership_number or 'Admin'
-            messages = Message.query.filter(
-                (Message.sender_membership == user_membership) | 
-                (Message.recipient_membership == user_membership)
-            ).order_by(Message.created_at.desc()).all()
-            
-            result = []
-            for msg in messages:
-                result.append({
-                    "id": msg.id,
-                    "sender_membership": msg.sender_membership,
-                    "recipient_membership": msg.recipient_membership,
-                    "body": msg.body,
-                    "created_at": msg.created_at.isoformat()
-                })
-            return jsonify({
-                "success": True,
-                "message": "Messages retrieved",
-                "data": {"messages": result}
-            })
-        
-        # Send a new message
-        if request.method == 'POST':
-            data = request.get_json()
-            recipient_membership = data.get('recipient_membership')
-            body = data.get('body')
-            
-            if not recipient_membership or not body:
-                return jsonify({
-                    "success": False,
-                    "message": "Message not sent",
-                    "error": "Recipient membership number and message body required"
-                }), 400
-            
-            # Verify recipient exists (check by membership number)
-            recipient = User.query.filter_by(membership_number=recipient_membership).first()
-            if not recipient and recipient_membership != 'Admin':
-                return jsonify({
-                    "success": False,
-                    "message": "Message not sent",
-                    "error": "Recipient not found"
-                }), 404
-            
-            # Use current user's membership number or 'Admin' for admin users
-            sender_membership = user.membership_number or 'Admin'
-            
-            new_message = Message(
-                sender_membership=sender_membership,
-                recipient_membership=recipient_membership,
-                body=body
-            )
-            
-            db.session.add(new_message)
-            db.session.commit()
-            
-            return jsonify({
-                "success": True,
-                "message": "Message sent successfully",
-                "data": {"message_id": new_message.id}
-            }), 201
-    except Exception as e:
-        return jsonify({
-            "success": False,
-            "message": "Message operation failed",
-            "error": str(e)
-        }), 500
-
 # User management (admin only)
 @app.route('/api/users', methods=['GET'])
 def get_users():
@@ -1332,7 +1149,7 @@ def get_users():
                 "role": u.role,
                 "company": u.company,
                 "phone": u.phone,
-                "membership_number": u.membership_number,  # Include in response
+                "membership_number": u.membership_number,
                 "created_at": u.created_at.isoformat()
             })
         
@@ -1387,6 +1204,7 @@ def delete_user_endpoint(email):
             "data": {"email": email}
         })
     except Exception as e:
+        db.session.rollback()
         return jsonify({
             "success": False,
             "message": "Failed to delete user",
@@ -1433,13 +1251,82 @@ def reset_password():
             "data": {"email": email}
         })
     except Exception as e:
+        db.session.rollback()
         return jsonify({
             "success": False,
             "message": "Password reset failed",
             "error": str(e)
         }), 500
 
+# Debug database endpoint
+@app.route("/api/debug/db")
+def debug_db():
+    try:
+        # First, test basic database connection
+        db.session.execute(text("SELECT 1"))
+        db.session.commit()
+        connection_status = "OK"
+    except Exception as e:
+        db.session.rollback()
+        connection_status = "ERROR"
+        connection_error = str(e)
+
+    # Now gather detailed database information
+    try:
+        # Count records in each table
+        user_count = User.query.count()
+        load_count = Load.query.count()
+        message_count = Message.query.count()
+        access_control_count = AccessControl.query.count()
+        user_access_control_count = UserAccessControl.query.count()
+        banner_count = Banner.query.count()
+        
+        # List users
+        users = []
+        for user in User.query.all():
+            users.append({
+                "id": user.id,
+                "name": user.name,
+                "email": user.email,
+                "role": user.role,
+                "membership_number": user.membership_number,
+                "created_at": user.created_at.isoformat()
+            })
+        
+        # Get database type
+        database_type = "PostgreSQL" if 'postgresql' in app.config['SQLALCHEMY_DATABASE_URI'] else "SQLite"
+        
+        # Prepare response
+        response = {
+            "database_type": database_type,
+            "database_uri": app.config['SQLALCHEMY_DATABASE_URI'],
+            "connection_status": connection_status,
+            "user_count": user_count,
+            "load_count": load_count,
+            "message_count": message_count,
+            "access_control_count": access_control_count,
+            "user_access_control_count": user_access_control_count,
+            "banner_count": banner_count,
+            "users": users,
+            "environment": os.environ.get('RENDER', 'local')
+        }
+        
+        # Add connection error if there was one
+        if connection_status == "ERROR":
+            response["connection_error"] = connection_error
+        
+        return jsonify(response), 200
+        
+    except Exception as e:
+        return jsonify({
+            "database_type": db.engine.name if hasattr(db, 'engine') else "Unknown",
+            "connection_status": "ERROR",
+            "error": str(e)
+        }), 500
+
 # Initialize application
 if __name__ == '__main__':
     initialize_data()
-    app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+    port = int(os.environ.get('PORT', 5000))
+    print(f"🚀 Starting MakiwaFreight server on port {port}")
+    app.run(debug=True, host='0.0.0.0', port=port)
