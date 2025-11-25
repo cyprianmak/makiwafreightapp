@@ -1612,12 +1612,13 @@
         render();
       }
       
-      if (document.readyState === 'loading') {
+      (function() {
+    if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);
-      } else {
+    } else {
         init();
-      }
-    })();
-    </script>
-  </body>
+    }
+})();
+</script>
+</body>
 </html>
