@@ -1594,7 +1594,164 @@
               selectUserForPassword.appendChild(option);
             });
           }
-          const loads = await getLoads({ origin, destination });
+        } catch (error) { console.error('Error rendering control:', error); }
+      };
+      
+      // Main render function
+      const render = async () => {
+        await renderHeader();
+        await renderBanners();
+        
+        // Hide all pages first
+        document.querySelectorAll('section').forEach(s => s.classList.add('hidden'));
+        
+        const hash = location.hash.slice(1) || 'index';
+        const u = getCurrentUserSync();
+        
+        // Check if user can access the requested page
+        let canAccess = false;
+        if (hash === 'index' || hash === 'login' || hash === 'register-options' || 
+            hash === 'register-shipper' || hash === 'register-transporter') {
+          canAccess = true;
+        } else if (u) {
+          canAccess = await checkPageAccess(hash);
+        }
+        
+        if (!canAccess) {
+          if (u) {
+            location.hash = u.data.user.role === 'admin' ? '#control' : 
+                           u.data.user.role === 'shipper' ? '#shipper-dashboard' : '#transporter-dashboard';
+          } else {
+            location.hash = '#login';
+          }
+          return;
+        }
+        
+        // Show the appropriate page
+        setHidden(`page-${hash}`, false);
+        
+        // Render page-specific content
+        switch(hash) {
+          case 'shipper-dashboard':
+            await renderShipper();
+            break;
+          case 'transporter-dashboard':
+            await renderTransporter();
+            break;
+          case 'market':
+            await renderMarket();
+            break;
+          case 'messages':
+            await renderMessages();
+            break;
+          case 'shipper-profile':
+            await renderShipperProfile();
+            break;
+          case 'transporter-profile':
+            await renderTransporterProfile();
+            break;
+          case 'control':
+            await renderControl();
+            break;
+        }
+      };
+      
+      // Event handlers
+      const init = () => {
+        // Form submissions
+        el('formLogin')?.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const email = el('loginEmail').value;
+          const password = el('loginPassword').value;
+          if (!email || !password) {
+            showNotification('Please fill in all fields', 'error');
+            return;
+          }
+          setButtonLoading('formLogin', true);
+          try {
+            const user = await login(email, password);
+            if (user) {
+              location.hash = user.data.user.role === 'admin' ? '#control' : 
+                             user.data.user.role === 'shipper' ? '#shipper-dashboard' : '#transporter-dashboard';
+            }
+          } catch (error) {
+            console.error('Login error:', error);
+          } finally {
+            setButtonLoading('formLogin', false);
+          }
+        });
+        
+        el('formRegShipper')?.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const formData = new FormData(e.target);
+          const data = Object.fromEntries(formData);
+          data.role = 'shipper';
+          setButtonLoading('formRegShipper', true);
+          try {
+            await registerUser(data);
+            location.hash = '#shipper-dashboard';
+          } catch (error) {
+            console.error('Registration error:', error);
+          } finally {
+            setButtonLoading('formRegShipper', false);
+          }
+        });
+        
+        el('formRegTransporter')?.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const formData = new FormData(e.target);
+          const data = Object.fromEntries(formData);
+          data.role = 'transporter';
+          setButtonLoading('formRegTransporter', true);
+          try {
+            await registerUser(data);
+            location.hash = '#transporter-dashboard';
+          } catch (error) {
+            console.error('Registration error:', error);
+          } finally {
+            setButtonLoading('formRegTransporter', false);
+          }
+        });
+        
+        el('formPostLoad')?.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const formData = new FormData(e.target);
+          const data = Object.fromEntries(formData);
+          setButtonLoading('formPostLoad', true);
+          try {
+            await postLoad(data);
+            e.target.reset();
+            location.hash = getCurrentUserSync()?.data?.user?.role === 'shipper' ? '#shipper-dashboard' : '#transporter-dashboard';
+          } catch (error) {
+            console.error('Post load error:', error);
+          } finally {
+            setButtonLoading('formPostLoad', false);
+          }
+        });
+        
+        el('formSendMsg')?.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const to = el('msgTo').value;
+          const body = el('msgBody').value;
+          setButtonLoading('formSendMsg', true);
+          try {
+            await sendMessage(to, body);
+            e.target.reset();
+            await renderMessages();
+          } catch (error) {
+            console.error('Send message error:', error);
+          } finally {
+            setButtonLoading('formSendMsg', false);
+          }
+        });
+        
+        el('btnLogout')?.addEventListener('click', logout);
+        
+        el('btnMarketFilterLoads')?.addEventListener('click', async () => {
+          const origin = el('marketFilterOrigin').value;
+          const destination = el('marketFilterDest').value;
+          try {
+            const loads = await getLoads({ origin, destination });
             const tbody = el('tableMarketLoads').querySelector('tbody');
             tbody.innerHTML = '';
             if (!loads || loads.length === 0) { tbody.innerHTML = '<tr><td colspan="9" class="muted">No loads found matching your criteria.</td></tr>'; return; }
@@ -1607,18 +1764,59 @@
               tbody.appendChild(row);
             });
           } catch (error) { console.error('Error filtering loads:', error); }
-        }
-        window.addEventListener('hashchange', render);
+        });
+        
+        // Global functions for onclick handlers
+        window.editLoad = async (loadId) => {
+          // Implementation for edit load
+          showNotification('Edit load functionality not implemented yet', 'warning');
+        };
+        
+        window.deleteLoad = async (loadId) => {
+          if (confirm('Are you sure you want to delete this load?')) {
+            try {
+              await deleteLoad(loadId);
+              await render();
+            } catch (error) {
+              console.error('Error deleting load:', error);
+            }
+          }
+        };
+        
+        window.deleteUser = async (email) => {
+          if (confirm('Are you sure you want to delete this user?')) {
+            try {
+              await deleteUser(email);
+              await render();
+            } catch (error) {
+              console.error('Error deleting user:', error);
+            }
+          }
+        };
+        
+        window.deleteMessage = async (messageId) => {
+          if (confirm('Are you sure you want to delete this message?')) {
+            try {
+              await deleteMessage(messageId);
+              await renderMessages();
+            } catch (error) {
+              console.error('Error deleting message:', error);
+            }
+          }
+        };
+        
+        // Initialize the app
         render();
-      }
+        window.addEventListener('hashchange', render);
+      };
       
-      (function() {
-    if (document.readyState === 'loading') {
+      // Start the application
+      if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);
-    } else {
+      } else {
         init();
-    }
-})()
-</script>
+      }
+    })();
+  </script>
 </body>
 </html>
