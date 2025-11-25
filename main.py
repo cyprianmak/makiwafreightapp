@@ -83,6 +83,7 @@ class Load(db.Model):
     weight = db.Column(db.Float, nullable=False)
     notes = db.Column(db.Text)
     shipper_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False)
+    shipper_email = db.Column(db.String(100), nullable=False)
     expires_at = db.Column(db.DateTime, nullable=False)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     
@@ -100,8 +101,10 @@ class Load(db.Model):
             "weight": self.weight,
             "notes": self.notes,
             "shipper_id": self.shipper_id,
+            "shipper_email": self.shipper_email,
             "shipper_name": self.shipper.name if self.shipper else "Unknown",
             "shipper_membership": self.shipper.membership_number if self.shipper else "Unknown",
+            "posted_by": self.shipper.membership_number if self.shipper else "Unknown",
             "expires_at": self.expires_at.isoformat(),
             "created_at": self.created_at.isoformat()
         }
@@ -229,6 +232,18 @@ def get_default_access_control_data():
             },
             'market': {
                 'allowed_roles': ['admin', 'shipper', 'transporter']
+            },
+            'dashboard': {
+                'allowed_roles': ['admin', 'shipper', 'transporter']
+            },
+            'profile': {
+                'allowed_roles': ['admin', 'shipper', 'transporter']
+            },
+            'messages': {
+                'allowed_roles': ['admin', 'shipper', 'transporter']
+            },
+            'admin': {
+                'allowed_roles': ['admin']
             }
         },
         'banners': {
@@ -267,13 +282,11 @@ def get_access_control():
             data['pages'] = default_data['pages']
             updated = True
         else:
-            # Ensure post_load and market exist
-            if 'post_load' not in data['pages'] or not isinstance(data['pages'].get('post_load'), dict):
-                data['pages']['post_load'] = default_data['pages']['post_load']
-                updated = True
-            if 'market' not in data['pages'] or not isinstance(data['pages'].get('market'), dict):
-                data['pages']['market'] = default_data['pages']['market']
-                updated = True
+            # Ensure all required pages exist
+            for page in ['post_load', 'market', 'dashboard', 'profile', 'messages', 'admin']:
+                if page not in data['pages'] or not isinstance(data['pages'].get(page), dict):
+                    data['pages'][page] = default_data['pages'][page]
+                    updated = True
         
         # Ensure banners exists and has required structure
         if 'banners' not in data or not isinstance(data['banners'], dict):
@@ -343,6 +356,14 @@ def update_banners(banners):
         print(f"Error updating banners: {e}")
         return banners
 
+def can_access_page(user, page_name):
+    """Check if user can access a specific page"""
+    if user.role == 'admin':
+        return True  # Admin has access to everything
+    ac_data = get_access_control()
+    allowed_roles = ac_data.get('pages', {}).get(page_name, {}).get('allowed_roles', [])
+    return user.role in allowed_roles
+
 # Initialize database
 def initialize_data():
     with app.app_context():
@@ -395,7 +416,10 @@ def initialize_data():
                         pages=json.dumps({
                             "market": {"enabled": True},
                             "shipper-post": {"enabled": True},
-                            "admin": {"enabled": True}
+                            "admin": {"enabled": True},
+                            "dashboard": {"enabled": True},
+                            "profile": {"enabled": True},
+                            "messages": {"enabled": True}
                         })
                     )
                     db.session.add(user_access)
@@ -454,6 +478,7 @@ def api_info():
                 "messages": "/api/messages",
                 "users": "/api/users",
                 "users_me": "/api/users/me",
+                "user_loads": "/api/users/me/loads",
                 "admin_banners": "/api/admin/banners",
                 "admin_access_control": "/api/admin/access-control",
                 "admin_user_access": "/api/admin/users/<user_id>/access",
@@ -541,7 +566,10 @@ def register():
             user_id=new_user.id,
             pages=json.dumps({
                 "market": {"enabled": True},
-                "shipper-post": {"enabled": True}
+                "shipper-post": {"enabled": True},
+                "dashboard": {"enabled": True},
+                "profile": {"enabled": True},
+                "messages": {"enabled": True}
             })
         )
         db.session.add(user_access)
@@ -556,7 +584,8 @@ def register():
                     "name": new_user.name,
                     "email": new_user.email,
                     "role": new_user.role,
-                    "membership_number": new_user.membership_number
+                    "membership_number": new_user.membership_number,
+                    "created_at": new_user.created_at.isoformat()
                 }
             },
             "membership_number": membership_number
@@ -605,7 +634,8 @@ def login():
                         "name": user.name,
                         "email": user.email,
                         "role": user.role,
-                        "membership_number": user.membership_number
+                        "membership_number": user.membership_number,
+                        "created_at": user.created_at.isoformat()
                     }
                 }
             })
@@ -643,6 +673,8 @@ def get_current_user():
                     "address": user.address,
                     "vehicle_info": user.vehicle_info,
                     "membership_number": user.membership_number,
+                    "membership_date": user.created_at.strftime("%Y-%m-%d"),
+                    "join_date": user.created_at.strftime("%B %d, %Y"),
                     "created_at": user.created_at.isoformat()
                 }
             }
@@ -669,16 +701,12 @@ def update_current_user():
             }), 400
         
         # Update fields if provided
-        if 'name' in data:
-            user.name = data['name']
-        if 'company' in data:
-            user.company = data['company']
-        if 'phone' in data:
-            user.phone = data['phone']
-        if 'address' in data:
-            user.address = data['address']
-        if 'vehicle_info' in data:
-            user.vehicle_info = data['vehicle_info']
+        editable_fields = ['name', 'company', 'phone', 'address', 'vehicle_info']
+        for field in editable_fields:
+            if field in data:
+                setattr(user, field, data[field])
+        
+        # Handle password separately
         if 'password' in data and data['password']:
             user.set_password(data['password'])
         
@@ -697,7 +725,9 @@ def update_current_user():
                     "phone": user.phone,
                     "address": user.address,
                     "vehicle_info": user.vehicle_info,
-                    "membership_number": user.membership_number
+                    "membership_number": user.membership_number,
+                    "membership_date": user.created_at.strftime("%Y-%m-%d"),
+                    "created_at": user.created_at.isoformat()
                 }
             }
         })
@@ -706,6 +736,42 @@ def update_current_user():
         return jsonify({
             "success": False,
             "message": "Profile update failed",
+            "error": str(e)
+        }), 500
+
+# Get user's posted loads
+@app.route('/api/users/me/loads', methods=['GET'])
+@login_required
+def get_my_loads():
+    try:
+        user = check_auth(request)
+        # Get loads posted by current user
+        loads = Load.query.filter_by(shipper_id=user.id).order_by(Load.created_at.desc()).all()
+        
+        result = []
+        for load in loads:
+            result.append({
+                "id": load.id,
+                "ref": load.ref,
+                "origin": load.origin,
+                "destination": load.destination,
+                "date": load.date,
+                "cargo_type": load.cargo_type,
+                "weight": load.weight,
+                "notes": load.notes,
+                "expires_at": load.expires_at.isoformat(),
+                "created_at": load.created_at.isoformat()
+            })
+        
+        return jsonify({
+            "success": True,
+            "message": "Your loads retrieved",
+            "data": {"loads": result}
+        })
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": "Failed to retrieve your loads",
             "error": str(e)
         }), 500
 
@@ -728,6 +794,7 @@ def get_loads():
                 "notes": load.notes,
                 "shipper_name": load.shipper.name if load.shipper else "Unknown",
                 "shipper_membership": load.shipper.membership_number if load.shipper else "Unknown",
+                "posted_by": load.shipper.membership_number if load.shipper else "Unknown",
                 "expires_at": load.expires_at.isoformat(),
                 "created_at": load.created_at.isoformat()
             })
@@ -771,6 +838,7 @@ def create_load():
         # Generate reference
         ref = 'LD' + str(int(datetime.now(timezone.utc).timestamp()))[-6:]
         
+        # Auto-populate shipper information from logged-in user
         new_load = Load(
             ref=ref,
             origin=data['origin'],
@@ -779,7 +847,8 @@ def create_load():
             cargo_type=data['cargo_type'],
             weight=float(data['weight']),
             notes=data.get('notes', ''),
-            shipper_id=user.id,
+            shipper_id=user.id,  # Auto-populated
+            shipper_email=user.email,  # Auto-populated
             expires_at=expires_at
         )
         
@@ -1003,6 +1072,33 @@ def send_message():
             "error": str(e)
         }), 500
 
+# Banner endpoints
+@app.route('/api/banners/active')
+def get_active_banners():
+    """Get banners for current page context"""
+    referrer = request.headers.get('Referer', '')
+    current_path = request.args.get('page', '')
+    
+    banners = get_banners()
+    
+    # Determine which banner to show based on current page
+    if current_path == 'index' or current_path == '' or referrer.endswith('/'):
+        return jsonify({
+            "success": True,
+            "data": {"banner": banners.get('index', '')}
+        })
+    elif current_path == 'dashboard' or 'dashboard' in referrer:
+        return jsonify({
+            "success": True,
+            "data": {"banner": banners.get('dashboard', '')}
+        })
+    
+    # Default: no banner for other pages
+    return jsonify({
+        "success": True,
+        "data": {"banner": ""}
+    })
+
 # Admin endpoints
 @app.route('/api/admin/banners', methods=['GET'])
 @admin_required
@@ -1107,7 +1203,10 @@ def get_user_access(user_id):
                     "user_id": user_id,
                     "pages": {
                         'market': {'enabled': True},
-                        'shipper-post': {'enabled': True}
+                        'shipper-post': {'enabled': True},
+                        'dashboard': {'enabled': True},
+                        'profile': {'enabled': True},
+                        'messages': {'enabled': True}
                     }
                 }
             })
@@ -1193,6 +1292,7 @@ def get_users():
                 "company": u.company,
                 "phone": u.phone,
                 "membership_number": u.membership_number,
+                "membership_date": u.created_at.strftime("%Y-%m-%d"),
                 "created_at": u.created_at.isoformat()
             })
         
