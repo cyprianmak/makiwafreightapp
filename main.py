@@ -90,11 +90,12 @@ def debug_db():
         users = []
         for user in User.query.all():
             users.append({
-                "id": User.id,
-                "name": User.name,
-                "email": User.email,
-                "role": User.role,
-                "created_at": User.created_at.isoformat()
+                "id": user.id,
+                "name": user.name,
+                "email": user.email,
+                "role": user.role,
+                "membership_number": user.membership_number,
+                "created_at": user.created_at.isoformat()
             })
         
         # Get database type
@@ -142,6 +143,7 @@ class User(db.Model):
     phone = db.Column(db.String(20))
     address = db.Column(db.String(200))
     vehicle_info = db.Column(db.String(200))
+    membership_number = db.Column(db.String(20), unique=True, nullable=False)  # Added for membership numbers
     token = db.Column(db.String(36))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
@@ -164,7 +166,25 @@ class Load(db.Model):
     expires_at = db.Column(db.DateTime, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
-    shipper = db.relationship('User', backref=db.backref('loads', lazy=True))
+    # Relationship to get shipper info
+    shipper = db.relationship('User', foreign_keys=[shipper_id])
+    
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "ref": self.ref,
+            "origin": self.origin,
+            "destination": self.destination,
+            "date": self.date,
+            "cargo_type": self.cargo_type,
+            "weight": self.weight,
+            "notes": self.notes,
+            "shipper_id": self.shipper_id,
+            "shipper_name": self.shipper.name if self.shipper else "Unknown",
+            "shipper_membership": self.shipper.membership_number if self.shipper else "Unknown",
+            "expires_at": self.expires_at.isoformat(),
+            "created_at": self.created_at.isoformat()
+        }
 
 class Message(db.Model):
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
@@ -172,6 +192,15 @@ class Message(db.Model):
     recipient_email = db.Column(db.String(100), nullable=False)
     body = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "sender_email": self.sender_email,
+            "recipient_email": self.recipient_email,
+            "body": self.body,
+            "created_at": self.created_at.isoformat()
+        }
 
 class AccessControl(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -189,6 +218,16 @@ class Banner(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     index = db.Column(db.String(200))
     dashboard = db.Column(db.String(200))
+
+# DB helper: generate membership number MF000001 style
+def generate_membership_number():
+    # Get the highest numeric tail so far
+    max_id = db.session.query(db.func.max(User.id)).scalar()
+    if not max_id:
+        next_id = 1
+    else:
+        next_id = max_id + 1
+    return f"MF{str(next_id).zfill(6)}"
 
 # Helper functions
 def check_auth(request):
@@ -331,7 +370,7 @@ def create_tables():
             print(f"User access control table exists with {user_access_count} records")
         except Exception as e:
             print(f"Error checking user_access_control table: {e}")
-            # Create the table using raw SQL as fallback
+            # Create table using raw SQL as fallback
             try:
                 db.session.execute(text("""
                     CREATE TABLE IF NOT EXISTS user_access_control (
@@ -363,7 +402,8 @@ def initialize_data():
             admin = User(
                 name="Admin",
                 email=admin_email,
-                role="admin"
+                role="admin",
+                membership_number=generate_membership_number()  # Generate membership number for admin
             )
             admin.set_password("Muchandida@1")
             db.session.add(admin)
@@ -653,11 +693,15 @@ def register():
                 "error": "Email already registered"
             }), 400
         
+        # Generate unique membership number
+        membership_number = generate_membership_number()
+        
         # Create new user
         new_user = User(
             name=name,
             email=email,
-            role=role
+            role=role,
+            membership_number=membership_number  # Add membership number
         )
         new_user.set_password(password)
         
@@ -672,9 +716,11 @@ def register():
                     "id": new_user.id,
                     "name": new_user.name,
                     "email": new_user.email,
-                    "role": new_user.role
+                    "role": new_user.role,
+                    "membership_number": new_user.membership_number  # Include in response
                 }
-            }
+            },
+            "membership_number": membership_number  # Also include at top level for frontend
         }), 201
     except Exception as e:
         return jsonify({
@@ -711,7 +757,8 @@ def login():
                         "id": user.id,
                         "name": user.name,
                         "email": user.email,
-                        "role": user.role
+                        "role": user.role,
+                        "membership_number": user.membership_number  # Include in response
                     }
                 }
             })
@@ -753,6 +800,7 @@ def get_current_user():
                     "phone": user.phone,
                     "address": user.address,
                     "vehicle_info": user.vehicle_info,
+                    "membership_number": user.membership_number,  # Include in response
                     "created_at": user.created_at.isoformat()
                 }
             }
@@ -789,6 +837,8 @@ def update_current_user():
             user.address = data['address']
         if 'vehicle_info' in data:
             user.vehicle_info = data['vehicle_info']
+        if 'password' in data and data['password']:
+            user.set_password(data['password'])
         
         db.session.commit()
         
@@ -804,7 +854,8 @@ def update_current_user():
                     "company": user.company,
                     "phone": user.phone,
                     "address": user.address,
-                    "vehicle_info": user.vehicle_info
+                    "vehicle_info": user.vehicle_info,
+                    "membership_number": user.membership_number  # Include in response
                 }
             }
         })
@@ -1036,6 +1087,7 @@ def handle_loads():
                     "weight": load.weight,
                     "notes": load.notes,
                     "shipper_name": load.shipper.name if load.shipper else None,
+                    "shipper_membership": load.shipper.membership_number if load.shipper else None,
                     "expires_at": load.expires_at.isoformat(),
                     "created_at": load.created_at.isoformat()
                 })
@@ -1318,6 +1370,7 @@ def get_users():
                 "role": u.role,
                 "company": u.company,
                 "phone": u.phone,
+                "membership_number": u.membership_number,  # Include in response
                 "created_at": u.created_at.isoformat()
             })
         
