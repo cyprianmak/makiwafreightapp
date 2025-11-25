@@ -94,7 +94,7 @@ def debug_db():
                 "name": user.name,
                 "email": user.email,
                 "role": user.role,
-                "membership_number": user.membership_number,
+                "membership_number": getattr(user, 'membership_number', None),
                 "created_at": user.created_at.isoformat()
             })
         
@@ -221,13 +221,57 @@ class Banner(db.Model):
 
 # DB helper: generate membership number MF000001 style
 def generate_membership_number():
-    # Get the highest numeric tail so far
-    max_id = db.session.query(db.func.max(User.id)).scalar()
-    if not max_id:
-        next_id = 1
-    else:
-        next_id = max_id + 1
-    return f"MF{str(next_id).zfill(6)}"
+    """
+    Generates a unique membership number in the format MF000001.
+    It finds the highest existing number and increments it.
+    """
+    try:
+        # Query for the highest numeric part of the membership number
+        last_membership = db.session.query(User.membership_number).filter(
+            User.membership_number.like('MF%')
+        ).order_by(User.membership_number.desc()).first()
+        
+        if not last_membership:
+            next_id = 1
+        else:
+            # Extract numeric part and increment
+            try:
+                # Remove 'MF' prefix and convert to int
+                last_num = int(last_membership[0][2:])
+                next_id = last_num + 1
+            except (ValueError, IndexError):
+                # Fallback if format is unexpected
+                next_id = 1
+        
+        return f"MF{str(next_id).zfill(6)}"
+    except Exception:
+        # If anything goes wrong (e.g., table doesn't exist yet), start from 1
+        return f"MF000001"
+
+# Helper function to ensure all users have a membership number
+def ensure_membership_numbers():
+    """
+    Checks for users without a membership number and assigns them one.
+    This is a one-time migration helper.
+    """
+    try:
+        print("Checking for users without membership numbers...")
+        # This query works even if the column doesn't exist yet, it will just fail gracefully
+        users_without_membership = User.query.filter(
+            (User.membership_number.is_(None)) | (User.membership_number == '')
+        ).all()
+        
+        if users_without_membership:
+            print(f"Found {len(users_without_membership)} users without membership numbers. Assigning...")
+            for user in users_without_membership:
+                user.membership_number = generate_membership_number()
+            db.session.commit()
+            print("Membership numbers assigned successfully.")
+        else:
+            print("All users have membership numbers.")
+    except Exception as e:
+        print(f"Could not update membership numbers (this is ok on first run): {e}")
+        db.session.rollback()
 
 # Helper functions
 def check_auth(request):
@@ -353,7 +397,7 @@ def create_tables():
             print(f"Database tables exist with {user_count} users")
             tables_exist = True
         except Exception as e:
-            print(f"Error querying User table: {e}")
+            print(f"Error querying User table (this is ok on first run): {e}")
             tables_exist = False
         
         # Only create tables if they don't exist
@@ -392,6 +436,9 @@ def initialize_data():
     with app.app_context():
         # Create tables if they don't exist
         create_tables()
+        
+        # Ensure all users have membership numbers after table creation
+        ensure_membership_numbers()
         
         # Check if admin user exists
         admin_email = 'cyprianmak@gmail.com'
