@@ -1727,12 +1727,199 @@
           const loads = await getLoads();
           const load = loads.find(l => l.id === loadId);
           
-        // ... rest of the existing JavaScript code continues with the same pattern of updates
-        // The key changes are in the API calls and data handling to match the backend updates
-        
+          if (!load) {
+            showNotification('Load not found', 'error');
+            return;
+          }
+          
+          const loadDetails = el('loadDetails');
+          const loadEditForm = el('loadEditForm');
+          
+          // Clear previous content
+          loadDetails.innerHTML = '';
+          loadEditForm.innerHTML = '';
+          
+          // Create load details using createElement
+          const detailsContainer = document.createElement('div');
+          detailsContainer.className = 'load-details-content';
+          
+          const title = document.createElement('h4');
+          title.textContent = 'Load Details';
+          detailsContainer.appendChild(title);
+          
+          const detailRows = [
+            { label: 'Reference', value: load.ref },
+            { label: 'Origin', value: load.origin },
+            { label: 'Destination', value: load.destination },
+            { label: 'Pickup Date', value: new Date(load.date).toLocaleDateString() },
+            { label: 'Expiry Date', value: new Date(load.expires_at).toLocaleDateString() },
+            { label: 'Cargo Type', value: load.cargo_type },
+            { label: 'Weight (Tons)', value: load.weight },
+            { label: 'Status', value: getLoadStatus(load) },
+            { label: 'Shipper', value: load.shipper_name || load.shipper_email },
+            { label: 'Notes', value: load.notes || 'None' }
+          ];
+          
+          detailRows.forEach(row => {
+            const detailRow = document.createElement('div');
+            detailRow.className = 'load-detail-row';
+            
+            const label = document.createElement('span');
+            label.className = 'load-detail-label';
+            label.textContent = row.label + ':';
+            
+            const value = document.createElement('span');
+            value.className = 'load-detail-value';
+            value.textContent = row.value;
+            
+            detailRow.appendChild(label);
+            detailRow.appendChild(value);
+            detailsContainer.appendChild(detailRow);
+          });
+          
+          loadDetails.appendChild(detailsContainer);
+          setHidden('loadDetails', false);
+          
+          // Create edit form
+          const formContainer = document.createElement('div');
+          formContainer.className = 'load-edit-form-content';
+          
+          const formTitle = document.createElement('h4');
+          formTitle.textContent = 'Edit Load';
+          formContainer.appendChild(formTitle);
+          
+          const editForm = document.createElement('form');
+          editForm.id = 'formEditLoad';
+          
+          const formGrid = document.createElement('div');
+          formGrid.className = 'grid two';
+          
+          const fields = [
+            { id: 'editOrigin', label: 'Origin', value: load.origin, required: true },
+            { id: 'editDestination', label: 'Destination', value: load.destination, required: true },
+            { id: 'editDate', label: 'Pickup Date', value: load.date.split('T')[0], type: 'date', required: true },
+            { id: 'editCargo', label: 'Cargo Type', value: load.cargo_type, required: true },
+            { id: 'editWeight', label: 'Weight (Tons)', value: load.weight, type: 'number', required: true }
+          ];
+          
+          fields.forEach(field => {
+            const fieldContainer = document.createElement('div');
+            
+            const label = document.createElement('label');
+            label.htmlFor = field.id;
+            label.textContent = field.label;
+            
+            const input = document.createElement('input');
+            input.id = field.id;
+            input.name = field.id.replace('edit', '').toLowerCase();
+            input.value = field.value;
+            input.required = field.required;
+            
+            if (field.type) {
+              input.type = field.type;
+            }
+            
+            fieldContainer.appendChild(label);
+            fieldContainer.appendChild(input);
+            formGrid.appendChild(fieldContainer);
+          });
+          
+          const notesContainer = document.createElement('div');
+          notesContainer.className = 'two';
+          notesContainer.style.gridColumn = '1 / -1';
+          
+          const notesLabel = document.createElement('label');
+          notesLabel.htmlFor = 'editNotes';
+          notesLabel.textContent = 'Notes';
+          
+          const notesTextarea = document.createElement('textarea');
+          notesTextarea.id = 'editNotes';
+          notesTextarea.name = 'notes';
+          notesTextarea.rows = 3;
+          notesTextarea.textContent = load.notes || '';
+          
+          notesContainer.appendChild(notesLabel);
+          notesContainer.appendChild(notesTextarea);
+          formGrid.appendChild(notesContainer);
+          
+          editForm.appendChild(formGrid);
+          
+          const formToolbar = document.createElement('div');
+          formToolbar.className = 'toolbar';
+          formToolbar.style.marginTop = '12px';
+          
+          const saveButton = document.createElement('button');
+          saveButton.type = 'button';
+          saveButton.className = 'btn primary';
+          saveButton.textContent = 'Save Changes';
+          saveButton.onclick = () => updateSelectedLoad(loadId);
+          
+          formToolbar.appendChild(saveButton);
+          editForm.appendChild(formToolbar);
+          
+          formContainer.appendChild(editForm);
+          loadEditForm.appendChild(formContainer);
+          setHidden('loadEditForm', false);
+          
         } catch (error) {
           console.error('Error displaying load details:', error);
           showNotification('Failed to load details', 'error');
+        }
+      };
+      
+      const updateSelectedLoad = async (loadId) => {
+        try {
+          const origin = el('editOrigin').value;
+          const destination = el('editDestination').value;
+          const date = el('editDate').value;
+          const cargo = el('editCargo').value;
+          const weight = el('editWeight').value;
+          const notes = el('editNotes').value;
+          
+          if (!origin || !destination || !date || !cargo || !weight) {
+            showNotification('Please fill in all required fields', 'error');
+            return;
+          }
+          
+          await updateLoad(loadId, {
+            origin,
+            destination,
+            date,
+            cargo_type: cargo,
+            weight: parseFloat(weight),
+            notes
+          });
+          
+          showNotification('Load updated successfully', 'success');
+          await populateLoadDropdown();
+          setHidden('loadEditForm', true);
+          
+        } catch (error) {
+          console.error('Error updating load:', error);
+          showNotification('Failed to update load', 'error');
+        }
+      };
+      
+      const deleteSelectedLoad = async () => {
+        const select = el('selectLoad');
+        const loadId = select.value;
+        
+        if (!loadId) {
+          showNotification('Please select a load first', 'warning');
+          return;
+        }
+        
+        if (confirm('Are you sure you want to delete this load?')) {
+          try {
+            await deleteLoad(loadId);
+            await populateLoadDropdown();
+            setHidden('loadDetails', true);
+            setHidden('loadEditForm', true);
+            showNotification('Load deleted successfully', 'success');
+          } catch (error) {
+            console.error('Error deleting load:', error);
+            showNotification('Failed to delete load', 'error');
+          }
         }
       };
       
@@ -1823,6 +2010,91 @@
         } catch (error) { console.error('Error rendering shipper dashboard:', error); }
       };
       
+      const renderTransporter = async () => {
+        const u = getCurrentUserSync();
+        if (!u || u.data.user.role !== 'transporter') return;
+        try {
+          const loads = await getUserLoads();
+          const tbody = el('tableMyLoadsTransporter').querySelector('tbody');
+          
+          // Clear table using safe method
+          while (tbody.firstChild) {
+            tbody.removeChild(tbody.firstChild);
+          }
+          
+          if (!loads || loads.length === 0) {
+            const row = document.createElement('tr');
+            const cell = document.createElement('td');
+            cell.colSpan = 9;
+            cell.className = 'muted';
+            cell.textContent = 'No loads posted yet.';
+            row.appendChild(cell);
+            tbody.appendChild(row);
+            return;
+          }
+          
+          loads.forEach(load => {
+            const row = document.createElement('tr');
+            if (isLoadExpired(load)) row.classList.add('expired');
+            
+            const postedDate = new Date(load.created_at).toLocaleDateString();
+            const expiryDate = new Date(load.expires_at).toLocaleDateString();
+            const status = getLoadStatus(load);
+            
+            const refCell = document.createElement('td');
+            refCell.textContent = sanitize(load.ref);
+            
+            const originCell = document.createElement('td');
+            originCell.textContent = sanitize(load.origin);
+            
+            const destCell = document.createElement('td');
+            destCell.textContent = sanitize(load.destination);
+            
+            const dateCell = document.createElement('td');
+            dateCell.textContent = postedDate;
+            
+            const expiryCell = document.createElement('td');
+            expiryCell.textContent = expiryDate;
+            
+            const cargoCell = document.createElement('td');
+            cargoCell.textContent = sanitize(load.cargo_type);
+            
+            const weightCell = document.createElement('td');
+            weightCell.textContent = load.weight;
+            
+            const statusCell = document.createElement('td');
+            statusCell.innerHTML = getStatusBadge(status);
+            
+            const actionsCell = document.createElement('td');
+            
+            const editButton = document.createElement('button');
+            editButton.className = 'btn';
+            editButton.textContent = 'Edit';
+            editButton.onclick = () => editUserLoad(load.id);
+            
+            const deleteButton = document.createElement('button');
+            deleteButton.className = 'btn danger';
+            deleteButton.textContent = 'Delete';
+            deleteButton.onclick = () => deleteUserLoad(load.id);
+            
+            actionsCell.appendChild(editButton);
+            actionsCell.appendChild(deleteButton);
+            
+            row.appendChild(refCell);
+            row.appendChild(originCell);
+            row.appendChild(destCell);
+            row.appendChild(dateCell);
+            row.appendChild(expiryCell);
+            row.appendChild(cargoCell);
+            row.appendChild(weightCell);
+            row.appendChild(statusCell);
+            row.appendChild(actionsCell);
+            
+            tbody.appendChild(row);
+          });
+        } catch (error) { console.error('Error rendering transporter dashboard:', error); }
+      };
+      
       // UPDATED: Render market page to show membership numbers
       const renderMarket = async () => {
         try {
@@ -1910,6 +2182,63 @@
             tbody.appendChild(row);
           });
         } catch (error) { console.error('Error rendering market:', error); }
+      };
+      
+      const renderMessages = async () => {
+        try {
+          const messages = await getMessages();
+          const messageContainer = el('messageContainer');
+          
+          // Clear container using safe method
+          while (messageContainer.firstChild) {
+            messageContainer.removeChild(messageContainer.firstChild);
+          }
+          
+          if (!messages || messages.length === 0) {
+            const noMessages = document.createElement('div');
+            noMessages.className = 'muted';
+            noMessages.textContent = 'No messages.';
+            messageContainer.appendChild(noMessages);
+            return;
+          }
+          
+          // Sort messages by date (newest first)
+          messages.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+          
+          messages.forEach(msg => {
+            const messageDiv = document.createElement('div');
+            const user = getCurrentUserSync();
+            const userMembership = user.data.user.membership_number || 'Admin';
+            
+            if (msg.sender_membership === userMembership) {
+              messageDiv.className = 'message message-sent';
+            } else {
+              messageDiv.className = 'message message-received';
+            }
+            
+            const messageHeader = document.createElement('div');
+            messageHeader.className = 'message-header';
+            
+            const sender = document.createElement('div');
+            sender.className = 'message-sender';
+            sender.textContent = msg.sender_membership === 'Admin' ? 'Admin' : `From: ${msg.sender_membership}`;
+            
+            const time = document.createElement('div');
+            time.className = 'message-time';
+            time.textContent = new Date(msg.created_at).toLocaleString();
+            
+            messageHeader.appendChild(sender);
+            messageHeader.appendChild(time);
+            
+            const messageBody = document.createElement('div');
+            messageBody.className = 'message-body';
+            messageBody.textContent = msg.body;
+            
+            messageDiv.appendChild(messageHeader);
+            messageDiv.appendChild(messageBody);
+            messageContainer.appendChild(messageDiv);
+          });
+        } catch (error) { console.error('Error rendering messages:', error); }
       };
       
       // UPDATED: Render banners based on page context
@@ -2102,6 +2431,140 @@
         }
       };
       
+      const renderAccessWarnings = async () => {
+        const u = getCurrentUserSync();
+        if (!u) return;
+        
+        const shipperWarning = el('accessWarningShipper');
+        const transporterWarning = el('accessWarningTransporter');
+        
+        // Reset warnings
+        if (shipperWarning) {
+          shipperWarning.classList.add('hidden');
+          shipperWarning.textContent = '';
+        }
+        if (transporterWarning) {
+          transporterWarning.classList.add('hidden');
+          transporterWarning.textContent = '';
+        }
+        
+        // Check access to post load and market pages
+        const hasPostLoadAccess = await checkPageAccess('shipper-post');
+        const hasMarketAccess = await checkPageAccess('market');
+        
+        if (u.data.user.role === 'shipper') {
+          if (!hasPostLoadAccess || !hasMarketAccess) {
+            let warningText = '';
+            if (!hasPostLoadAccess && !hasMarketAccess) {
+              warningText = 'You do not have access to Post Load and Market pages. Please contact admin via Messages page.';
+            } else if (!hasPostLoadAccess) {
+              warningText = 'You do not have access to Post Load page. Please contact admin via Messages page.';
+            } else if (!hasMarketAccess) {
+              warningText = 'You do not have access to Market page. Please contact admin via Messages page.';
+            }
+            
+            if (shipperWarning) {
+              shipperWarning.textContent = warningText;
+              shipperWarning.classList.remove('hidden');
+            }
+          }
+        } else if (u.data.user.role === 'transporter') {
+          if (!hasPostLoadAccess || !hasMarketAccess) {
+            let warningText = '';
+            if (!hasPostLoadAccess && !hasMarketAccess) {
+              warningText = 'You do not have access to Post Load and Market pages. Please contact admin via Messages page.';
+            } else if (!hasPostLoadAccess) {
+              warningText = 'You do not have access to Post Load page. Please contact admin via Messages page.';
+            } else if (!hasMarketAccess) {
+              warningText = 'You do not have access to Market page. Please contact admin via Messages page.';
+            }
+            
+            if (transporterWarning) {
+              transporterWarning.textContent = warningText;
+              transporterWarning.classList.remove('hidden');
+            }
+          }
+        }
+      };
+      
+      const renderControl = async () => {
+        const u = getCurrentUserSync();
+        if (!isAdmin(u)) return;
+        
+        try {
+          const users = await getUsers();
+          const tbodyUsers = el('tableUsers').querySelector('tbody');
+          
+          // Clear table using safe method
+          while (tbodyUsers.firstChild) {
+            tbodyUsers.removeChild(tbodyUsers.firstChild);
+          }
+          
+          users.forEach(user => {
+            const row = document.createElement('tr');
+            
+            const nameCell = document.createElement('td');
+            nameCell.textContent = user.name;
+            
+            const emailCell = document.createElement('td');
+            emailCell.textContent = user.email;
+            
+            const membershipCell = document.createElement('td');
+            const membershipSpan = document.createElement('span');
+            membershipSpan.className = 'membership-number';
+            membershipSpan.textContent = user.membership_number || 'Not assigned';
+            membershipCell.appendChild(membershipSpan);
+            
+            const roleCell = document.createElement('td');
+            roleCell.textContent = user.role;
+            
+            const joinDateCell = document.createElement('td');
+            joinDateCell.textContent = new Date(user.created_at).toLocaleDateString();
+            
+            const actionsCell = document.createElement('td');
+            const deleteButton = document.createElement('button');
+            deleteButton.className = 'btn danger';
+            deleteButton.textContent = 'Delete';
+            deleteButton.onclick = () => deleteUser(user.email);
+            actionsCell.appendChild(deleteButton);
+            
+            row.appendChild(nameCell);
+            row.appendChild(emailCell);
+            row.appendChild(membershipCell);
+            row.appendChild(roleCell);
+            row.appendChild(joinDateCell);
+            row.appendChild(actionsCell);
+            
+            tbodyUsers.appendChild(row);
+          });
+          
+          // Populate user dropdowns
+          await populateUserDropdown();
+          await populateLoadDropdown();
+          
+          const selectUserForPassword = el('selectUserForPassword');
+          if (selectUserForPassword) {
+            // Clear dropdown using safe method
+            while (selectUserForPassword.firstChild) {
+              selectUserForPassword.removeChild(selectUserForPassword.firstChild);
+            }
+            
+            const defaultOption = document.createElement('option');
+            defaultOption.value = '';
+            defaultOption.textContent = '-- Select User --';
+            selectUserForPassword.appendChild(defaultOption);
+            
+            users.forEach(user => {
+              const option = document.createElement('option');
+              option.value = user.email;
+              option.textContent = `${user.name} (${user.email})`;
+              selectUserForPassword.appendChild(option);
+            });
+          }
+          
+        } catch (error) { console.error('Error rendering control:', error); }
+      };
+      
       // UPDATED: Main render function to include banner updates
       const render = async () => {
         await renderHeader();
@@ -2159,6 +2622,170 @@
           case 'control':
             await renderControl();
             break;
+        }
+      };
+      
+      // User load management functions
+      const editUserLoad = async (loadId) => {
+        try {
+          const loads = await getLoads();
+          const load = loads.find(l => l.id === loadId);
+          
+          if (!load) {
+            showNotification('Load not found', 'error');
+            return;
+          }
+          
+          // Create a simple edit form in a modal-like approach
+          const editForm = document.createElement('div');
+          editForm.style.position = 'fixed';
+          editForm.style.top = '0';
+          editForm.style.left = '0';
+          editForm.style.width = '100%';
+          editForm.style.height = '100%';
+          editForm.style.backgroundColor = 'rgba(0,0,0,0.7)';
+          editForm.style.display = 'flex';
+          editForm.style.justifyContent = 'center';
+          editForm.style.alignItems = 'center';
+          editForm.style.zIndex = '1000';
+          
+          const formContent = document.createElement('div');
+          formContent.className = 'card';
+          formContent.style.maxWidth = '500px';
+          formContent.style.width = '90%';
+          formContent.style.maxHeight = '90vh';
+          formContent.style.overflowY = 'auto';
+          
+          const formTitle = document.createElement('h3');
+          formTitle.textContent = 'Edit Load';
+          formContent.appendChild(formTitle);
+          
+          const form = document.createElement('form');
+          form.id = 'formEditUserLoad';
+          
+          const formGrid = document.createElement('div');
+          formGrid.className = 'grid two';
+          
+          const fields = [
+            { id: 'userEditOrigin', label: 'Origin', value: load.origin, required: true },
+            { id: 'userEditDestination', label: 'Destination', value: load.destination, required: true },
+            { id: 'userEditDate', label: 'Pickup Date', value: load.date.split('T')[0], type: 'date', required: true },
+            { id: 'userEditCargo', label: 'Cargo Type', value: load.cargo_type, required: true },
+            { id: 'userEditWeight', label: 'Weight (Tons)', value: load.weight, type: 'number', required: true }
+          ];
+          
+          fields.forEach(field => {
+            const fieldContainer = document.createElement('div');
+            
+            const label = document.createElement('label');
+            label.htmlFor = field.id;
+            label.textContent = field.label;
+            
+            const input = document.createElement('input');
+            input.id = field.id;
+            input.name = field.id.replace('userEdit', '').toLowerCase();
+            input.value = field.value;
+            input.required = field.required;
+            
+            if (field.type) {
+              input.type = field.type;
+            }
+            
+            fieldContainer.appendChild(label);
+            fieldContainer.appendChild(input);
+            formGrid.appendChild(fieldContainer);
+          });
+          
+          const notesContainer = document.createElement('div');
+          notesContainer.className = 'two';
+          notesContainer.style.gridColumn = '1 / -1';
+          
+          const notesLabel = document.createElement('label');
+          notesLabel.htmlFor = 'userEditNotes';
+          notesLabel.textContent = 'Notes';
+          
+          const notesTextarea = document.createElement('textarea');
+          notesTextarea.id = 'userEditNotes';
+          notesTextarea.name = 'notes';
+          notesTextarea.rows = 3;
+          notesTextarea.textContent = load.notes || '';
+          
+          notesContainer.appendChild(notesLabel);
+          notesContainer.appendChild(notesTextarea);
+          formGrid.appendChild(notesContainer);
+          
+          form.appendChild(formGrid);
+          
+          const formToolbar = document.createElement('div');
+          formToolbar.className = 'toolbar';
+          formToolbar.style.marginTop = '12px';
+          
+          const saveButton = document.createElement('button');
+          saveButton.type = 'button';
+          saveButton.className = 'btn primary';
+          saveButton.textContent = 'Save Changes';
+          saveButton.onclick = async () => {
+            const origin = el('userEditOrigin').value;
+            const destination = el('userEditDestination').value;
+            const date = el('userEditDate').value;
+            const cargo = el('userEditCargo').value;
+            const weight = el('userEditWeight').value;
+            const notes = el('userEditNotes').value;
+            
+            if (!origin || !destination || !date || !cargo || !weight) {
+              showNotification('Please fill in all required fields', 'error');
+              return;
+            }
+            
+            try {
+              await updateLoad(loadId, {
+                origin,
+                destination,
+                date,
+                cargo_type: cargo,
+                weight: parseFloat(weight),
+                notes
+              });
+              
+              showNotification('Load updated successfully', 'success');
+              document.body.removeChild(editForm);
+              await render();
+            } catch (error) {
+              console.error('Error updating load:', error);
+              showNotification('Failed to update load', 'error');
+            }
+          };
+          
+          const cancelButton = document.createElement('button');
+          cancelButton.type = 'button';
+          cancelButton.className = 'btn';
+          cancelButton.textContent = 'Cancel';
+          cancelButton.onclick = () => document.body.removeChild(editForm);
+          
+          formToolbar.appendChild(saveButton);
+          formToolbar.appendChild(cancelButton);
+          form.appendChild(formToolbar);
+          
+          formContent.appendChild(form);
+          editForm.appendChild(formContent);
+          document.body.appendChild(editForm);
+          
+        } catch (error) {
+          console.error('Error editing load:', error);
+          showNotification('Failed to edit load', 'error');
+        }
+      };
+      
+      const deleteUserLoad = async (loadId) => {
+        if (confirm('Are you sure you want to delete this load?')) {
+          try {
+            await deleteLoad(loadId);
+            showNotification('Load deleted successfully', 'success');
+            await render();
+          } catch (error) {
+            console.error('Error deleting load:', error);
+            showNotification('Failed to delete load', 'error');
+          }
         }
       };
       
@@ -2221,9 +2848,62 @@
         });
       };
       
-      // Initialize the application
+      // Event handlers
       const init = () => {
-        // ... existing form submission handlers remain the same
+        // Form submissions
+        el('formLogin')?.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const email = el('loginEmail').value;
+          const password = el('loginPassword').value;
+          if (!email || !password) {
+            showNotification('Please fill in all fields', 'error');
+            return;
+          }
+          setButtonLoading('formLogin', true);
+          try {
+            const user = await login(email, password);
+            if (user) {
+              location.hash = user.data.user.role === 'admin' ? '#control' : 
+                             user.data.user.role === 'shipper' ? '#shipper-dashboard' : '#transporter-dashboard';
+            }
+          } catch (error) {
+            console.error('Login error:', error);
+          } finally {
+            setButtonLoading('formLogin', false);
+          }
+        });
+        
+        el('formRegShipper')?.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const formData = new FormData(e.target);
+          const data = Object.fromEntries(formData);
+          data.role = 'shipper';
+          setButtonLoading('formRegShipper', true);
+          try {
+            await registerUser(data);
+            location.hash = '#shipper-dashboard';
+          } catch (error) {
+            console.error('Registration error:', error);
+          } finally {
+            setButtonLoading('formRegShipper', false);
+          }
+        });
+        
+        el('formRegTransporter')?.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const formData = new FormData(e.target);
+          const data = Object.fromEntries(formData);
+          data.role = 'transporter';
+          setButtonLoading('formRegTransporter', true);
+          try {
+            await registerUser(data);
+            location.hash = '#transporter-dashboard';
+          } catch (error) {
+            console.error('Registration error:', error);
+          } finally {
+            setButtonLoading('formRegTransporter', false);
+          }
+        });
         
         // UPDATED: Post load form - removed shipper ID and email fields
         el('formPostLoad')?.addEventListener('submit', async (e) => {
@@ -2242,10 +2922,180 @@
           }
         });
         
+        el('formSendMsg')?.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const to = el('msgTo').value;
+          const body = el('msgBody').value;
+          setButtonLoading('formSendMsg', true);
+          try {
+            await sendMessage(to, body);
+            e.target.reset();
+            await renderMessages();
+          } catch (error) {
+            console.error('Send message error:', error);
+          } finally {
+            setButtonLoading('formSendMsg', false);
+          }
+        });
+        
+        // Access control event listeners
+        el('btnLoadUserAccess')?.addEventListener('click', loadUserAccess);
+        el('btnSaveUserAccess')?.addEventListener('click', saveUserAccess);
+        el('btnRefreshAccessControl')?.addEventListener('click', refreshAccessControl);
+        
+        // Load management event listeners
+        el('btnLoadLoadDetails')?.addEventListener('click', async () => {
+          const select = el('selectLoad');
+          const loadId = select.value;
+          
+          if (!loadId) {
+            showNotification('Please select a load first', 'warning');
+            return;
+          }
+          
+          await displayLoadDetails(loadId);
+        });
+        
+        el('btnDeleteLoad')?.addEventListener('click', deleteSelectedLoad);
+        
+        // Reset password functionality
+        el('btnResetPass')?.addEventListener('click', async () => {
+          const select = el('selectUserForPassword');
+          const password = el('resetPass').value;
+          const email = select.value;
+          
+          if (!email || !password) {
+            showNotification('Please select a user and enter a new password', 'warning');
+            return;
+          }
+          
+          try {
+            await resetPassword(email, password);
+            showNotification('Password reset successfully', 'success');
+            el('resetPass').value = '';
+          } catch (error) {
+            console.error('Reset password error:', error);
+            showNotification('Failed to reset password: ' + error.message, 'error');
+          }
+        });
+        
+        el('btnLogout')?.addEventListener('click', logout);
+        
+        el('btnMarketFilterLoads')?.addEventListener('click', async () => {
+          const origin = el('marketFilterOrigin').value;
+          const destination = el('marketFilterDest').value;
+          try {
+            const loads = await getLoads({ origin, destination });
+            const tbody = el('tableMarketLoads').querySelector('tbody');
+            
+            // Clear table using safe method
+            while (tbody.firstChild) {
+              tbody.removeChild(tbody.firstChild);
+            }
+            
+            if (!loads || loads.length === 0) {
+              const row = document.createElement('tr');
+              const cell = document.createElement('td');
+              cell.colSpan = 10;
+              cell.className = 'muted';
+              cell.textContent = 'No loads found matching your criteria.';
+              row.appendChild(cell);
+              tbody.appendChild(row);
+              return;
+            }
+            
+            loads.forEach(load => {
+              const row = document.createElement('tr');
+              if (isLoadExpired(load)) row.classList.add('expired');
+              
+              const postedDate = new Date(load.created_at).toLocaleDateString();
+              const expiryDate = new Date(load.expires_at).toLocaleDateString();
+              const status = getLoadStatus(load);
+              
+              const refCell = document.createElement('td');
+              refCell.textContent = sanitize(load.ref);
+              
+              const originCell = document.createElement('td');
+              originCell.textContent = sanitize(load.origin);
+              
+              const destCell = document.createElement('td');
+              destCell.textContent = sanitize(load.destination);
+              
+              const dateCell = document.createElement('td');
+              dateCell.textContent = postedDate;
+              
+              const expiryCell = document.createElement('td');
+              expiryCell.textContent = expiryDate;
+              
+              const cargoCell = document.createElement('td');
+              cargoCell.textContent = sanitize(load.cargo_type);
+              
+              const weightCell = document.createElement('td');
+              weightCell.textContent = load.weight;
+              
+              const statusCell = document.createElement('td');
+              statusCell.innerHTML = getStatusBadge(status);
+              
+              // UPDATED: Show membership number instead of name/email
+              const postedByCell = document.createElement('td');
+              postedByCell.textContent = sanitize(load.shipper_membership || load.posted_by || 'Unknown');
+              
+              const actionsCell = document.createElement('td');
+              const contactButton = document.createElement('button');
+              contactButton.className = 'btn';
+              contactButton.textContent = 'Contact';
+              contactButton.onclick = () => {
+                const membershipNumber = load.shipper_membership || load.posted_by;
+                if (membershipNumber) {
+                  location.hash = '#messages';
+                  setTimeout(() => {
+                    el('msgTo').value = membershipNumber;
+                  }, 100);
+                }
+              };
+              actionsCell.appendChild(contactButton);
+              
+              row.appendChild(refCell);
+              row.appendChild(originCell);
+              row.appendChild(destCell);
+              row.appendChild(dateCell);
+              row.appendChild(expiryCell);
+              row.appendChild(cargoCell);
+              row.appendChild(weightCell);
+              row.appendChild(statusCell);
+              row.appendChild(postedByCell);
+              row.appendChild(actionsCell);
+              
+              tbody.appendChild(row);
+            });
+          } catch (error) { console.error('Error filtering loads:', error); }
+        });
+        
         // Initialize profile save handlers
         initProfileSaveHandlers();
         
-        // ... rest of existing initialization code
+        // Global functions for onclick handlers
+        window.deleteUser = async (email) => {
+          if (confirm('Are you sure you want to delete this user?')) {
+            try {
+              await deleteUser(email);
+              await render();
+            } catch (error) {
+              console.error('Error deleting user:', error);
+            }
+          }
+        };
+        
+        window.deleteMessage = async (messageId) => {
+          if (confirm('Are you sure you want to delete this message?')) {
+            try {
+              await deleteMessage(messageId);
+              await renderMessages();
+            } catch (error) {
+              console.error('Error deleting message:', error);
+            }
+          }
+        };
         
         // Initialize the app
         render();
