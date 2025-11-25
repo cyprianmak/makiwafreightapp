@@ -68,32 +68,67 @@ def column_exists(table_name, column_name):
 # Add this function to add the membership_number column if it doesn't exist
 def add_membership_number_column():
     try:
+        # Close any existing transactions
+        db.session.rollback()
+        
         if not column_exists('user', 'membership_number'):
             print("Adding membership_number column to user table...")
             if 'postgresql' in app.config['SQLALCHEMY_DATABASE_URI']:
-                # For PostgreSQL
+                # For PostgreSQL - add column without unique constraint first
                 db.session.execute(text("""
                     ALTER TABLE "user" 
-                    ADD COLUMN membership_number VARCHAR(20) UNIQUE NOT NULL DEFAULT 'TEMP001'
+                    ADD COLUMN membership_number VARCHAR(20)
                 """))
+                db.session.commit()
+                print("membership_number column added successfully (without unique constraint)")
+                
+                # Now update all existing users with unique membership numbers
+                users = db.session.execute(text("SELECT id FROM \"user\"")).fetchall()
+                for i, user in enumerate(users):
+                    membership_num = f"MF{str(i+1).zfill(6)}"
+                    db.session.execute(text(f"""
+                        UPDATE "user" 
+                        SET membership_number = '{membership_num}' 
+                        WHERE id = '{user[0]}'
+                    """))
+                db.session.commit()
+                print("Updated existing users with membership numbers")
+                
+                # Now add the unique constraint
+                db.session.execute(text("""
+                    ALTER TABLE "user" 
+                    ADD CONSTRAINT user_membership_number_key UNIQUE (membership_number)
+                """))
+                db.session.commit()
+                print("Added unique constraint to membership_number column")
+                
+                # Finally, make the column NOT NULL
+                db.session.execute(text("""
+                    ALTER TABLE "user" 
+                    ALTER COLUMN membership_number SET NOT NULL
+                """))
+                db.session.commit()
+                print("Made membership_number column NOT NULL")
             else:
                 # For SQLite
                 db.session.execute(text("""
                     ALTER TABLE "user" 
-                    ADD COLUMN membership_number VARCHAR(20) UNIQUE NOT NULL DEFAULT 'TEMP001'
+                    ADD COLUMN membership_number VARCHAR(20)
                 """))
-            
-            db.session.commit()
-            print("membership_number column added successfully")
-            
-            # Update all existing users with unique membership numbers
-            users = User.query.all()
-            for user in users:
-                if not user.membership_number or user.membership_number == 'TEMP001':
-                    user.membership_number = generate_membership_number()
-            
-            db.session.commit()
-            print("Updated existing users with membership numbers")
+                db.session.commit()
+                print("membership_number column added successfully")
+                
+                # Update all existing users with unique membership numbers
+                users = db.session.execute(text("SELECT id FROM user")).fetchall()
+                for i, user in enumerate(users):
+                    membership_num = f"MF{str(i+1).zfill(6)}"
+                    db.session.execute(text(f"""
+                        UPDATE user 
+                        SET membership_number = '{membership_num}' 
+                        WHERE id = '{user[0]}'
+                    """))
+                db.session.commit()
+                print("Updated existing users with membership numbers")
         else:
             print("membership_number column already exists")
     except Exception as e:
@@ -314,7 +349,7 @@ def ensure_membership_numbers():
         print("Checking for users without membership numbers...")
         # This query works even if the column doesn't exist yet, it will just fail gracefully
         users_without_membership = User.query.filter(
-            (User.membership_number.is_(None)) | (User.membership_number == '') | (User.membership_number == 'TEMP001')
+            (User.membership_number.is_(None)) | (User.membership_number == '')
         ).all()
         
         if users_without_membership:
@@ -445,11 +480,14 @@ def update_banners(banners):
 # Add this function to create tables if they don't exist
 def create_tables():
     with app.app_context():
+        # Close any existing transactions
+        db.session.rollback()
+        
         # Check if tables exist by trying to query them
         tables_exist = False
         try:
             # Try to query User table
-            user_count = User.query.count()
+            user_count = db.session.execute(text("SELECT COUNT(*) FROM \"user\"")).scalar()
             print(f"Database tables exist with {user_count} users")
             tables_exist = True
         except Exception as e:
@@ -460,6 +498,7 @@ def create_tables():
         if not tables_exist:
             print("Creating database tables...")
             db.create_all()
+            db.session.commit()
             print("Database tables created")
         else:
             print("Database tables already exist, skipping table creation")
@@ -490,6 +529,9 @@ def create_tables():
 # Initialize admin user and database
 def initialize_data():
     with app.app_context():
+        # Close any existing transactions
+        db.session.rollback()
+        
         # Create tables if they don't exist
         create_tables()
         
@@ -501,34 +543,42 @@ def initialize_data():
         
         # Check if admin user exists
         admin_email = 'cyprianmak@gmail.com'
-        admin = User.query.filter_by(email=admin_email).first()
-        
-        if not admin:
-            print("Creating admin user...")
-            admin = User(
-                name="Admin",
-                email=admin_email,
-                role="admin",
-                membership_number=generate_membership_number()  # Generate membership number for admin
-            )
-            admin.set_password("Muchandida@1")
-            db.session.add(admin)
-            db.session.commit()
-            print("Admin user created")
-        else:
-            print("Admin user already exists")
+        try:
+            admin = User.query.filter_by(email=admin_email).first()
+            
+            if not admin:
+                print("Creating admin user...")
+                admin = User(
+                    name="Admin",
+                    email=admin_email,
+                    role="admin",
+                    membership_number=generate_membership_number()  # Generate membership number for admin
+                )
+                admin.set_password("Muchandida@1")
+                db.session.add(admin)
+                db.session.commit()
+                print("Admin user created")
+            else:
+                print("Admin user already exists")
+        except Exception as e:
+            print(f"Error checking/creating admin user: {e}")
+            db.session.rollback()
         
         # Check if access control data exists
-        ac = AccessControl.query.first()
-        if not ac:
-            print("Creating access control data...")
-            default_data = get_default_access_control_data()
-            ac = AccessControl(data=json.dumps(default_data))
-            db.session.add(ac)
-            db.session.commit()
-            print("Access control data created")
-        else:
-            print("Access control data already exists")
+        try:
+            ac = AccessControl.query.first()
+            if not ac:
+                print("Creating access control data...")
+                default_data = get_default_access_control_data()
+                ac = AccessControl(data=json.dumps(default_data))
+                db.session.add(ac)
+                db.session.commit()
+                print("Access control data created")
+            else:
+                print("Access control data already exists")
+        except Exception as e:
+            print(f"Error checking/creating access control data: {e}")
+            db.session.rollback()
 
 # Backup and restore endpoints
 @app.route('/api/admin/backup', methods=['POST'])
