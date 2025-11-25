@@ -695,7 +695,7 @@
             <select id="selectUserForAccess">
               <option value="">-- Select User --</option>
             </select>
-            <button id="btnLoadUserAccess" class="btn">Load</button>
+            <button id="btnLoadUserAccess" class="btn">Load Access</button>
           </div>
           
           <div id="userAccessContainer" class="page-access-container">
@@ -796,7 +796,7 @@
   
   <!-- Notification Container -->
   <div id="notificationContainer"></div>
-      <script>
+  <script>
     // MakiwaFreight App Frontend (Fixed Version)
     (function() {
       'use strict';
@@ -815,6 +815,15 @@
         'market': { name: 'Market', roles: ['shipper', 'transporter'] },
         'messages': { name: 'Messages', roles: ['shipper', 'transporter'] },
         'control': { name: 'Admin Control', roles: ['admin'] }
+      };
+      
+      // Access control page mapping
+      const ACCESS_PAGES = {
+        'market': { name: 'Market Page', id: 'access-market' },
+        'shipper-post': { name: 'Post Load Page', id: 'access-post-load' },
+        'shipper-dashboard': { name: 'Shipper Dashboard', id: 'access-shipper-dashboard' },
+        'transporter-dashboard': { name: 'Transporter Dashboard', id: 'access-transporter-dashboard' },
+        'messages': { name: 'Messages', id: 'access-messages' }
       };
       
       // Role definitions
@@ -1372,6 +1381,112 @@
         }
       };
       
+      // User Access Control Functions
+      let currentSelectedUser = null;
+      
+      const populateUserDropdown = async () => {
+        try {
+          const users = await getUsers();
+          const select = el('selectUserForAccess');
+          select.innerHTML = '<option value="">-- Select User --</option>';
+          
+          users.forEach(user => {
+            const option = document.createElement('option');
+            option.value = user.id;
+            option.textContent = `${user.name} (${user.email}) - ${user.role}`;
+            select.appendChild(option);
+          });
+        } catch (error) {
+          console.error('Error populating user dropdown:', error);
+        }
+      };
+      
+      const loadUserAccess = async () => {
+        const select = el('selectUserForAccess');
+        const userId = select.value;
+        
+        if (!userId) {
+          showNotification('Please select a user first', 'warning');
+          return;
+        }
+        
+        try {
+          const userAccess = await getUserAccess(userId);
+          currentSelectedUser = userId;
+          
+          // Reset all toggles to unchecked first
+          Object.values(ACCESS_PAGES).forEach(page => {
+            const toggle = el(page.id);
+            if (toggle) {
+              toggle.checked = false;
+            }
+          });
+          
+          // Set toggles based on user access
+          if (userAccess && userAccess.pages) {
+            Object.entries(userAccess.pages).forEach(([pageId, access]) => {
+              const page = ACCESS_PAGES[pageId];
+              if (page && access.enabled) {
+                const toggle = el(page.id);
+                if (toggle) {
+                  toggle.checked = true;
+                }
+              }
+            });
+          }
+          
+          showNotification(`Loaded access for selected user`, 'success');
+        } catch (error) {
+          console.error('Error loading user access:', error);
+          showNotification('Failed to load user access', 'error');
+        }
+      };
+      
+      const saveUserAccess = async () => {
+        if (!currentSelectedUser) {
+          showNotification('Please select and load a user first', 'warning');
+          return;
+        }
+        
+        const accessData = {
+          pages: {}
+        };
+        
+        // Collect all toggle states
+        Object.entries(ACCESS_PAGES).forEach(([pageId, page]) => {
+          const toggle = el(page.id);
+          if (toggle) {
+            accessData.pages[pageId] = {
+              enabled: toggle.checked,
+              name: page.name
+            };
+          }
+        });
+        
+        try {
+          await updateUserAccess(currentSelectedUser, accessData);
+          showNotification('User access saved successfully', 'success');
+        } catch (error) {
+          console.error('Error saving user access:', error);
+          showNotification('Failed to save user access', 'error');
+        }
+      };
+      
+      const refreshAccessControl = async () => {
+        await populateUserDropdown();
+        currentSelectedUser = null;
+        
+        // Reset all toggles
+        Object.values(ACCESS_PAGES).forEach(page => {
+          const toggle = el(page.id);
+          if (toggle) {
+            toggle.checked = false;
+          }
+        });
+        
+        showNotification('Access control refreshed', 'info');
+      };
+      
       // Render functions
       const renderHeader = async () => {
         const u = getCurrentUserSync();
@@ -1574,16 +1689,28 @@
       const renderControl = async () => {
         const u = getCurrentUserSync();
         if (!isAdmin(u)) return;
+        
         try {
           const users = await getUsers();
           const tbodyUsers = el('tableUsers').querySelector('tbody');
           tbodyUsers.innerHTML = '';
+          
           users.forEach(user => {
             const row = document.createElement('tr');
             const membershipNumber = user.membership_number || 'Not assigned';
-            row.innerHTML = `<td>${sanitize(user.name)}</td><td>${sanitize(user.email)}</td><td><span class="membership-number">${membershipNumber}</span></td><td>${sanitize(user.role)}</td><td><button class="btn danger" onclick="deleteUser('${user.email}')">Delete</button></td>`;
+            row.innerHTML = `
+              <td>${user.name}</td>
+              <td>${user.email}</td>
+              <td><span class="membership-number">${membershipNumber}</span></td>
+              <td>${user.role}</td>
+              <td><button class="btn danger" onclick="deleteUser('${user.email}')">Delete</button></td>
+            `;
             tbodyUsers.appendChild(row);
           });
+          
+          // Populate user dropdowns
+          await populateUserDropdown();
+          
           const selectUserForPassword = el('selectUserForPassword');
           if (selectUserForPassword) {
             selectUserForPassword.innerHTML = '<option value="">-- Select User --</option>';
@@ -1594,6 +1721,7 @@
               selectUserForPassword.appendChild(option);
             });
           }
+          
         } catch (error) { console.error('Error rendering control:', error); }
       };
       
@@ -1742,6 +1870,32 @@
             console.error('Send message error:', error);
           } finally {
             setButtonLoading('formSendMsg', false);
+          }
+        });
+        
+        // Access control event listeners
+        el('btnLoadUserAccess')?.addEventListener('click', loadUserAccess);
+        el('btnSaveUserAccess')?.addEventListener('click', saveUserAccess);
+        el('btnRefreshAccessControl')?.addEventListener('click', refreshAccessControl);
+        
+        // Reset password functionality
+        el('btnResetPass')?.addEventListener('click', async () => {
+          const select = el('selectUserForPassword');
+          const password = el('resetPass').value;
+          const email = select.value;
+          
+          if (!email || !password) {
+            showNotification('Please select a user and enter a new password', 'warning');
+            return;
+          }
+          
+          try {
+            await resetPassword(email, password);
+            showNotification('Password reset successfully', 'success');
+            el('resetPass').value = '';
+          } catch (error) {
+            console.error('Reset password error:', error);
+            showNotification('Failed to reset password: ' + error.message, 'error');
           }
         });
         
