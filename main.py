@@ -313,9 +313,10 @@ def initialize_data():
         try:
             print("Initializing database...")
             
-            # Create all tables
+            # Drop all tables and recreate them to ensure consistency
+            db.drop_all()
             db.create_all()
-            print("✅ Database tables created")
+            print("✅ Database tables recreated")
             
             # Check if admin user exists
             admin_email = 'cyprianmak@gmail.com'
@@ -1050,27 +1051,38 @@ def get_user_access(user_id):
                 "error": "Admin access required"
             }), 403
         
+        # First verify the user exists
+        target_user = User.query.filter_by(id=user_id).first()
+        if not target_user:
+            return jsonify({
+                "success": False,
+                "message": "User not found",
+                "error": "User does not exist"
+            }), 404
+        
         # Get user access control settings
         user_access = UserAccessControl.query.filter_by(user_id=user_id).first()
         
         if not user_access:
-            # Create default access control for this user if it doesn't exist
-            user_access = UserAccessControl(
-                user_id=user_id,
-                pages=json.dumps({
-                    'market': {'enabled': False},
-                    'shipper-post': {'enabled': False}
-                })
-            )
-            db.session.add(user_access)
-            db.session.commit()
+            # Return default access without creating it in database
+            return jsonify({
+                "success": True,
+                "message": "User access retrieved",
+                "data": {
+                    "user_id": user_id,
+                    "pages": {
+                        'market': {'enabled': False},
+                        'shipper-post': {'enabled': False}
+                    }
+                }
+            })
         
         return jsonify({
             "success": True,
             "message": "User access retrieved",
             "data": {
                 "user_id": user_id,
-                "pages": json.loads(user_access.pages) if user_access else {}
+                "pages": json.loads(user_access.pages) if user_access.pages else {}
             }
         })
     except Exception as e:
@@ -1099,6 +1111,15 @@ def update_user_access(user_id):
                 "error": "Invalid request format"
             }), 400
         
+        # First verify the user exists
+        target_user = User.query.filter_by(id=user_id).first()
+        if not target_user:
+            return jsonify({
+                "success": False,
+                "message": "User not found",
+                "error": "User does not exist"
+            }), 404
+        
         # Get or create user access control
         user_access = UserAccessControl.query.filter_by(user_id=user_id).first()
         if not user_access:
@@ -1121,6 +1142,7 @@ def update_user_access(user_id):
             }
         })
     except Exception as e:
+        db.session.rollback()
         return jsonify({
             "success": False,
             "message": "Failed to update user access",
@@ -1194,6 +1216,9 @@ def delete_user_endpoint(email):
             (Message.sender_membership == user_membership) | 
             (Message.recipient_membership == user_membership)
         ).delete()
+        
+        # Delete user access controls
+        UserAccessControl.query.filter_by(user_id=user_to_delete.id).delete()
         
         db.session.delete(user_to_delete)
         db.session.commit()
