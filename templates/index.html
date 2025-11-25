@@ -328,6 +328,108 @@
       color: var(--accent);
       font-size: 1.2em;
     }
+    
+    /* Status badges */
+    .status-badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    
+    .status-available {
+      background-color: rgba(34, 197, 94, 0.2);
+      color: var(--good);
+    }
+    
+    .status-secured {
+      background-color: rgba(245, 158, 11, 0.2);
+      color: var(--warn);
+    }
+    
+    .status-expired {
+      background-color: rgba(239, 68, 68, 0.2);
+      color: var(--bad);
+    }
+    
+    /* Load edit form styles */
+    .load-edit-form {
+      margin-top: 15px;
+      padding: 15px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--panel-2);
+    }
+    
+    .load-details {
+      margin-top: 15px;
+      padding: 15px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--panel-2);
+    }
+    
+    .load-detail-row {
+      display: flex;
+      margin-bottom: 8px;
+    }
+    
+    .load-detail-label {
+      font-weight: 600;
+      width: 120px;
+      color: var(--muted);
+    }
+    
+    .load-detail-value {
+      flex: 1;
+    }
+    
+    /* Message styles */
+    .message-container {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 15px;
+    }
+    
+    .message {
+      padding: 12px;
+      border-radius: 12px;
+      max-width: 70%;
+    }
+    
+    .message-sent {
+      align-self: flex-end;
+      background-color: rgba(77, 163, 255, 0.2);
+      border: 1px solid var(--accent);
+    }
+    
+    .message-received {
+      align-self: flex-start;
+      background-color: var(--panel-2);
+      border: 1px solid var(--border);
+    }
+    
+    .message-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 5px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    
+    .message-sender {
+      font-weight: 600;
+    }
+    
+    .message-time {
+      font-size: 11px;
+    }
+    
+    .message-body {
+      word-wrap: break-word;
+    }
   </style>
 </head>
 <body>
@@ -471,13 +573,14 @@
         </div>
       </div>
       <div id="dashBannerShipper" class="banner hidden" role="alert"></div>
+      <div id="accessWarningShipper" class="banner hidden" role="alert"></div>
       <div class="card">
         <div class="toolbar">
           <h3>Your Posted Loads</h3>
         </div>
         <div class="table-container" style="overflow-x:auto">
-          <table id="tableMyLoads" aria-label="Your posted loads"><thead><tr>
-            <th scope="col">Ref</th><th scope="col">Origin</th><th scope="col">Destination</th><th scope="col">Date</th><th scope="col">Expires</th><th scope="col">Cargo</th><th scope="col">Weight</th><th scope="col">Notes</th><th scope="col">Actions</th>
+          <table id="tableMyLoadsShipper" aria-label="Your posted loads"><thead><tr>
+            <th scope="col">Ref</th><th scope="col">Origin</th><th scope="col">Destination</th><th scope="col">Date</th><th scope="col">Expires</th><th scope="col">Cargo</th><th scope="col">Weight</th><th scope="col">Status</th><th scope="col">Actions</th>
           </tr></thead><tbody></tbody></table>
         </div>
       </div>
@@ -492,6 +595,8 @@
           <div><label for="loadDate">Pickup Date</label><input required type="date" id="loadDate" name="date" /></div>
           <div><label for="loadCargo">Cargo Type</label><input required id="loadCargo" name="cargo_type" /></div>
           <div><label for="loadWeight">Weight (Tons)</label><input required id="loadWeight" name="weight" type="number" min="0" step="0.01" /></div>
+          <div><label for="loadShipperId">Shipper ID</label><input required id="loadShipperId" name="shipper_id" /></div>
+          <div><label for="loadShipperEmail">Shipper Email</label><input required type="email" id="loadShipperEmail" name="shipper_email" /></div>
           <div class="two" style="grid-column:1/-1"><label for="loadNotes">Notes</label><textarea id="loadNotes" name="notes" rows="3"></textarea></div>
         </div>
         <div class="toolbar" style="margin-top:12px">
@@ -560,13 +665,14 @@
         </div>
       </div>
       <div id="dashBannerTransporter" class="banner hidden" role="alert"></div>
+      <div id="accessWarningTransporter" class="banner hidden" role="alert"></div>
       <div class="card">
         <div class="toolbar">
           <h3>Your Posted Loads</h3>
         </div>
         <div class="table-container" style="overflow-x:auto">
-          <table id="tableMyLoads" aria-label="Your posted loads"><thead><tr>
-            <th scope="col">Ref</th><th scope="col">Origin</th><th scope="col">Destination</th><th scope="col">Date</th><th scope="col">Expires</th><th scope="col">Cargo</th><th scope="col">Weight</th><th scope="col">Notes</th><th scope="col">Actions</th>
+          <table id="tableMyLoadsTransporter" aria-label="Your posted loads"><thead><tr>
+            <th scope="col">Ref</th><th scope="col">Origin</th><th scope="col">Destination</th><th scope="col">Date</th><th scope="col">Expires</th><th scope="col">Cargo</th><th scope="col">Weight</th><th scope="col">Status</th><th scope="col">Actions</th>
           </tr></thead><tbody></tbody></table>
         </div>
       </div>
@@ -644,7 +750,7 @@
         </div>
         <div class="table-container" style="overflow-x:auto">
           <table id="tableMarketLoads" aria-label="Market loads"><thead><tr>
-            <th scope="col">Ref</th><th scope="col">Origin</th><th scope="col">Destination</th><th scope="col">Date</th><th scope="col">Expires</th><th scope="col">Cargo</th><th scope="col">Weight</th><th scope="col">Notes</th><th scope="col">Posted By</th>
+            <th scope="col">Ref</th><th scope="col">Origin</th><th scope="col">Destination</th><th scope="col">Date</th><th scope="col">Expires</th><th scope="col">Cargo</th><th scope="col">Weight</th><th scope="col">Status</th><th scope="col">Posted By</th>
           </tr></thead><tbody></tbody></table>
         </div>
       </div>
@@ -656,7 +762,7 @@
         <form id="formSendMsg" class="card" novalidate>
           <h3>Send a Message</h3>
           <div class="grid two">
-            <div><label for="msgTo">To (email)</label><input required id="msgTo" name="to" placeholder="receiver@example.com" type="email" /></div>
+            <div><label for="msgTo">To (Membership Number)</label><input required id="msgTo" name="to" placeholder="MF000001" /></div>
             <div><label for="msgBody">Message</label><input required id="msgBody" name="body" placeholder="Type your message..." /></div>
           </div>
           <div class="toolbar" style="margin-top:12px">
@@ -666,11 +772,7 @@
         </form>
         <div class="card">
           <h3>Inbox</h3>
-          <div class="table-container" style="overflow-x:auto">
-            <table id="tableInbox" aria-label="Message inbox"><thead><tr>
-              <th scope="col">From</th><th scope="col">Message</th><th scope="col">When</th><th scope="col">Action</th>
-            </tr></thead><tbody></tbody></table>
-          </div>
+          <div id="messageContainer" class="message-container"></div>
         </div>
       </div>
     </section>
@@ -718,36 +820,6 @@
                 </div>
               </div>
             </div>
-            
-            <div class="page-access-item">
-              <div class="page-access-header">
-                <div class="page-access-title">Shipper Dashboard</div>
-                <div class="toggle-switch">
-                  <input type="checkbox" id="access-shipper-dashboard">
-                  <span class="toggle-slider"></span>
-                </div>
-              </div>
-            </div>
-            
-            <div class="page-access-item">
-              <div class="page-access-header">
-                <div class="page-access-title">Transporter Dashboard</div>
-                <div class="toggle-switch">
-                  <input type="checkbox" id="access-transporter-dashboard">
-                  <span class="toggle-slider"></span>
-                </div>
-              </div>
-            </div>
-            
-            <div class="page-access-item">
-              <div class="page-access-header">
-                <div class="page-access-title">Messages</div>
-                <div class="toggle-switch">
-                  <input type="checkbox" id="access-messages">
-                  <span class="toggle-slider"></span>
-                </div>
-              </div>
-            </div>
           </div>
           
           <div class="toolbar" style="margin-top:12px">
@@ -766,15 +838,16 @@
           </div>
         </div>
         <div class="card">
-          <h3>Loads</h3>
+          <h3>Load Management</h3>
           <div class="select-with-actions">
             <select id="selectLoad">
               <option value="">-- Select Load --</option>
             </select>
-            <button id="btnEditLoad" class="btn">Edit</button>
+            <button id="btnLoadLoadDetails" class="btn">Load Details</button>
             <button id="btnDeleteLoad" class="btn danger">Delete</button>
           </div>
-          <div id="loadDetails" style="margin-top: 15px;"></div>
+          <div id="loadDetails" class="load-details hidden"></div>
+          <div id="loadEditForm" class="load-edit-form hidden"></div>
         </div>
         <div class="card">
           <h3>Reset Password</h3>
@@ -797,7 +870,7 @@
   <!-- Notification Container -->
   <div id="notificationContainer"></div>
   <script>
-    // MakiwaFreight App Frontend (Fixed Version)
+    // MakiwaFreight App Frontend (Updated Version)
     (function() {
       'use strict';
       
@@ -820,10 +893,7 @@
       // Access control page mapping
       const ACCESS_PAGES = {
         'market': { name: 'Market Page', id: 'access-market' },
-        'shipper-post': { name: 'Post Load Page', id: 'access-post-load' },
-        'shipper-dashboard': { name: 'Shipper Dashboard', id: 'access-shipper-dashboard' },
-        'transporter-dashboard': { name: 'Transporter Dashboard', id: 'access-transporter-dashboard' },
-        'messages': { name: 'Messages', id: 'access-messages' }
+        'shipper-post': { name: 'Post Load Page', id: 'access-post-load' }
       };
       
       // Role definitions
@@ -874,6 +944,25 @@
       const isLoadExpired = load => {
         if (!load.expires_at) return false;
         return new Date(load.expires_at) < new Date();
+      };
+      
+      // Get load status
+      const getLoadStatus = load => {
+        if (load.secured_by) return 'secured';
+        if (isLoadExpired(load)) return 'expired';
+        return 'available';
+      };
+      
+      // Get status badge HTML
+      const getStatusBadge = status => {
+        const statusMap = {
+          'available': { class: 'status-available', text: 'Available' },
+          'secured': { class: 'status-secured', text: 'Secured' },
+          'expired': { class: 'status-expired', text: 'Expired' }
+        };
+        
+        const statusInfo = statusMap[status] || statusMap.available;
+        return `<span class="status-badge ${statusInfo.class}">${statusInfo.text}</span>`;
       };
       
       // Get current user synchronously (from stored data)
@@ -1101,7 +1190,9 @@
           date: payload.date,
           cargo_type: sanitize(payload.cargo_type),
           weight: parseFloat(payload.weight),
-          notes: sanitize(payload.notes || '')
+          notes: sanitize(payload.notes || ''),
+          shipper_id: payload.shipper_id || user.data.user.id,
+          shipper_email: payload.shipper_email || user.data.user.email
         };
         try {
           const load = await apiRequest('/loads', {
@@ -1121,16 +1212,43 @@
         try {
           const response = await apiRequest('/loads');
           let loads = response.data ? response.data.loads : response;
+          
+          // Filter expired loads and auto-delete them
+          const now = new Date();
+          const validLoads = [];
+          const expiredLoads = [];
+          
+          loads.forEach(load => {
+            if (isLoadExpired(load)) {
+              expiredLoads.push(load);
+            } else {
+              validLoads.push(load);
+            }
+          });
+          
+          // Auto-delete expired loads
+          if (expiredLoads.length > 0) {
+            for (const load of expiredLoads) {
+              try {
+                await apiRequest(`/loads/${load.id}`, { method: 'DELETE' });
+              } catch (error) {
+                console.error('Error auto-deleting expired load:', error);
+              }
+            }
+          }
+          
+          let filteredLoads = validLoads;
+          
           if (filters.shipper_id) {
-            loads = loads.filter(l => l.shipper_id === filters.shipper_id);
+            filteredLoads = filteredLoads.filter(l => l.shipper_id === filters.shipper_id);
           }
           if (filters.origin) {
-            loads = loads.filter(l => l.origin.toLowerCase().includes(filters.origin.toLowerCase()));
+            filteredLoads = filteredLoads.filter(l => l.origin.toLowerCase().includes(filters.origin.toLowerCase()));
           }
           if (filters.destination) {
-            loads = loads.filter(l => l.destination.toLowerCase().includes(filters.destination.toLowerCase()));
+            filteredLoads = filteredLoads.filter(l => l.destination.toLowerCase().includes(filters.destination.toLowerCase()));
           }
-          return loads;
+          return filteredLoads;
         } catch (error) {
           console.error('Get loads error:', error);
           showNotification('Failed to get loads: ' + error.message, 'error');
@@ -1140,6 +1258,13 @@
       
       const updateLoad = async (loadId, patch) => {
         if (!loadId) throw new Error('Load ID is required');
+        
+        // Check if load object has id property
+        if (!loadId || typeof loadId !== 'string') {
+          console.error('Invalid load ID:', loadId);
+          throw new Error('Invalid load ID provided');
+        }
+        
         const sanitizedPatch = {};
         for (const key in patch) {
           if (key === 'weight') {
@@ -1175,22 +1300,20 @@
       };
       
       // Message API functions
-      const sendMessage = async (toEmail, body) => {
-        if (!toEmail || !body) {
+      const sendMessage = async (toMembership, body) => {
+        if (!toMembership || !body) {
           throw new Error('Recipient and message are required');
         }
         const user = getCurrentUserSync();
         if (!user) throw new Error('User not logged in');
-        if (!isValidEmail(toEmail)) {
-          throw new Error('Please enter a valid recipient email');
-        }
+        
         try {
-          const userEmail = user.data.user.email;
+          const senderMembership = user.data.user.membership_number || 'Admin';
           const message = await apiRequest('/messages', {
             method: 'POST',
             body: JSON.stringify({ 
-              sender_email: userEmail, 
-              recipient_email: toEmail, 
+              sender_membership: senderMembership, 
+              recipient_membership: toMembership, 
               body: sanitize(body) 
             })
           });
@@ -1198,8 +1321,8 @@
           return message;
         } catch (error) {
           console.error('Send message error:', error);
-          if (error.message.includes('not being sent to user with specified email')) {
-            showNotification('Failed to send message: Recipient email not found in the system', 'error');
+          if (error.message.includes('not being sent to user with specified membership')) {
+            showNotification('Failed to send message: Recipient membership number not found in the system', 'error');
           } else {
             showNotification('Failed to send message: ' + error.message, 'error');
           }
@@ -1213,9 +1336,9 @@
         try {
           const response = await apiRequest('/messages');
           const messages = response.data ? response.data.messages : response;
-          const userEmail = user.data.user.email;
+          const userMembership = user.data.user.membership_number || 'Admin';
           return messages.filter(m => 
-            m.sender_email === userEmail || m.recipient_email === userEmail
+            m.sender_membership === userMembership || m.recipient_membership === userMembership
           );
         } catch (error) {
           console.error('Get messages error:', error);
@@ -1357,6 +1480,12 @@
       const canAccessPage = (user, pageId) => {
         if (!user) return false;
         if (isAdmin(user)) return true;
+        
+        // All pages except market and post-load are accessible by default
+        if (pageId !== 'market' && pageId !== 'shipper-post') {
+          return true;
+        }
+        
         const page = PAGES[pageId];
         if (page && page.roles.includes(user.data.user.role)) {
           return true;
@@ -1369,11 +1498,16 @@
           const user = getCurrentUserSync();
           if (!user) return false;
           if (canAccessPage(user, pageId)) return true;
-          const userId = user.data.user.id;
-          const userAccess = await getUserAccess(userId);
-          if (userAccess && userAccess.pages && userAccess.pages[pageId]) {
-            return userAccess.pages[pageId].enabled === true;
+          
+          // For market and post-load pages, check user-specific access
+          if (pageId === 'market' || pageId === 'shipper-post') {
+            const userId = user.data.user.id;
+            const userAccess = await getUserAccess(userId);
+            if (userAccess && userAccess.pages && userAccess.pages[pageId]) {
+              return userAccess.pages[pageId].enabled === true;
+            }
           }
+          
           return false;
         } catch (error) {
           console.error('Check page access error:', error);
@@ -1487,6 +1621,225 @@
         showNotification('Access control refreshed', 'info');
       };
       
+      // Load Management Functions for Admin
+      const populateLoadDropdown = async () => {
+        try {
+          const loads = await getLoads();
+          const select = el('selectLoad');
+          select.innerHTML = '<option value="">-- Select Load --</option>';
+          
+          loads.forEach(load => {
+            const option = document.createElement('option');
+            option.value = load.id;
+            option.textContent = `${load.ref} - ${load.origin} to ${load.destination}`;
+            select.appendChild(option);
+          });
+        } catch (error) {
+          console.error('Error populating load dropdown:', error);
+        }
+      };
+      
+      const displayLoadDetails = async (loadId) => {
+        try {
+          const loads = await getLoads();
+          const load = loads.find(l => l.id === loadId);
+          
+          if (!load) {
+            showNotification('Load not found', 'error');
+            return;
+          }
+          
+          const loadDetails = el('loadDetails');
+          const loadEditForm = el('loadEditForm');
+          
+          // Clear previous content
+          loadDetails.innerHTML = '';
+          loadEditForm.innerHTML = '';
+          
+          // Create load details using createElement
+          const detailsContainer = document.createElement('div');
+          detailsContainer.className = 'load-details-content';
+          
+          const title = document.createElement('h4');
+          title.textContent = 'Load Details';
+          detailsContainer.appendChild(title);
+          
+          const detailRows = [
+            { label: 'Reference', value: load.ref },
+            { label: 'Origin', value: load.origin },
+            { label: 'Destination', value: load.destination },
+            { label: 'Pickup Date', value: new Date(load.date).toLocaleDateString() },
+            { label: 'Expiry Date', value: new Date(load.expires_at).toLocaleDateString() },
+            { label: 'Cargo Type', value: load.cargo_type },
+            { label: 'Weight (Tons)', value: load.weight },
+            { label: 'Status', value: getLoadStatus(load) },
+            { label: 'Shipper', value: load.shipper_name || load.shipper_email },
+            { label: 'Notes', value: load.notes || 'None' }
+          ];
+          
+          detailRows.forEach(row => {
+            const detailRow = document.createElement('div');
+            detailRow.className = 'load-detail-row';
+            
+            const label = document.createElement('span');
+            label.className = 'load-detail-label';
+            label.textContent = row.label + ':';
+            
+            const value = document.createElement('span');
+            value.className = 'load-detail-value';
+            value.textContent = row.value;
+            
+            detailRow.appendChild(label);
+            detailRow.appendChild(value);
+            detailsContainer.appendChild(detailRow);
+          });
+          
+          loadDetails.appendChild(detailsContainer);
+          setHidden('loadDetails', false);
+          
+          // Create edit form
+          const formContainer = document.createElement('div');
+          formContainer.className = 'load-edit-form-content';
+          
+          const formTitle = document.createElement('h4');
+          formTitle.textContent = 'Edit Load';
+          formContainer.appendChild(formTitle);
+          
+          const editForm = document.createElement('form');
+          editForm.id = 'formEditLoad';
+          
+          const formGrid = document.createElement('div');
+          formGrid.className = 'grid two';
+          
+          const fields = [
+            { id: 'editOrigin', label: 'Origin', value: load.origin, required: true },
+            { id: 'editDestination', label: 'Destination', value: load.destination, required: true },
+            { id: 'editDate', label: 'Pickup Date', value: load.date.split('T')[0], type: 'date', required: true },
+            { id: 'editCargo', label: 'Cargo Type', value: load.cargo_type, required: true },
+            { id: 'editWeight', label: 'Weight (Tons)', value: load.weight, type: 'number', required: true }
+          ];
+          
+          fields.forEach(field => {
+            const fieldContainer = document.createElement('div');
+            
+            const label = document.createElement('label');
+            label.htmlFor = field.id;
+            label.textContent = field.label;
+            
+            const input = document.createElement('input');
+            input.id = field.id;
+            input.name = field.id.replace('edit', '').toLowerCase();
+            input.value = field.value;
+            input.required = field.required;
+            
+            if (field.type) {
+              input.type = field.type;
+            }
+            
+            fieldContainer.appendChild(label);
+            fieldContainer.appendChild(input);
+            formGrid.appendChild(fieldContainer);
+          });
+          
+          const notesContainer = document.createElement('div');
+          notesContainer.className = 'two';
+          notesContainer.style.gridColumn = '1 / -1';
+          
+          const notesLabel = document.createElement('label');
+          notesLabel.htmlFor = 'editNotes';
+          notesLabel.textContent = 'Notes';
+          
+          const notesTextarea = document.createElement('textarea');
+          notesTextarea.id = 'editNotes';
+          notesTextarea.name = 'notes';
+          notesTextarea.rows = 3;
+          notesTextarea.textContent = load.notes || '';
+          
+          notesContainer.appendChild(notesLabel);
+          notesContainer.appendChild(notesTextarea);
+          formGrid.appendChild(notesContainer);
+          
+          editForm.appendChild(formGrid);
+          
+          const formToolbar = document.createElement('div');
+          formToolbar.className = 'toolbar';
+          formToolbar.style.marginTop = '12px';
+          
+          const saveButton = document.createElement('button');
+          saveButton.type = 'button';
+          saveButton.className = 'btn primary';
+          saveButton.textContent = 'Save Changes';
+          saveButton.onclick = () => updateSelectedLoad(loadId);
+          
+          formToolbar.appendChild(saveButton);
+          editForm.appendChild(formToolbar);
+          
+          formContainer.appendChild(editForm);
+          loadEditForm.appendChild(formContainer);
+          setHidden('loadEditForm', false);
+          
+        } catch (error) {
+          console.error('Error displaying load details:', error);
+          showNotification('Failed to load details', 'error');
+        }
+      };
+      
+      const updateSelectedLoad = async (loadId) => {
+        try {
+          const origin = el('editOrigin').value;
+          const destination = el('editDestination').value;
+          const date = el('editDate').value;
+          const cargo = el('editCargo').value;
+          const weight = el('editWeight').value;
+          const notes = el('editNotes').value;
+          
+          if (!origin || !destination || !date || !cargo || !weight) {
+            showNotification('Please fill in all required fields', 'error');
+            return;
+          }
+          
+          await updateLoad(loadId, {
+            origin,
+            destination,
+            date,
+            cargo_type: cargo,
+            weight: parseFloat(weight),
+            notes
+          });
+          
+          showNotification('Load updated successfully', 'success');
+          await populateLoadDropdown();
+          setHidden('loadEditForm', true);
+          
+        } catch (error) {
+          console.error('Error updating load:', error);
+          showNotification('Failed to update load', 'error');
+        }
+      };
+      
+      const deleteSelectedLoad = async () => {
+        const select = el('selectLoad');
+        const loadId = select.value;
+        
+        if (!loadId) {
+          showNotification('Please select a load first', 'warning');
+          return;
+        }
+        
+        if (confirm('Are you sure you want to delete this load?')) {
+          try {
+            await deleteLoad(loadId);
+            await populateLoadDropdown();
+            setHidden('loadDetails', true);
+            setHidden('loadEditForm', true);
+            showNotification('Load deleted successfully', 'success');
+          } catch (error) {
+            console.error('Error deleting load:', error);
+            showNotification('Failed to delete load', 'error');
+          }
+        }
+      };
+      
       // Render functions
       const renderHeader = async () => {
         const u = getCurrentUserSync();
@@ -1497,7 +1850,11 @@
         const roleChip = el('roleChip');
         
         if (u && u.data && u.data.user) {
-          if (navLinks) navLinks.innerHTML = '';
+          // Clear navLinks using safe method
+          while (navLinks.firstChild) {
+            navLinks.removeChild(navLinks.firstChild);
+          }
+          
           if (authUser) authUser.textContent = u.data.user.name;
           if (btnLoginNav) btnLoginNav.classList.add('hidden');
           if (btnLogout) btnLogout.classList.remove('hidden');
@@ -1505,17 +1862,47 @@
             roleChip.textContent = u.data.user.role;
             roleChip.classList.remove('hidden');
           }
+          
           if (navLinks) {
+            const links = [];
+            
             if (u.data.user.role === 'shipper') {
-              navLinks.innerHTML = `<a class="btn" href="#shipper-dashboard">Dashboard</a><a class="btn" href="#shipper-post">Post Load</a><a class="btn" href="#market">Market</a><a class="btn" href="#messages">Messages</a><a class="btn" href="#shipper-profile">Profile</a>`;
+              links.push(
+                { href: '#shipper-dashboard', text: 'Dashboard' },
+                { href: '#shipper-post', text: 'Post Load' },
+                { href: '#market', text: 'Market' },
+                { href: '#messages', text: 'Messages' },
+                { href: '#shipper-profile', text: 'Profile' }
+              );
             } else if (u.data.user.role === 'transporter') {
-              navLinks.innerHTML = `<a class="btn" href="#transporter-dashboard">Dashboard</a><a class="btn" href="#shipper-post">Post Load</a><a class="btn" href="#market">Market</a><a class="btn" href="#messages">Messages</a><a class="btn" href="#transporter-profile">Profile</a>`;
+              links.push(
+                { href: '#transporter-dashboard', text: 'Dashboard' },
+                { href: '#shipper-post', text: 'Post Load' },
+                { href: '#market', text: 'Market' },
+                { href: '#messages', text: 'Messages' },
+                { href: '#transporter-profile', text: 'Profile' }
+              );
             } else if (u.data.user.role === 'admin') {
-              navLinks.innerHTML = `<a class="btn" href="#control">Admin</a><a class="btn" href="#messages">Messages</a>`;
+              links.push(
+                { href: '#control', text: 'Admin' },
+                { href: '#messages', text: 'Messages' }
+              );
             }
+            
+            links.forEach(link => {
+              const a = document.createElement('a');
+              a.className = 'btn';
+              a.href = link.href;
+              a.textContent = link.text;
+              navLinks.appendChild(a);
+            });
           }
         } else {
-          if (navLinks) navLinks.innerHTML = '';
+          // Clear navLinks using safe method
+          while (navLinks.firstChild) {
+            navLinks.removeChild(navLinks.firstChild);
+          }
+          
           if (authUser) authUser.textContent = '';
           if (btnLoginNav) btnLoginNav.classList.remove('hidden');
           if (btnLogout) btnLogout.classList.add('hidden');
@@ -1539,20 +1926,142 @@
         } catch (error) { console.error('Error rendering banners:', error); }
       };
       
+      const renderAccessWarnings = async () => {
+        const u = getCurrentUserSync();
+        if (!u) return;
+        
+        const shipperWarning = el('accessWarningShipper');
+        const transporterWarning = el('accessWarningTransporter');
+        
+        // Reset warnings
+        if (shipperWarning) {
+          shipperWarning.classList.add('hidden');
+          shipperWarning.textContent = '';
+        }
+        if (transporterWarning) {
+          transporterWarning.classList.add('hidden');
+          transporterWarning.textContent = '';
+        }
+        
+        // Check access to post load and market pages
+        const hasPostLoadAccess = await checkPageAccess('shipper-post');
+        const hasMarketAccess = await checkPageAccess('market');
+        
+        if (u.data.user.role === 'shipper') {
+          if (!hasPostLoadAccess || !hasMarketAccess) {
+            let warningText = '';
+            if (!hasPostLoadAccess && !hasMarketAccess) {
+              warningText = 'You do not have access to Post Load and Market pages. Please contact admin via Messages page.';
+            } else if (!hasPostLoadAccess) {
+              warningText = 'You do not have access to Post Load page. Please contact admin via Messages page.';
+            } else if (!hasMarketAccess) {
+              warningText = 'You do not have access to Market page. Please contact admin via Messages page.';
+            }
+            
+            if (shipperWarning) {
+              shipperWarning.textContent = warningText;
+              shipperWarning.classList.remove('hidden');
+            }
+          }
+        } else if (u.data.user.role === 'transporter') {
+          if (!hasPostLoadAccess || !hasMarketAccess) {
+            let warningText = '';
+            if (!hasPostLoadAccess && !hasMarketAccess) {
+              warningText = 'You do not have access to Post Load and Market pages. Please contact admin via Messages page.';
+            } else if (!hasPostLoadAccess) {
+              warningText = 'You do not have access to Post Load page. Please contact admin via Messages page.';
+            } else if (!hasMarketAccess) {
+              warningText = 'You do not have access to Market page. Please contact admin via Messages page.';
+            }
+            
+            if (transporterWarning) {
+              transporterWarning.textContent = warningText;
+              transporterWarning.classList.remove('hidden');
+            }
+          }
+        }
+      };
+      
       const renderShipper = async () => {
         const u = getCurrentUserSync();
         if (!u || u.data.user.role !== 'shipper') return;
         try {
           const loads = await getLoads({ shipper_id: u.data.user.id });
-          const tbody = el('tableMyLoads').querySelector('tbody');
-          tbody.innerHTML = '';
-          if (!loads || loads.length === 0) { tbody.innerHTML = '<tr><td colspan="9" class="muted">No loads posted yet.</td></tr>'; return; }
+          const tbody = el('tableMyLoadsShipper').querySelector('tbody');
+          
+          // Clear table using safe method
+          while (tbody.firstChild) {
+            tbody.removeChild(tbody.firstChild);
+          }
+          
+          if (!loads || loads.length === 0) {
+            const row = document.createElement('tr');
+            const cell = document.createElement('td');
+            cell.colSpan = 9;
+            cell.className = 'muted';
+            cell.textContent = 'No loads posted yet.';
+            row.appendChild(cell);
+            tbody.appendChild(row);
+            return;
+          }
+          
           loads.forEach(load => {
             const row = document.createElement('tr');
             if (isLoadExpired(load)) row.classList.add('expired');
+            
             const postedDate = new Date(load.created_at).toLocaleDateString();
             const expiryDate = new Date(load.expires_at).toLocaleDateString();
-            row.innerHTML = `<td>${sanitize(load.ref)}</td><td>${sanitize(load.origin)}</td><td>${sanitize(load.destination)}</td><td>${postedDate}</td><td>${expiryDate}</td><td>${sanitize(load.cargo_type)}</td><td>${load.weight}</td><td>${sanitize(load.notes || '')}</td><td><button class="btn" onclick="editLoad('${load.id}')">Edit</button><button class="btn danger" onclick="deleteLoad('${load.id}')">Delete</button></td>`;
+            const status = getLoadStatus(load);
+            
+            const refCell = document.createElement('td');
+            refCell.textContent = sanitize(load.ref);
+            
+            const originCell = document.createElement('td');
+            originCell.textContent = sanitize(load.origin);
+            
+            const destCell = document.createElement('td');
+            destCell.textContent = sanitize(load.destination);
+            
+            const dateCell = document.createElement('td');
+            dateCell.textContent = postedDate;
+            
+            const expiryCell = document.createElement('td');
+            expiryCell.textContent = expiryDate;
+            
+            const cargoCell = document.createElement('td');
+            cargoCell.textContent = sanitize(load.cargo_type);
+            
+            const weightCell = document.createElement('td');
+            weightCell.textContent = load.weight;
+            
+            const statusCell = document.createElement('td');
+            statusCell.innerHTML = getStatusBadge(status);
+            
+            const actionsCell = document.createElement('td');
+            
+            const editButton = document.createElement('button');
+            editButton.className = 'btn';
+            editButton.textContent = 'Edit';
+            editButton.onclick = () => editUserLoad(load.id);
+            
+            const deleteButton = document.createElement('button');
+            deleteButton.className = 'btn danger';
+            deleteButton.textContent = 'Delete';
+            deleteButton.onclick = () => deleteUserLoad(load.id);
+            
+            actionsCell.appendChild(editButton);
+            actionsCell.appendChild(deleteButton);
+            
+            row.appendChild(refCell);
+            row.appendChild(originCell);
+            row.appendChild(destCell);
+            row.appendChild(dateCell);
+            row.appendChild(expiryCell);
+            row.appendChild(cargoCell);
+            row.appendChild(weightCell);
+            row.appendChild(statusCell);
+            row.appendChild(actionsCell);
+            
             tbody.appendChild(row);
           });
         } catch (error) { console.error('Error rendering shipper dashboard:', error); }
@@ -1563,15 +2072,81 @@
         if (!u || u.data.user.role !== 'transporter') return;
         try {
           const loads = await getLoads({ shipper_id: u.data.user.id });
-          const tbody = el('tableMyLoads').querySelector('tbody');
-          tbody.innerHTML = '';
-          if (!loads || loads.length === 0) { tbody.innerHTML = '<tr><td colspan="9" class="muted">No loads posted yet.</td></tr>'; return; }
+          const tbody = el('tableMyLoadsTransporter').querySelector('tbody');
+          
+          // Clear table using safe method
+          while (tbody.firstChild) {
+            tbody.removeChild(tbody.firstChild);
+          }
+          
+          if (!loads || loads.length === 0) {
+            const row = document.createElement('tr');
+            const cell = document.createElement('td');
+            cell.colSpan = 9;
+            cell.className = 'muted';
+            cell.textContent = 'No loads posted yet.';
+            row.appendChild(cell);
+            tbody.appendChild(row);
+            return;
+          }
+          
           loads.forEach(load => {
             const row = document.createElement('tr');
             if (isLoadExpired(load)) row.classList.add('expired');
+            
             const postedDate = new Date(load.created_at).toLocaleDateString();
             const expiryDate = new Date(load.expires_at).toLocaleDateString();
-            row.innerHTML = `<td>${sanitize(load.ref)}</td><td>${sanitize(load.origin)}</td><td>${sanitize(load.destination)}</td><td>${postedDate}</td><td>${expiryDate}</td><td>${sanitize(load.cargo_type)}</td><td>${load.weight}</td><td>${sanitize(load.notes || '')}</td><td><button class="btn" onclick="editLoad('${load.id}')">Edit</button><button class="btn danger" onclick="deleteLoad('${load.id}')">Delete</button></td>`;
+            const status = getLoadStatus(load);
+            
+            const refCell = document.createElement('td');
+            refCell.textContent = sanitize(load.ref);
+            
+            const originCell = document.createElement('td');
+            originCell.textContent = sanitize(load.origin);
+            
+            const destCell = document.createElement('td');
+            destCell.textContent = sanitize(load.destination);
+            
+            const dateCell = document.createElement('td');
+            dateCell.textContent = postedDate;
+            
+            const expiryCell = document.createElement('td');
+            expiryCell.textContent = expiryDate;
+            
+            const cargoCell = document.createElement('td');
+            cargoCell.textContent = sanitize(load.cargo_type);
+            
+            const weightCell = document.createElement('td');
+            weightCell.textContent = load.weight;
+            
+            const statusCell = document.createElement('td');
+            statusCell.innerHTML = getStatusBadge(status);
+            
+            const actionsCell = document.createElement('td');
+            
+            const editButton = document.createElement('button');
+            editButton.className = 'btn';
+            editButton.textContent = 'Edit';
+            editButton.onclick = () => editUserLoad(load.id);
+            
+            const deleteButton = document.createElement('button');
+            deleteButton.className = 'btn danger';
+            deleteButton.textContent = 'Delete';
+            deleteButton.onclick = () => deleteUserLoad(load.id);
+            
+            actionsCell.appendChild(editButton);
+            actionsCell.appendChild(deleteButton);
+            
+            row.appendChild(refCell);
+            row.appendChild(originCell);
+            row.appendChild(destCell);
+            row.appendChild(dateCell);
+            row.appendChild(expiryCell);
+            row.appendChild(cargoCell);
+            row.appendChild(weightCell);
+            row.appendChild(statusCell);
+            row.appendChild(actionsCell);
+            
             tbody.appendChild(row);
           });
         } catch (error) { console.error('Error rendering transporter dashboard:', error); }
@@ -1581,14 +2156,68 @@
         try {
           const loads = await getLoads();
           const tbody = el('tableMarketLoads').querySelector('tbody');
-          tbody.innerHTML = '';
-          if (!loads || loads.length === 0) { tbody.innerHTML = '<tr><td colspan="9" class="muted">No loads available.</td></tr>'; return; }
+          
+          // Clear table using safe method
+          while (tbody.firstChild) {
+            tbody.removeChild(tbody.firstChild);
+          }
+          
+          if (!loads || loads.length === 0) {
+            const row = document.createElement('tr');
+            const cell = document.createElement('td');
+            cell.colSpan = 9;
+            cell.className = 'muted';
+            cell.textContent = 'No loads available.';
+            row.appendChild(cell);
+            tbody.appendChild(row);
+            return;
+          }
+          
           loads.forEach(load => {
             const row = document.createElement('tr');
             if (isLoadExpired(load)) row.classList.add('expired');
+            
             const postedDate = new Date(load.created_at).toLocaleDateString();
             const expiryDate = new Date(load.expires_at).toLocaleDateString();
-            row.innerHTML = `<td>${sanitize(load.ref)}</td><td>${sanitize(load.origin)}</td><td>${sanitize(load.destination)}</td><td>${postedDate}</td><td>${expiryDate}</td><td>${sanitize(load.cargo_type)}</td><td>${load.weight}</td><td>${sanitize(load.notes || '')}</td><td>${sanitize(load.shipper_name || 'Unknown')}</td>`;
+            const status = getLoadStatus(load);
+            
+            const refCell = document.createElement('td');
+            refCell.textContent = sanitize(load.ref);
+            
+            const originCell = document.createElement('td');
+            originCell.textContent = sanitize(load.origin);
+            
+            const destCell = document.createElement('td');
+            destCell.textContent = sanitize(load.destination);
+            
+            const dateCell = document.createElement('td');
+            dateCell.textContent = postedDate;
+            
+            const expiryCell = document.createElement('td');
+            expiryCell.textContent = expiryDate;
+            
+            const cargoCell = document.createElement('td');
+            cargoCell.textContent = sanitize(load.cargo_type);
+            
+            const weightCell = document.createElement('td');
+            weightCell.textContent = load.weight;
+            
+            const statusCell = document.createElement('td');
+            statusCell.innerHTML = getStatusBadge(status);
+            
+            const postedByCell = document.createElement('td');
+            postedByCell.textContent = sanitize(load.shipper_name || load.shipper_email || 'Unknown');
+            
+            row.appendChild(refCell);
+            row.appendChild(originCell);
+            row.appendChild(destCell);
+            row.appendChild(dateCell);
+            row.appendChild(expiryCell);
+            row.appendChild(cargoCell);
+            row.appendChild(weightCell);
+            row.appendChild(statusCell);
+            row.appendChild(postedByCell);
+            
             tbody.appendChild(row);
           });
         } catch (error) { console.error('Error rendering market:', error); }
@@ -1597,14 +2226,56 @@
       const renderMessages = async () => {
         try {
           const messages = await getMessages();
-          const tbody = el('tableInbox').querySelector('tbody');
-          tbody.innerHTML = '';
-          if (!messages || messages.length === 0) { tbody.innerHTML = '<tr><td colspan="4" class="muted">No messages.</td></tr>'; return; }
+          const messageContainer = el('messageContainer');
+          
+          // Clear container using safe method
+          while (messageContainer.firstChild) {
+            messageContainer.removeChild(messageContainer.firstChild);
+          }
+          
+          if (!messages || messages.length === 0) {
+            const noMessages = document.createElement('div');
+            noMessages.className = 'muted';
+            noMessages.textContent = 'No messages.';
+            messageContainer.appendChild(noMessages);
+            return;
+          }
+          
+          // Sort messages by date (newest first)
+          messages.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+          
           messages.forEach(msg => {
-            const row = document.createElement('tr');
-            const date = new Date(msg.created_at).toLocaleString();
-            row.innerHTML = `<td>${sanitize(msg.sender_email)}</td><td>${sanitize(msg.body)}</td><td>${date}</td><td><button class="btn danger" onclick="deleteMessage('${msg.id}')">Delete</button></td>`;
-            tbody.appendChild(row);
+            const messageDiv = document.createElement('div');
+            const user = getCurrentUserSync();
+            const userMembership = user.data.user.membership_number || 'Admin';
+            
+            if (msg.sender_membership === userMembership) {
+              messageDiv.className = 'message message-sent';
+            } else {
+              messageDiv.className = 'message message-received';
+            }
+            
+            const messageHeader = document.createElement('div');
+            messageHeader.className = 'message-header';
+            
+            const sender = document.createElement('div');
+            sender.className = 'message-sender';
+            sender.textContent = msg.sender_membership === 'Admin' ? 'Admin' : `From: ${msg.sender_membership}`;
+            
+            const time = document.createElement('div');
+            time.className = 'message-time';
+            time.textContent = new Date(msg.created_at).toLocaleString();
+            
+            messageHeader.appendChild(sender);
+            messageHeader.appendChild(time);
+            
+            const messageBody = document.createElement('div');
+            messageBody.className = 'message-body';
+            messageBody.textContent = msg.body;
+            
+            messageDiv.appendChild(messageHeader);
+            messageDiv.appendChild(messageBody);
+            messageContainer.appendChild(messageDiv);
           });
         } catch (error) { console.error('Error rendering messages:', error); }
       };
@@ -1626,8 +2297,56 @@
           
           const avatar = el('shipperProfileAvatar');
           if (avatar) avatar.textContent = user.name.charAt(0).toUpperCase();
+          
           const form = el('formProfileShipper');
-          form.innerHTML = `<div class="grid two"><div><label for="profileShipperName">Name</label><input id="profileShipperName" name="name" value="${sanitize(user.name)}" /></div><div><label for="profileShipperPhone">Phone</label><input id="profileShipperPhone" name="phone" value="${sanitize(user.phone)}" /></div><div class="two" style="grid-column:1/-1"><label for="profileShipperAddress">Address</label><input id="profileShipperAddress" name="address" value="${sanitize(user.address || '')}" /></div></div>`;
+          // Clear form using safe method
+          while (form.firstChild) {
+            form.removeChild(form.firstChild);
+          }
+          
+          const formGrid = document.createElement('div');
+          formGrid.className = 'grid two';
+          
+          const nameDiv = document.createElement('div');
+          const nameLabel = document.createElement('label');
+          nameLabel.htmlFor = 'profileShipperName';
+          nameLabel.textContent = 'Name';
+          const nameInput = document.createElement('input');
+          nameInput.id = 'profileShipperName';
+          nameInput.name = 'name';
+          nameInput.value = sanitize(user.name);
+          nameDiv.appendChild(nameLabel);
+          nameDiv.appendChild(nameInput);
+          
+          const phoneDiv = document.createElement('div');
+          const phoneLabel = document.createElement('label');
+          phoneLabel.htmlFor = 'profileShipperPhone';
+          phoneLabel.textContent = 'Phone';
+          const phoneInput = document.createElement('input');
+          phoneInput.id = 'profileShipperPhone';
+          phoneInput.name = 'phone';
+          phoneInput.value = sanitize(user.phone);
+          phoneDiv.appendChild(phoneLabel);
+          phoneDiv.appendChild(phoneInput);
+          
+          const addressDiv = document.createElement('div');
+          addressDiv.className = 'two';
+          addressDiv.style.gridColumn = '1 / -1';
+          const addressLabel = document.createElement('label');
+          addressLabel.htmlFor = 'profileShipperAddress';
+          addressLabel.textContent = 'Address';
+          const addressInput = document.createElement('input');
+          addressInput.id = 'profileShipperAddress';
+          addressInput.name = 'address';
+          addressInput.value = sanitize(user.address || '');
+          addressDiv.appendChild(addressLabel);
+          addressDiv.appendChild(addressInput);
+          
+          formGrid.appendChild(nameDiv);
+          formGrid.appendChild(phoneDiv);
+          formGrid.appendChild(addressDiv);
+          form.appendChild(formGrid);
+          
           const saveBtn = el('saveProfileShipper');
           if (saveBtn) {
             saveBtn.onclick = async () => {
@@ -1665,8 +2384,56 @@
           
           const avatar = el('transporterProfileAvatar');
           if (avatar) avatar.textContent = user.name.charAt(0).toUpperCase();
+          
           const form = el('formProfileTransporter');
-          form.innerHTML = `<div class="grid two"><div><label for="profileTransporterName">Name</label><input id="profileTransporterName" name="name" value="${sanitize(user.name)}" /></div><div><label for="profileTransporterPhone">Phone</label><input id="profileTransporterPhone" name="phone" value="${sanitize(user.phone)}" /></div><div class="two" style="grid-column:1/-1"><label for="profileTransporterAddress">Address</label><input id="profileTransporterAddress" name="address" value="${sanitize(user.address || '')}" /></div></div>`;
+          // Clear form using safe method
+          while (form.firstChild) {
+            form.removeChild(form.firstChild);
+          }
+          
+          const formGrid = document.createElement('div');
+          formGrid.className = 'grid two';
+          
+          const nameDiv = document.createElement('div');
+          const nameLabel = document.createElement('label');
+          nameLabel.htmlFor = 'profileTransporterName';
+          nameLabel.textContent = 'Name';
+          const nameInput = document.createElement('input');
+          nameInput.id = 'profileTransporterName';
+          nameInput.name = 'name';
+          nameInput.value = sanitize(user.name);
+          nameDiv.appendChild(nameLabel);
+          nameDiv.appendChild(nameInput);
+          
+          const phoneDiv = document.createElement('div');
+          const phoneLabel = document.createElement('label');
+          phoneLabel.htmlFor = 'profileTransporterPhone';
+          phoneLabel.textContent = 'Phone';
+          const phoneInput = document.createElement('input');
+          phoneInput.id = 'profileTransporterPhone';
+          phoneInput.name = 'phone';
+          phoneInput.value = sanitize(user.phone);
+          phoneDiv.appendChild(phoneLabel);
+          phoneDiv.appendChild(phoneInput);
+          
+          const addressDiv = document.createElement('div');
+          addressDiv.className = 'two';
+          addressDiv.style.gridColumn = '1 / -1';
+          const addressLabel = document.createElement('label');
+          addressLabel.htmlFor = 'profileTransporterAddress';
+          addressLabel.textContent = 'Address';
+          const addressInput = document.createElement('input');
+          addressInput.id = 'profileTransporterAddress';
+          addressInput.name = 'address';
+          addressInput.value = sanitize(user.address || '');
+          addressDiv.appendChild(addressLabel);
+          addressDiv.appendChild(addressInput);
+          
+          formGrid.appendChild(nameDiv);
+          formGrid.appendChild(phoneDiv);
+          formGrid.appendChild(addressDiv);
+          form.appendChild(formGrid);
+          
           const saveBtn = el('saveProfileTransporter');
           if (saveBtn) {
             saveBtn.onclick = async () => {
@@ -1693,27 +2460,62 @@
         try {
           const users = await getUsers();
           const tbodyUsers = el('tableUsers').querySelector('tbody');
-          tbodyUsers.innerHTML = '';
+          
+          // Clear table using safe method
+          while (tbodyUsers.firstChild) {
+            tbodyUsers.removeChild(tbodyUsers.firstChild);
+          }
           
           users.forEach(user => {
             const row = document.createElement('tr');
-            const membershipNumber = user.membership_number || 'Not assigned';
-            row.innerHTML = `
-              <td>${user.name}</td>
-              <td>${user.email}</td>
-              <td><span class="membership-number">${membershipNumber}</span></td>
-              <td>${user.role}</td>
-              <td><button class="btn danger" onclick="deleteUser('${user.email}')">Delete</button></td>
-            `;
+            
+            const nameCell = document.createElement('td');
+            nameCell.textContent = user.name;
+            
+            const emailCell = document.createElement('td');
+            emailCell.textContent = user.email;
+            
+            const membershipCell = document.createElement('td');
+            const membershipSpan = document.createElement('span');
+            membershipSpan.className = 'membership-number';
+            membershipSpan.textContent = user.membership_number || 'Not assigned';
+            membershipCell.appendChild(membershipSpan);
+            
+            const roleCell = document.createElement('td');
+            roleCell.textContent = user.role;
+            
+            const actionsCell = document.createElement('td');
+            const deleteButton = document.createElement('button');
+            deleteButton.className = 'btn danger';
+            deleteButton.textContent = 'Delete';
+            deleteButton.onclick = () => deleteUser(user.email);
+            actionsCell.appendChild(deleteButton);
+            
+            row.appendChild(nameCell);
+            row.appendChild(emailCell);
+            row.appendChild(membershipCell);
+            row.appendChild(roleCell);
+            row.appendChild(actionsCell);
+            
             tbodyUsers.appendChild(row);
           });
           
           // Populate user dropdowns
           await populateUserDropdown();
+          await populateLoadDropdown();
           
           const selectUserForPassword = el('selectUserForPassword');
           if (selectUserForPassword) {
-            selectUserForPassword.innerHTML = '<option value="">-- Select User --</option>';
+            // Clear dropdown using safe method
+            while (selectUserForPassword.firstChild) {
+              selectUserForPassword.removeChild(selectUserForPassword.firstChild);
+            }
+            
+            const defaultOption = document.createElement('option');
+            defaultOption.value = '';
+            defaultOption.textContent = '-- Select User --';
+            selectUserForPassword.appendChild(defaultOption);
+            
             users.forEach(user => {
               const option = document.createElement('option');
               option.value = user.email;
@@ -1729,6 +2531,7 @@
       const render = async () => {
         await renderHeader();
         await renderBanners();
+        await renderAccessWarnings();
         
         // Hide all pages first
         document.querySelectorAll('section').forEach(s => s.classList.add('hidden'));
@@ -1781,6 +2584,170 @@
           case 'control':
             await renderControl();
             break;
+        }
+      };
+      
+      // User load management functions
+      const editUserLoad = async (loadId) => {
+        try {
+          const loads = await getLoads();
+          const load = loads.find(l => l.id === loadId);
+          
+          if (!load) {
+            showNotification('Load not found', 'error');
+            return;
+          }
+          
+          // Create a simple edit form in a modal-like approach
+          const editForm = document.createElement('div');
+          editForm.style.position = 'fixed';
+          editForm.style.top = '0';
+          editForm.style.left = '0';
+          editForm.style.width = '100%';
+          editForm.style.height = '100%';
+          editForm.style.backgroundColor = 'rgba(0,0,0,0.7)';
+          editForm.style.display = 'flex';
+          editForm.style.justifyContent = 'center';
+          editForm.style.alignItems = 'center';
+          editForm.style.zIndex = '1000';
+          
+          const formContent = document.createElement('div');
+          formContent.className = 'card';
+          formContent.style.maxWidth = '500px';
+          formContent.style.width = '90%';
+          formContent.style.maxHeight = '90vh';
+          formContent.style.overflowY = 'auto';
+          
+          const formTitle = document.createElement('h3');
+          formTitle.textContent = 'Edit Load';
+          formContent.appendChild(formTitle);
+          
+          const form = document.createElement('form');
+          form.id = 'formEditUserLoad';
+          
+          const formGrid = document.createElement('div');
+          formGrid.className = 'grid two';
+          
+          const fields = [
+            { id: 'userEditOrigin', label: 'Origin', value: load.origin, required: true },
+            { id: 'userEditDestination', label: 'Destination', value: load.destination, required: true },
+            { id: 'userEditDate', label: 'Pickup Date', value: load.date.split('T')[0], type: 'date', required: true },
+            { id: 'userEditCargo', label: 'Cargo Type', value: load.cargo_type, required: true },
+            { id: 'userEditWeight', label: 'Weight (Tons)', value: load.weight, type: 'number', required: true }
+          ];
+          
+          fields.forEach(field => {
+            const fieldContainer = document.createElement('div');
+            
+            const label = document.createElement('label');
+            label.htmlFor = field.id;
+            label.textContent = field.label;
+            
+            const input = document.createElement('input');
+            input.id = field.id;
+            input.name = field.id.replace('userEdit', '').toLowerCase();
+            input.value = field.value;
+            input.required = field.required;
+            
+            if (field.type) {
+              input.type = field.type;
+            }
+            
+            fieldContainer.appendChild(label);
+            fieldContainer.appendChild(input);
+            formGrid.appendChild(fieldContainer);
+          });
+          
+          const notesContainer = document.createElement('div');
+          notesContainer.className = 'two';
+          notesContainer.style.gridColumn = '1 / -1';
+          
+          const notesLabel = document.createElement('label');
+          notesLabel.htmlFor = 'userEditNotes';
+          notesLabel.textContent = 'Notes';
+          
+          const notesTextarea = document.createElement('textarea');
+          notesTextarea.id = 'userEditNotes';
+          notesTextarea.name = 'notes';
+          notesTextarea.rows = 3;
+          notesTextarea.textContent = load.notes || '';
+          
+          notesContainer.appendChild(notesLabel);
+          notesContainer.appendChild(notesTextarea);
+          formGrid.appendChild(notesContainer);
+          
+          form.appendChild(formGrid);
+          
+          const formToolbar = document.createElement('div');
+          formToolbar.className = 'toolbar';
+          formToolbar.style.marginTop = '12px';
+          
+          const saveButton = document.createElement('button');
+          saveButton.type = 'button';
+          saveButton.className = 'btn primary';
+          saveButton.textContent = 'Save Changes';
+          saveButton.onclick = async () => {
+            const origin = el('userEditOrigin').value;
+            const destination = el('userEditDestination').value;
+            const date = el('userEditDate').value;
+            const cargo = el('userEditCargo').value;
+            const weight = el('userEditWeight').value;
+            const notes = el('userEditNotes').value;
+            
+            if (!origin || !destination || !date || !cargo || !weight) {
+              showNotification('Please fill in all required fields', 'error');
+              return;
+            }
+            
+            try {
+              await updateLoad(loadId, {
+                origin,
+                destination,
+                date,
+                cargo_type: cargo,
+                weight: parseFloat(weight),
+                notes
+              });
+              
+              showNotification('Load updated successfully', 'success');
+              document.body.removeChild(editForm);
+              await render();
+            } catch (error) {
+              console.error('Error updating load:', error);
+              showNotification('Failed to update load', 'error');
+            }
+          };
+          
+          const cancelButton = document.createElement('button');
+          cancelButton.type = 'button';
+          cancelButton.className = 'btn';
+          cancelButton.textContent = 'Cancel';
+          cancelButton.onclick = () => document.body.removeChild(editForm);
+          
+          formToolbar.appendChild(saveButton);
+          formToolbar.appendChild(cancelButton);
+          form.appendChild(formToolbar);
+          
+          formContent.appendChild(form);
+          editForm.appendChild(formContent);
+          document.body.appendChild(editForm);
+          
+        } catch (error) {
+          console.error('Error editing load:', error);
+          showNotification('Failed to edit load', 'error');
+        }
+      };
+      
+      const deleteUserLoad = async (loadId) => {
+        if (confirm('Are you sure you want to delete this load?')) {
+          try {
+            await deleteLoad(loadId);
+            showNotification('Load deleted successfully', 'success');
+            await render();
+          } catch (error) {
+            console.error('Error deleting load:', error);
+            showNotification('Failed to delete load', 'error');
+          }
         }
       };
       
@@ -1878,6 +2845,21 @@
         el('btnSaveUserAccess')?.addEventListener('click', saveUserAccess);
         el('btnRefreshAccessControl')?.addEventListener('click', refreshAccessControl);
         
+        // Load management event listeners
+        el('btnLoadLoadDetails')?.addEventListener('click', async () => {
+          const select = el('selectLoad');
+          const loadId = select.value;
+          
+          if (!loadId) {
+            showNotification('Please select a load first', 'warning');
+            return;
+          }
+          
+          await displayLoadDetails(loadId);
+        });
+        
+        el('btnDeleteLoad')?.addEventListener('click', deleteSelectedLoad);
+        
         // Reset password functionality
         el('btnResetPass')?.addEventListener('click', async () => {
           const select = el('selectUserForPassword');
@@ -1907,36 +2889,74 @@
           try {
             const loads = await getLoads({ origin, destination });
             const tbody = el('tableMarketLoads').querySelector('tbody');
-            tbody.innerHTML = '';
-            if (!loads || loads.length === 0) { tbody.innerHTML = '<tr><td colspan="9" class="muted">No loads found matching your criteria.</td></tr>'; return; }
+            
+            // Clear table using safe method
+            while (tbody.firstChild) {
+              tbody.removeChild(tbody.firstChild);
+            }
+            
+            if (!loads || loads.length === 0) {
+              const row = document.createElement('tr');
+              const cell = document.createElement('td');
+              cell.colSpan = 9;
+              cell.className = 'muted';
+              cell.textContent = 'No loads found matching your criteria.';
+              row.appendChild(cell);
+              tbody.appendChild(row);
+              return;
+            }
+            
             loads.forEach(load => {
               const row = document.createElement('tr');
               if (isLoadExpired(load)) row.classList.add('expired');
+              
               const postedDate = new Date(load.created_at).toLocaleDateString();
               const expiryDate = new Date(load.expires_at).toLocaleDateString();
-              row.innerHTML = `<td>${sanitize(load.ref)}</td><td>${sanitize(load.origin)}</td><td>${sanitize(load.destination)}</td><td>${postedDate}</td><td>${expiryDate}</td><td>${sanitize(load.cargo_type)}</td><td>${load.weight}</td><td>${sanitize(load.notes || '')}</td><td>${sanitize(load.shipper_name || 'Unknown')}</td>`;
+              const status = getLoadStatus(load);
+              
+              const refCell = document.createElement('td');
+              refCell.textContent = sanitize(load.ref);
+              
+              const originCell = document.createElement('td');
+              originCell.textContent = sanitize(load.origin);
+              
+              const destCell = document.createElement('td');
+              destCell.textContent = sanitize(load.destination);
+              
+              const dateCell = document.createElement('td');
+              dateCell.textContent = postedDate;
+              
+              const expiryCell = document.createElement('td');
+              expiryCell.textContent = expiryDate;
+              
+              const cargoCell = document.createElement('td');
+              cargoCell.textContent = sanitize(load.cargo_type);
+              
+              const weightCell = document.createElement('td');
+              weightCell.textContent = load.weight;
+              
+              const statusCell = document.createElement('td');
+              statusCell.innerHTML = getStatusBadge(status);
+              
+              const postedByCell = document.createElement('td');
+              postedByCell.textContent = sanitize(load.shipper_name || load.shipper_email || 'Unknown');
+              
+              row.appendChild(refCell);
+              row.appendChild(originCell);
+              row.appendChild(destCell);
+              row.appendChild(dateCell);
+              row.appendChild(expiryCell);
+              row.appendChild(cargoCell);
+              row.appendChild(weightCell);
+              row.appendChild(statusCell);
+              row.appendChild(postedByCell);
+              
               tbody.appendChild(row);
             });
           } catch (error) { console.error('Error filtering loads:', error); }
         });
         
         // Global functions for onclick handlers
-        window.editLoad = async (loadId) => {
-          // Implementation for edit load
-          showNotification('Edit load functionality not implemented yet', 'warning');
-        };
-        
-        window.deleteLoad = async (loadId) => {
-          if (confirm('Are you sure you want to delete this load?')) {
-            try {
-              await deleteLoad(loadId);
-              await render();
-            } catch (error) {
-              console.error('Error deleting load:', error);
-            }
-          }
-        };
-        
         window.deleteUser = async (email) => {
           if (confirm('Are you sure you want to delete this user?')) {
             try {
