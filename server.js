@@ -540,3 +540,172 @@ app.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`);
   await initializeDatabase();
 });
+// Bulk import functions
+const bulkImportLoads = async (file) => {
+    if (!file) {
+        showNotification('Please select a file', 'error');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+        const response = await fetch(`${API_BASE}/admin/bulk-import`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${getCurrentUserSync()?.data?.token}`
+            },
+            body: formData
+        });
+
+        const result = await response.json();
+        
+        if (result.success) {
+            displayImportResults(result.data);
+            showNotification(`Successfully imported ${result.data.created.length} loads`, 'success');
+            
+            // Refresh the loads display
+            if (location.hash === '#control') {
+                await populateLoadDropdown();
+            }
+        } else {
+            showNotification('Import failed: ' + result.error, 'error');
+        }
+    } catch (error) {
+        console.error('Bulk import error:', error);
+        showNotification('Import failed: ' + error.message, 'error');
+    }
+};
+
+const downloadImportTemplate = async () => {
+    try {
+        const response = await fetch(`${API_BASE}/admin/bulk-import/template`, {
+            headers: {
+                'Authorization': `Bearer ${getCurrentUserSync()?.data?.token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        const result = await response.json();
+        
+        if (result.success) {
+            // Create a downloadable text file
+            const templateContent = result.data.template;
+            const blob = new Blob([templateContent], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'bulk_load_import_template.txt';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            showNotification('Template downloaded successfully', 'success');
+        } else {
+            showNotification('Failed to download template', 'error');
+        }
+    } catch (error) {
+        console.error('Template download error:', error);
+        showNotification('Failed to download template: ' + error.message, 'error');
+    }
+};
+
+const displayImportResults = (results) => {
+    const resultsContainer = el('importResults');
+    const resultsContent = el('importResultsContent');
+    
+    if (!resultsContainer || !resultsContent) return;
+    
+    let html = `
+        <div class="banner success">
+            <strong>Successfully imported:</strong> ${results.created.length} loads<br>
+            <strong>Failed:</strong> ${results.failed.length} loads<br>
+            <strong>Total processed:</strong> ${results.total_processed} loads
+        </div>
+    `;
+    
+    if (results.created.length > 0) {
+        html += `
+            <div style="margin-top: 12px;">
+                <h5>Imported Loads:</h5>
+                <div style="max-height: 200px; overflow-y: auto;">
+                    <table style="width: 100%; font-size: 12px;">
+                        <thead>
+                            <tr>
+                                <th>Ref</th>
+                                <th>Origin</th>
+                                <th>Destination</th>
+                                <th>Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+        `;
+        
+        results.created.forEach(load => {
+            html += `
+                <tr>
+                    <td>${sanitize(load.ref)}</td>
+                    <td>${sanitize(load.origin)}</td>
+                    <td>${sanitize(load.destination)}</td>
+                    <td>${sanitize(load.date)}</td>
+                </tr>
+            `;
+        });
+        
+        html += `
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+    }
+    
+    if (results.failed.length > 0) {
+        html += `
+            <div style="margin-top: 12px;">
+                <h5 class="danger">Failed Imports:</h5>
+                <div style="max-height: 150px; overflow-y: auto; font-size: 12px;">
+        `;
+        
+        results.failed.forEach((failed, index) => {
+            html += `
+                <div class="banner" style="margin-bottom: 8px;">
+                    <strong>Error ${index + 1}:</strong> ${sanitize(failed.error)}<br>
+                    <strong>Data:</strong> ${JSON.stringify(failed.data)}
+                </div>
+            `;
+        });
+        
+        html += `
+                </div>
+            </div>
+        `;
+    }
+    
+    resultsContent.innerHTML = html;
+    resultsContainer.classList.remove('hidden');
+};
+
+// Add these event listeners to the init function
+const init = () => {
+    // ... existing event listeners ...
+    
+    // Bulk import form submission
+    el('formBulkImport')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const fileInput = el('bulkImportFile');
+        if (fileInput && fileInput.files.length > 0) {
+            setButtonLoading('formBulkImport', true);
+            await bulkImportLoads(fileInput.files[0]);
+            setButtonLoading('formBulkImport', false);
+            fileInput.value = ''; // Reset file input
+        }
+    });
+    
+    // Template download
+    el('btnDownloadTemplate')?.addEventListener('click', downloadImportTemplate);
+    
+    // ... rest of existing initialization code ...
+};
