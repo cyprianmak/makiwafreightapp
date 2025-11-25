@@ -7,6 +7,7 @@ import json
 import os
 from sqlalchemy import text
 from sqlalchemy.orm import Session
+from functools import wraps
 
 app = Flask(__name__)
 
@@ -141,6 +142,41 @@ class Banner(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     index = db.Column(db.String(200))
     dashboard = db.Column(db.String(200))
+
+# Authentication decorators
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        user = check_auth(request)
+        if not user:
+            return jsonify({
+                "success": False,
+                "message": "Authentication required",
+                "error": "Please login to continue"
+            }), 401
+        return f(*args, **kwargs)
+    return decorated_function
+
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        user = check_auth(request)
+        if not user:
+            return jsonify({
+                "success": False,
+                "message": "Authentication required",
+                "error": "Please login to continue"
+            }), 401
+        
+        if user.role != 'admin':
+            return jsonify({
+                "success": False,
+                "message": "Access denied",
+                "error": "Admin access required"
+            }), 403
+        
+        return f(*args, **kwargs)
+    return decorated_function
 
 # DB helper: generate membership number MF000001 style
 def generate_membership_number():
@@ -318,7 +354,7 @@ def initialize_data():
             db.create_all()
             print("✅ Database tables recreated")
             
-            # Check if admin user exists
+            # Create admin user FIRST
             admin_email = 'cyprianmak@gmail.com'
             admin = User.query.filter_by(email=admin_email).first()
             
@@ -332,7 +368,7 @@ def initialize_data():
                 )
                 admin.set_password("Muchandida@1")
                 db.session.add(admin)
-                db.session.commit()
+                db.session.commit()  # Commit to get the ID
                 print("✅ Admin user created")
             else:
                 print("✅ Admin user already exists")
@@ -348,12 +384,56 @@ def initialize_data():
                 print("✅ Access control data created")
             else:
                 print("✅ Access control data already exists")
+            
+            # Create user access control for admin AFTER user exists
+            if admin:
+                user_access = UserAccessControl.query.filter_by(user_id=admin.id).first()
+                if not user_access:
+                    print("Creating admin access control...")
+                    user_access = UserAccessControl(
+                        user_id=admin.id,
+                        pages=json.dumps({
+                            "market": {"enabled": True},
+                            "shipper-post": {"enabled": True},
+                            "admin": {"enabled": True}
+                        })
+                    )
+                    db.session.add(user_access)
+                    db.session.commit()
+                    print("✅ Admin access control created")
+                else:
+                    print("✅ Admin access control already exists")
                 
             print("✅ Database initialization complete")
             
         except Exception as e:
             print(f"❌ Error during database initialization: {e}")
             db.session.rollback()
+
+# Error handlers
+@app.errorhandler(401)
+def unauthorized(error):
+    return jsonify({
+        "success": False,
+        "message": "Authentication required",
+        "error": "Please log in with valid credentials"
+    }), 401
+
+@app.errorhandler(403)
+def forbidden(error):
+    return jsonify({
+        "success": False,
+        "message": "Insufficient permissions",
+        "error": "You don't have permission to access this resource"
+    }), 403
+
+@app.errorhandler(404)
+def not_found(error):
+    return jsonify({
+        "success": False,
+        "message": "Resource not found",
+        "error": "The requested resource was not found"
+    }), 404
 
 # Routes
 @app.route('/')
@@ -456,6 +536,17 @@ def register():
         db.session.add(new_user)
         db.session.commit()
         
+        # Create default access control for new user
+        user_access = UserAccessControl(
+            user_id=new_user.id,
+            pages=json.dumps({
+                "market": {"enabled": True},
+                "shipper-post": {"enabled": True}
+            })
+        )
+        db.session.add(user_access)
+        db.session.commit()
+        
         return jsonify({
             "success": True,
             "message": "Registration successful",
@@ -534,16 +625,10 @@ def login():
 
 # Get current user endpoint
 @app.route('/api/users/me', methods=['GET'])
+@login_required
 def get_current_user():
     try:
         user = check_auth(request)
-        if not user:
-            return jsonify({
-                "success": False,
-                "message": "Authentication required",
-                "error": "Please login to continue"
-            }), 401
-        
         return jsonify({
             "success": True,
             "message": "User data retrieved",
@@ -571,16 +656,10 @@ def get_current_user():
 
 # Update current user endpoint
 @app.route('/api/users/me', methods=['PUT'])
+@login_required
 def update_current_user():
     try:
         user = check_auth(request)
-        if not user:
-            return jsonify({
-                "success": False,
-                "message": "Authentication required",
-                "error": "Please login to continue"
-            }), 401
-        
         data = request.get_json()
         if not data:
             return jsonify({
@@ -631,115 +710,109 @@ def update_current_user():
         }), 500
 
 # Load endpoints
-@app.route('/api/loads', methods=['GET', 'POST'])
-def handle_loads():
+@app.route('/api/loads', methods=['GET'])
+def get_loads():
     try:
-        if request.method == 'GET':
-            # Get all loads (public access)
-            loads = Load.query.filter(Load.expires_at >= datetime.now(timezone.utc)).all()
-            result = []
-            for load in loads:
-                result.append({
-                    "id": load.id,
-                    "ref": load.ref,
-                    "origin": load.origin,
-                    "destination": load.destination,
-                    "date": load.date,
-                    "cargo_type": load.cargo_type,
-                    "weight": load.weight,
-                    "notes": load.notes,
-                    "shipper_name": load.shipper.name if load.shipper else "Unknown",
-                    "shipper_membership": load.shipper.membership_number if load.shipper else "Unknown",
-                    "expires_at": load.expires_at.isoformat(),
-                    "created_at": load.created_at.isoformat()
-                })
-            return jsonify({
-                "success": True,
-                "message": "Loads retrieved",
-                "data": {"loads": result}
+        # Get all loads (public access)
+        loads = Load.query.filter(Load.expires_at >= datetime.now(timezone.utc)).all()
+        result = []
+        for load in loads:
+            result.append({
+                "id": load.id,
+                "ref": load.ref,
+                "origin": load.origin,
+                "destination": load.destination,
+                "date": load.date,
+                "cargo_type": load.cargo_type,
+                "weight": load.weight,
+                "notes": load.notes,
+                "shipper_name": load.shipper.name if load.shipper else "Unknown",
+                "shipper_membership": load.shipper.membership_number if load.shipper else "Unknown",
+                "expires_at": load.expires_at.isoformat(),
+                "created_at": load.created_at.isoformat()
             })
+        return jsonify({
+            "success": True,
+            "message": "Loads retrieved",
+            "data": {"loads": result}
+        })
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": "Failed to retrieve loads",
+            "error": str(e)
+        }), 500
+
+@app.route('/api/loads', methods=['POST'])
+@login_required
+def create_load():
+    try:
+        user = check_auth(request)
+        data = request.get_json()
+        if not data:
+            return jsonify({
+                "success": False,
+                "message": "Load creation failed",
+                "error": "No JSON data provided"
+            }), 400
         
-        if request.method == 'POST':
-            # Create new load (requires authentication)
-            user = check_auth(request)
-            if not user:
-                return jsonify({
-                    "success": False,
-                    "message": "Authentication required",
-                    "error": "Please login to post loads"
-                }), 401
-            
-            data = request.get_json()
-            if not data:
+        required_fields = ['origin', 'destination', 'date', 'cargo_type', 'weight']
+        for field in required_fields:
+            if field not in data:
                 return jsonify({
                     "success": False,
                     "message": "Load creation failed",
-                    "error": "No JSON data provided"
+                    "error": f"Missing field: {field}"
                 }), 400
-            
-            required_fields = ['origin', 'destination', 'date', 'cargo_type', 'weight']
-            for field in required_fields:
-                if field not in data:
-                    return jsonify({
-                        "success": False,
-                        "message": "Load creation failed",
-                        "error": f"Missing field: {field}"
-                    }), 400
-            
-            # Set expiration date (7 days from creation)
-            expires_at = datetime.now(timezone.utc) + timedelta(days=7)
-            
-            # Generate reference
-            ref = 'LD' + str(int(datetime.now(timezone.utc).timestamp()))[-6:]
-            
-            new_load = Load(
-                ref=ref,
-                origin=data['origin'],
-                destination=data['destination'],
-                date=data['date'],
-                cargo_type=data['cargo_type'],
-                weight=float(data['weight']),
-                notes=data.get('notes', ''),
-                shipper_id=user.id,
-                expires_at=expires_at
-            )
-            
-            db.session.add(new_load)
-            db.session.commit()
-            
-            return jsonify({
-                "success": True,
-                "message": "Load created successfully",
-                "data": {
-                    "load": {
-                        "id": new_load.id,
-                        "ref": new_load.ref,
-                        "origin": new_load.origin,
-                        "destination": new_load.destination,
-                        "expires_at": new_load.expires_at.isoformat()
-                    }
+        
+        # Set expiration date (7 days from creation)
+        expires_at = datetime.now(timezone.utc) + timedelta(days=7)
+        
+        # Generate reference
+        ref = 'LD' + str(int(datetime.now(timezone.utc).timestamp()))[-6:]
+        
+        new_load = Load(
+            ref=ref,
+            origin=data['origin'],
+            destination=data['destination'],
+            date=data['date'],
+            cargo_type=data['cargo_type'],
+            weight=float(data['weight']),
+            notes=data.get('notes', ''),
+            shipper_id=user.id,
+            expires_at=expires_at
+        )
+        
+        db.session.add(new_load)
+        db.session.commit()
+        
+        return jsonify({
+            "success": True,
+            "message": "Load created successfully",
+            "data": {
+                "load": {
+                    "id": new_load.id,
+                    "ref": new_load.ref,
+                    "origin": new_load.origin,
+                    "destination": new_load.destination,
+                    "expires_at": new_load.expires_at.isoformat()
                 }
-            }), 201
+            }
+        }), 201
     except Exception as e:
         db.session.rollback()
         return jsonify({
             "success": False,
-            "message": "Operation failed",
+            "message": "Failed to create load",
             "error": str(e)
         }), 500
 
 # Update load endpoint
 @app.route('/api/loads/<load_id>', methods=['PUT'])
+@login_required
 def update_load_endpoint(load_id):
     try:
         user = check_auth(request)
-        if not user:
-            return jsonify({
-                "success": False,
-                "message": "Authentication required",
-                "error": "Please login to continue"
-            }), 401
-        
         load = db.session.get(Load, load_id)
         if not load:
             return jsonify({
@@ -803,16 +876,10 @@ def update_load_endpoint(load_id):
 
 # Delete load endpoint
 @app.route('/api/loads/<load_id>', methods=['DELETE'])
+@login_required
 def delete_load_endpoint(load_id):
     try:
         user = check_auth(request)
-        if not user:
-            return jsonify({
-                "success": False,
-                "message": "Authentication required",
-                "error": "Please login to continue"
-            }), 401
-        
         load = db.session.get(Load, load_id)
         if not load:
             return jsonify({
@@ -846,105 +913,101 @@ def delete_load_endpoint(load_id):
         }), 500
 
 # Message endpoints
-@app.route('/api/messages', methods=['GET', 'POST'])
-def handle_messages():
+@app.route('/api/messages', methods=['GET'])
+@login_required
+def get_messages():
     try:
         user = check_auth(request)
-        if not user:
+        # Get user's messages using membership number
+        user_membership = user.membership_number or 'Admin'
+        messages = Message.query.filter(
+            (Message.sender_membership == user_membership) | 
+            (Message.recipient_membership == user_membership)
+        ).order_by(Message.created_at.desc()).all()
+        
+        result = []
+        for msg in messages:
+            result.append({
+                "id": msg.id,
+                "sender_membership": msg.sender_membership,
+                "recipient_membership": msg.recipient_membership,
+                "body": msg.body,
+                "created_at": msg.created_at.isoformat()
+            })
+        return jsonify({
+            "success": True,
+            "message": "Messages retrieved",
+            "data": {"messages": result}
+        })
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": "Failed to retrieve messages",
+            "error": str(e)
+        }), 500
+
+@app.route('/api/messages', methods=['POST'])
+@login_required
+def send_message():
+    try:
+        user = check_auth(request)
+        data = request.get_json()
+        if not data:
             return jsonify({
                 "success": False,
-                "message": "Authentication required",
-                "error": "Please login to access messages"
-            }), 401
+                "message": "Message not sent",
+                "error": "No JSON data provided"
+            }), 400
+            
+        recipient_membership = data.get('recipient_membership')
+        body = data.get('body')
         
-        if request.method == 'GET':
-            # Get user's messages using membership number
-            user_membership = user.membership_number or 'Admin'
-            messages = Message.query.filter(
-                (Message.sender_membership == user_membership) | 
-                (Message.recipient_membership == user_membership)
-            ).order_by(Message.created_at.desc()).all()
-            
-            result = []
-            for msg in messages:
-                result.append({
-                    "id": msg.id,
-                    "sender_membership": msg.sender_membership,
-                    "recipient_membership": msg.recipient_membership,
-                    "body": msg.body,
-                    "created_at": msg.created_at.isoformat()
-                })
+        if not recipient_membership or not body:
             return jsonify({
-                "success": True,
-                "message": "Messages retrieved",
-                "data": {"messages": result}
-            })
+                "success": False,
+                "message": "Message not sent",
+                "error": "Recipient membership number and message body required"
+            }), 400
         
-        if request.method == 'POST':
-            data = request.get_json()
-            if not data:
-                return jsonify({
-                    "success": False,
-                    "message": "Message not sent",
-                    "error": "No JSON data provided"
-                }), 400
-                
-            recipient_membership = data.get('recipient_membership')
-            body = data.get('body')
-            
-            if not recipient_membership or not body:
-                return jsonify({
-                    "success": False,
-                    "message": "Message not sent",
-                    "error": "Recipient membership number and message body required"
-                }), 400
-            
-            # Verify recipient exists (check by membership number)
-            recipient = User.query.filter_by(membership_number=recipient_membership).first()
-            if not recipient and recipient_membership != 'Admin':
-                return jsonify({
-                    "success": False,
-                    "message": "Message not sent",
-                    "error": "Recipient not found"
-                }), 404
-            
-            # Use current user's membership number or 'Admin' for admin users
-            sender_membership = user.membership_number or 'Admin'
-            
-            new_message = Message(
-                sender_membership=sender_membership,
-                recipient_membership=recipient_membership,
-                body=body
-            )
-            
-            db.session.add(new_message)
-            db.session.commit()
-            
+        # Verify recipient exists (check by membership number)
+        recipient = User.query.filter_by(membership_number=recipient_membership).first()
+        if not recipient and recipient_membership != 'Admin':
             return jsonify({
-                "success": True,
-                "message": "Message sent successfully",
-                "data": {"message_id": new_message.id}
-            }), 201
+                "success": False,
+                "message": "Message not sent",
+                "error": "Recipient not found"
+            }), 404
+        
+        # Use current user's membership number or 'Admin' for admin users
+        sender_membership = user.membership_number or 'Admin'
+        
+        new_message = Message(
+            sender_membership=sender_membership,
+            recipient_membership=recipient_membership,
+            body=body
+        )
+        
+        db.session.add(new_message)
+        db.session.commit()
+        
+        return jsonify({
+            "success": True,
+            "message": "Message sent successfully",
+            "data": {"message_id": new_message.id}
+        }), 201
     except Exception as e:
         db.session.rollback()
         return jsonify({
             "success": False,
-            "message": "Message operation failed",
+            "message": "Failed to send message",
             "error": str(e)
         }), 500
 
 # Admin endpoints
 @app.route('/api/admin/banners', methods=['GET'])
+@admin_required
 def get_admin_banners():
     try:
-        user = check_auth(request)
-        if not user or user.role != 'admin':
-            return jsonify({
-                "success": False,
-                "message": "Access denied",
-                "error": "Admin access required"
-            }), 403
-        
         return jsonify({
             "success": True,
             "message": "Banners retrieved",
@@ -958,16 +1021,9 @@ def get_admin_banners():
         }), 500
 
 @app.route('/api/admin/banners', methods=['POST'])
+@admin_required
 def update_admin_banners():
     try:
-        user = check_auth(request)
-        if not user or user.role != 'admin':
-            return jsonify({
-                "success": False,
-                "message": "Access denied",
-                "error": "Admin access required"
-            }), 403
-        
         data = request.get_json()
         if not data:
             return jsonify({
@@ -991,16 +1047,9 @@ def update_admin_banners():
 
 # Admin access control endpoints
 @app.route('/api/admin/access-control', methods=['GET'])
+@admin_required
 def get_admin_access_control():
     try:
-        user = check_auth(request)
-        if not user or user.role != 'admin':
-            return jsonify({
-                "success": False,
-                "message": "Access denied",
-                "error": "Admin access required"
-            }), 403
-        
         return jsonify({
             "success": True,
             "message": "Access control data retrieved",
@@ -1014,16 +1063,9 @@ def get_admin_access_control():
         }), 500
 
 @app.route('/api/admin/access-control', methods=['PUT'])
+@admin_required
 def update_admin_access_control():
     try:
-        user = check_auth(request)
-        if not user or user.role != 'admin':
-            return jsonify({
-                "success": False,
-                "message": "Access denied",
-                "error": "Admin access required"
-            }), 403
-        
         data = request.get_json()
         updated_data = update_access_control(data)
         
@@ -1041,16 +1083,9 @@ def update_admin_access_control():
 
 # User-specific access control endpoints
 @app.route('/api/admin/users/<string:user_id>/access', methods=['GET'])
+@admin_required
 def get_user_access(user_id):
     try:
-        user = check_auth(request)
-        if not user or user.role != 'admin':
-            return jsonify({
-                "success": False,
-                "message": "Access denied",
-                "error": "Admin access required"
-            }), 403
-        
         # First verify the user exists
         target_user = User.query.filter_by(id=user_id).first()
         if not target_user:
@@ -1071,8 +1106,8 @@ def get_user_access(user_id):
                 "data": {
                     "user_id": user_id,
                     "pages": {
-                        'market': {'enabled': False},
-                        'shipper-post': {'enabled': False}
+                        'market': {'enabled': True},
+                        'shipper-post': {'enabled': True}
                     }
                 }
             })
@@ -1093,16 +1128,9 @@ def get_user_access(user_id):
         }), 500
 
 @app.route('/api/admin/users/<string:user_id>/access', methods=['PUT'])
+@admin_required
 def update_user_access(user_id):
     try:
-        user = check_auth(request)
-        if not user or user.role != 'admin':
-            return jsonify({
-                "success": False,
-                "message": "Access denied",
-                "error": "Admin access required"
-            }), 403
-        
         data = request.get_json()
         if not data or 'pages' not in data:
             return jsonify({
@@ -1151,16 +1179,9 @@ def update_user_access(user_id):
 
 # User management (admin only)
 @app.route('/api/users', methods=['GET'])
+@admin_required
 def get_users():
     try:
-        user = check_auth(request)
-        if not user or user.role != 'admin':
-            return jsonify({
-                "success": False,
-                "message": "Access denied",
-                "error": "Admin access required"
-            }), 403
-        
         users = User.query.all()
         result = []
         for u in users:
@@ -1189,16 +1210,9 @@ def get_users():
 
 # Delete user endpoint
 @app.route('/api/admin/users/<email>', methods=['DELETE'])
+@admin_required
 def delete_user_endpoint(email):
     try:
-        user = check_auth(request)
-        if not user or user.role != 'admin':
-            return jsonify({
-                "success": False,
-                "message": "Access denied",
-                "error": "Admin access required"
-            }), 403
-        
         user_to_delete = User.query.filter_by(email=email).first()
         if not user_to_delete:
             return jsonify({
@@ -1238,16 +1252,9 @@ def delete_user_endpoint(email):
 
 # Reset password endpoint
 @app.route('/api/admin/reset-password', methods=['POST'])
+@admin_required
 def reset_password():
     try:
-        user = check_auth(request)
-        if not user or user.role != 'admin':
-            return jsonify({
-                "success": False,
-                "message": "Access denied",
-                "error": "Admin access required"
-            }), 403
-        
         data = request.get_json()
         email = data.get('email')
         new_password = data.get('new_password')
