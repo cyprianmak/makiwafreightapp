@@ -1,11 +1,12 @@
 from flask import Flask, render_template, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 import uuid
 import json
 import os
 from sqlalchemy import text
+from sqlalchemy.orm import Session
 
 app = Flask(__name__)
 
@@ -57,7 +58,7 @@ class User(db.Model):
     vehicle_info = db.Column(db.String(200))
     membership_number = db.Column(db.String(20), unique=True, nullable=True)  # Start as nullable
     token = db.Column(db.String(36))
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(UTC))
     
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -76,7 +77,7 @@ class Load(db.Model):
     notes = db.Column(db.Text)
     shipper_id = db.Column(db.String(36), db.ForeignKey('user.id'), nullable=False)
     expires_at = db.Column(db.DateTime, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(UTC))
     
     # Relationship to get shipper info
     shipper = db.relationship('User', foreign_keys=[shipper_id])
@@ -100,16 +101,16 @@ class Load(db.Model):
 
 class Message(db.Model):
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    sender_email = db.Column(db.String(100), nullable=False)
-    recipient_email = db.Column(db.String(100), nullable=False)
+    sender_membership = db.Column(db.String(20), nullable=False)
+    recipient_membership = db.Column(db.String(20), nullable=False)
     body = db.Column(db.Text, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(UTC))
     
     def to_dict(self):
         return {
             "id": self.id,
-            "sender_email": self.sender_email,
-            "recipient_email": self.recipient_email,
+            "sender_membership": self.sender_membership,
+            "recipient_membership": self.recipient_membership,
             "body": self.body,
             "created_at": self.created_at.isoformat()
         }
@@ -122,7 +123,7 @@ class UserAccessControl(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.String(36), db.ForeignKey('user.id'), nullable=False)
     pages = db.Column(db.Text)  # JSON string containing page access data
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(UTC))
     
     user = db.relationship('User', backref=db.backref('access_controls', lazy=True))
 
@@ -274,7 +275,10 @@ def check_auth(request):
     if not token or not token.startswith('Bearer '):
         return None
     token = token.split(' ')[1]
-    return User.query.filter_by(token=token).first()
+    
+    # Use Session.get() instead of Query.get() for SQLAlchemy 2.0 compatibility
+    session = Session.object_session(db.session) or db.session
+    return session.get(User, token)
 
 def get_default_access_control_data():
     return {
@@ -1019,7 +1023,8 @@ def handle_loads():
         
         # Get all loads (public access)
         if request.method == 'GET':
-            loads = Load.query.filter(Load.expires_at >= datetime.utcnow()).all()
+            # Use datetime.now(UTC) instead of datetime.utcnow()
+            loads = Load.query.filter(Load.expires_at >= datetime.now(UTC)).all()
             result = []
             for load in loads:
                 result.append({
@@ -1070,8 +1075,8 @@ def handle_loads():
                         "error": f"Missing field: {field}"
                     }), 400
             
-            # Set expiration date (7 days from creation)
-            expires_at = datetime.utcnow() + timedelta(days=7)
+            # Set expiration date (7 days from creation) - using UTC
+            expires_at = datetime.now(UTC) + timedelta(days=7)
             
             new_load = Load(
                 ref=data['ref'],
@@ -1120,7 +1125,10 @@ def update_load_endpoint(load_id):
                 "error": "Please login to continue"
             }), 401
         
-        load = Load.query.get(load_id)
+        # Use Session.get() instead of Query.get() for SQLAlchemy 2.0 compatibility
+        session = Session.object_session(db.session) or db.session
+        load = session.get(Load, load_id)
+        
         if not load:
             return jsonify({
                 "success": False,
@@ -1186,7 +1194,10 @@ def delete_load_endpoint(load_id):
                 "error": "Please login to continue"
             }), 401
         
-        load = Load.query.get(load_id)
+        # Use Session.get() instead of Query.get() for SQLAlchemy 2.0 compatibility
+        session = Session.object_session(db.session) or db.session
+        load = session.get(Load, load_id)
+        
         if not load:
             return jsonify({
                 "success": False,
@@ -1231,17 +1242,19 @@ def handle_messages():
         
         # Get user's messages
         if request.method == 'GET':
+            # Use membership numbers instead of emails
+            user_membership = user.membership_number or 'Admin'
             messages = Message.query.filter(
-                (Message.sender_email == user.email) | 
-                (Message.recipient_email == user.email)
+                (Message.sender_membership == user_membership) | 
+                (Message.recipient_membership == user_membership)
             ).order_by(Message.created_at.desc()).all()
             
             result = []
             for msg in messages:
                 result.append({
                     "id": msg.id,
-                    "sender": msg.sender_email,
-                    "recipient": msg.recipient_email,
+                    "sender_membership": msg.sender_membership,
+                    "recipient_membership": msg.recipient_membership,
                     "body": msg.body,
                     "created_at": msg.created_at.isoformat()
                 })
@@ -1254,27 +1267,31 @@ def handle_messages():
         # Send a new message
         if request.method == 'POST':
             data = request.get_json()
-            recipient = data.get('recipient')
+            recipient_membership = data.get('recipient_membership')
             body = data.get('body')
             
-            if not recipient or not body:
+            if not recipient_membership or not body:
                 return jsonify({
                     "success": False,
                     "message": "Message not sent",
-                    "error": "Recipient and message body required"
+                    "error": "Recipient membership number and message body required"
                 }), 400
             
-            # Verify recipient exists
-            if not User.query.filter_by(email=recipient).first():
+            # Verify recipient exists (check by membership number)
+            recipient = User.query.filter_by(membership_number=recipient_membership).first()
+            if not recipient and recipient_membership != 'Admin':
                 return jsonify({
                     "success": False,
                     "message": "Message not sent",
                     "error": "Recipient not found"
                 }), 404
             
+            # Use current user's membership number or 'Admin' for admin users
+            sender_membership = user.membership_number or 'Admin'
+            
             new_message = Message(
-                sender_email=user.email,
-                recipient_email=recipient,
+                sender_membership=sender_membership,
+                recipient_membership=recipient_membership,
                 body=body
             )
             
@@ -1332,7 +1349,7 @@ def get_users():
         }), 500
 
 # Delete user endpoint
-@app.route('/api/users/<email>', methods=['DELETE'])
+@app.route('/api/admin/users/<email>', methods=['DELETE'])
 def delete_user_endpoint(email):
     try:
         user = check_auth(request)
@@ -1353,9 +1370,12 @@ def delete_user_endpoint(email):
         
         # Delete user's loads and messages
         Load.query.filter_by(shipper_id=user_to_delete.id).delete()
+        
+        # Delete messages using membership number
+        user_membership = user_to_delete.membership_number or 'Admin'
         Message.query.filter(
-            (Message.sender_email == user_to_delete.email) | 
-            (Message.recipient_email == user_to_delete.email)
+            (Message.sender_membership == user_membership) | 
+            (Message.recipient_membership == user_membership)
         ).delete()
         
         db.session.delete(user_to_delete)
