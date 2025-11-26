@@ -1,3 +1,4 @@
+// server.js - COMPLETE BACKEND FOR MAKIWAFREIGHT
 const express = require('express');
 const path = require('path');
 const cors = require('cors');
@@ -10,11 +11,7 @@ const PORT = process.env.PORT || 10000;
 
 // Database connection
 const pool = new Pool({
-  user: process.env.DB_USER,
-  host: process.env.DB_HOST,
-  database: process.env.DB_DATABASE,
-  password: process.env.DB_PASSWORD,
-  port: process.env.DB_PORT,
+  connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false }
 });
 
@@ -28,9 +25,9 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// API Routes that match frontend expectations
+// API Routes
 
-// Auth routes (match frontend)
+// Auth routes
 app.post('/api/auth/login', async (req, res) => {
   const { email, password } = req.body;
 
@@ -53,7 +50,6 @@ app.post('/api/auth/login', async (req, res) => {
     // Remove password from response
     const { password: _, ...userWithoutPassword } = user;
     
-    // Return format expected by frontend
     res.json({ 
       data: { 
         user: userWithoutPassword, 
@@ -103,7 +99,6 @@ app.post('/api/auth/register', async (req, res) => {
     // Remove password from response
     const { password: _, ...userWithoutPassword } = newUser;
 
-    // Return format expected by frontend
     res.status(201).json({ 
       data: { 
         user: userWithoutPassword, 
@@ -117,11 +112,11 @@ app.post('/api/auth/register', async (req, res) => {
   }
 });
 
-// User routes (match frontend)
+// User routes
 app.get('/api/users/me', async (req, res) => {
   try {
-    // This is a mock - you'll need to implement proper JWT auth
-    const user = await pool.query('SELECT id, name, email, phone, company, address, role, vehicle_info, membership_number, created_at FROM users WHERE id = $1', [1]);
+    // Mock - implement proper auth
+    const user = await pool.query('SELECT id, name, email, phone, company, address, role, vehicle_info, membership_number, created_at FROM users ORDER BY id LIMIT 1');
     if (user.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
     }
@@ -136,7 +131,7 @@ app.put('/api/users/me', async (req, res) => {
   const { name, phone, address, password } = req.body;
 
   try {
-    // Mock user ID - implement proper auth
+    // Mock user ID
     const userId = 1;
     
     let updateFields = [];
@@ -184,13 +179,12 @@ app.put('/api/users/me', async (req, res) => {
   }
 });
 
-// Load routes (already match frontend)
+// Load routes
 app.post('/api/loads', async (req, res) => {
   const { origin, destination, date, cargo_type, weight, notes } = req.body;
 
   try {
-    // Mock user ID - implement proper auth
-    const shipper_id = 1;
+    const shipper_id = 1; // Mock user ID
     const ref = 'LD' + Date.now().toString().slice(-6);
     
     // Calculate expiry date (7 days from now)
@@ -213,6 +207,17 @@ app.post('/api/loads', async (req, res) => {
 app.get('/api/loads', async (req, res) => {
   try {
     const result = await pool.query("SELECT l.*, u.membership_number as shipper_membership FROM loads l LEFT JOIN users u ON l.shipper_id = u.id WHERE expires_at > NOW() AND status = 'active' ORDER BY created_at DESC");
+    res.json({ data: { loads: result.rows } });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+app.get('/api/users/me/loads', async (req, res) => {
+  try {
+    const shipper_id = 1; // Mock user ID
+    const result = await pool.query('SELECT * FROM loads WHERE shipper_id = $1 ORDER BY created_at DESC', [shipper_id]);
     res.json({ data: { loads: result.rows } });
   } catch (err) {
     console.error(err);
@@ -255,12 +260,11 @@ app.delete('/api/loads/:id', async (req, res) => {
   }
 });
 
-// Message routes (match frontend)
+// Message routes
 app.post('/api/messages', async (req, res) => {
   const { sender_membership, recipient_membership, body } = req.body;
 
   try {
-    // Get sender and receiver IDs from membership numbers
     const senderResult = await pool.query('SELECT id FROM users WHERE membership_number = $1', [sender_membership]);
     const receiverResult = await pool.query('SELECT id FROM users WHERE membership_number = $1', [recipient_membership]);
     
@@ -285,8 +289,7 @@ app.post('/api/messages', async (req, res) => {
 
 app.get('/api/messages', async (req, res) => {
   try {
-    // Mock - get messages for current user
-    const userId = 1;
+    const userId = 1; // Mock user ID
     const result = await pool.query(
       `SELECT m.*, 
               u1.membership_number as sender_membership,
@@ -305,7 +308,7 @@ app.get('/api/messages', async (req, res) => {
   }
 });
 
-// Admin routes (match frontend)
+// Admin routes
 app.get('/api/users', async (req, res) => {
   try {
     const result = await pool.query('SELECT id, name, email, phone, company, address, role, vehicle_info, membership_number, created_at, updated_at FROM users ORDER BY created_at DESC');
@@ -360,7 +363,7 @@ app.post('/api/admin/reset-password', async (req, res) => {
   }
 });
 
-// Initialize database (same as before)
+// Initialize database
 const initializeDatabase = async () => {
   try {
     await pool.query(`
@@ -425,7 +428,7 @@ const initializeDatabase = async () => {
       )
     `);
 
-    // Create admin user if not exists
+    // Create admin user
     const adminEmail = 'cyprianmak@gmail.com';
     const adminResult = await pool.query('SELECT * FROM users WHERE email = $1', [adminEmail]);
     
@@ -456,6 +459,6 @@ const initializeDatabase = async () => {
 
 // Start server
 app.listen(PORT, async () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`MakiwaFreight server running on port ${PORT}`);
   await initializeDatabase();
 });
