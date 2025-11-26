@@ -697,7 +697,6 @@
           <div><label for="loadDate">Pickup Date</label><input required type="date" id="loadDate" name="date" /></div>
           <div><label for="loadCargo">Cargo Type</label><input required id="loadCargo" name="cargo_type" /></div>
           <div><label for="loadWeight">Weight (Tons)</label><input required id="loadWeight" name="weight" type="number" min="0" step="0.01" /></div>
-          <!-- REMOVED: Shipper ID and Email fields - they are auto-populated by backend -->
         </div>
         <div class="grid-full-width">
           <label for="loadNotes">Notes</label>
@@ -911,7 +910,6 @@
         <div class="table-container">
           <table id="tableMarketLoads" aria-label="Market loads"><thead><tr>
             <th scope="col">Ref</th><th scope="col">Origin</th><th scope="col">Destination</th><th scope="col">Date</th><th scope="col">Expires</th><th scope="col">Cargo</th><th scope="col">Weight</th><th scope="col">Status</th>
-            <!-- UPDATED: Changed from "Posted By" to show membership number -->
             <th scope="col">Posted By (Membership #)</th>
             <th scope="col">Actions</th>
           </tr></thead><tbody></tbody></table>
@@ -1199,16 +1197,23 @@
         
         document.getElementById('notificationContainer').appendChild(notification);
         
-        setTimeout(() => {
+        // Use requestAnimationFrame instead of setTimeout for animation
+        requestAnimationFrame(() => {
           notification.classList.add('show');
-        }, 10);
+        });
         
-        setTimeout(() => {
+        // Store timeout ID for cleanup
+        const timeoutId = setTimeout(() => {
           notification.classList.remove('show');
-          setTimeout(() => {
-            notification.remove();
+          const removeTimeoutId = setTimeout(() => {
+            if (notification.parentNode) {
+              notification.remove();
+            }
           }, 300);
+          notification.dataset.removeTimeoutId = removeTimeoutId;
         }, 5000);
+        
+        notification.dataset.timeoutId = timeoutId;
       }
       
       // Session timeout management
@@ -1239,7 +1244,7 @@
           
           if (timeLeft > 0) {
             timeLeft--;
-            setTimeout(updateTimer, 1000);
+            timer.dataset.updateTimerId = setTimeout(updateTimer, 1000);
           }
         };
         
@@ -1255,6 +1260,11 @@
       const extendSession = () => {
         const modal = el('sessionTimeoutModal');
         if (modal) {
+          // Clear any running timers
+          const timer = el('sessionTimer');
+          if (timer && timer.dataset.updateTimerId) {
+            clearTimeout(parseInt(timer.dataset.updateTimerId));
+          }
           modal.classList.add('hidden');
         }
         resetSessionTimer();
@@ -1330,10 +1340,11 @@
             warning.textContent = 'Rate limit exceeded. Please slow down your requests.';
             warning.classList.remove('hidden');
             
-            // Hide after 10 seconds
-            setTimeout(() => {
+            // Use proper timeout storage
+            const timeoutId = setTimeout(() => {
               warning.classList.add('hidden');
             }, 10000);
+            warning.dataset.timeoutId = timeoutId;
           }
         });
       };
@@ -1362,8 +1373,26 @@
       };
       
       const logout = () => {
+        // Clear all timeouts
         clearTimeout(sessionTimeout);
         clearTimeout(sessionWarningTimeout);
+        
+        // Clear notification timeouts
+        document.querySelectorAll('.notification').forEach(notification => {
+          if (notification.dataset.timeoutId) {
+            clearTimeout(parseInt(notification.dataset.timeoutId));
+          }
+          if (notification.dataset.removeTimeoutId) {
+            clearTimeout(parseInt(notification.dataset.removeTimeoutId));
+          }
+        });
+        
+        // Clear session timer if exists
+        const timer = el('sessionTimer');
+        if (timer && timer.dataset.updateTimerId) {
+          clearTimeout(parseInt(timer.dataset.updateTimerId));
+        }
+        
         sessionStorage.removeItem('currentUser');
         showNotification('Logged out successfully', 'info');
         location.hash = '#login';
@@ -1457,7 +1486,7 @@
         }
       };
       
-      // NEW: Get user's posted loads
+      // Get user's posted loads
       const getUserLoads = async () => {
         try {
           const response = await apiRequest('/users/me/loads');
@@ -1477,7 +1506,6 @@
         const user = getCurrentUserSync();
         if (!user) throw new Error('User not logged in');
         
-        // REMOVED: Shipper ID and Email are now auto-populated by backend
         const ref = 'LD' + Date.now().toString().slice(-6);
         const sanitizedPayload = {
           ref: ref,
@@ -1487,7 +1515,6 @@
           cargo_type: sanitize(payload.cargo_type),
           weight: parseFloat(payload.weight),
           notes: sanitize(payload.notes || '')
-          // shipper_id and shipper_email are automatically added by backend
         };
         try {
           const load = await apiRequest('/loads', {
@@ -1810,7 +1837,7 @@
         }
       };
       
-      // NEW: Get active banners for current page
+      // Get active banners for current page
       const getActiveBanners = async (page) => {
         try {
           const response = await apiRequest(`/banners/active?page=${page}`);
@@ -1950,7 +1977,7 @@
           const loads = await getLoads();
           const load = loads.find(l => l.id === loadId);
           
-          if (!load) {
+        if (!load) {
             showNotification('Load not found', 'error');
             return;
           }
@@ -2144,12 +2171,12 @@
         }
       };
       
-      // UPDATED: Render functions to use new API endpoints and data
+      // Render functions to use new API endpoints and data
       const renderShipper = async () => {
         const u = getCurrentUserSync();
         if (!u || u.data.user.role !== 'shipper') return;
         try {
-          // UPDATED: Use the new user-specific loads endpoint
+          // Use the new user-specific loads endpoint
           const loads = await getUserLoads();
           const tbody = el('tableMyLoadsShipper').querySelector('tbody');
           
@@ -2316,7 +2343,7 @@
         } catch (error) { console.error('Error rendering transporter dashboard:', error); }
       };
       
-      // UPDATED: Render market page to show membership numbers
+      // Render market page to show membership numbers
       const renderMarket = async () => {
         try {
           const loads = await getLoads();
@@ -2330,7 +2357,7 @@
           if (!loads || loads.length === 0) {
             const row = document.createElement('tr');
             const cell = document.createElement('td');
-            cell.colSpan = 10; // UPDATED: Changed to 10 columns
+            cell.colSpan = 10; // Changed to 10 columns
             cell.className = 'muted';
             cell.textContent = 'No loads available.';
             row.appendChild(cell);
@@ -2370,7 +2397,7 @@
             const statusCell = document.createElement('td');
             statusCell.innerHTML = getStatusBadge(status);
             
-            // UPDATED: Show membership number instead of name/email
+            // Show membership number instead of name/email
             const postedByCell = document.createElement('td');
             postedByCell.textContent = sanitize(load.shipper_membership || load.posted_by || 'Unknown');
             
@@ -2382,9 +2409,12 @@
               const membershipNumber = load.shipper_membership || load.posted_by;
               if (membershipNumber) {
                 location.hash = '#messages';
-                setTimeout(() => {
+                // Use proper timeout
+                const timeoutId = setTimeout(() => {
                   el('msgTo').value = membershipNumber;
                 }, 100);
+                // Store timeout ID for potential cleanup
+                contactButton.dataset.timeoutId = timeoutId;
               }
             });
             actionsCell.appendChild(contactButton);
@@ -2462,7 +2492,7 @@
         } catch (error) { console.error('Error rendering messages:', error); }
       };
       
-      // UPDATED: Render banners based on page context
+      // Render banners based on page context
       const renderBanners = async () => {
         const hash = location.hash.slice(1) || 'index';
         
@@ -2511,7 +2541,7 @@
         }
       };
       
-      // UPDATED: Profile rendering with membership date
+      // Profile rendering with membership date
       const renderShipperProfile = async () => {
         const u = getCurrentUserSync();
         if (!u || u.data.user.role !== 'shipper') return;
@@ -2524,7 +2554,7 @@
           setText('shipperProfileAddress', user.address || 'Not specified');
           setText('shipperProfileRole', user.role);
           
-          // UPDATED: Use membership_date or created_at
+          // Use membership_date or created_at
           const joinDate = user.membership_date || user.created_at;
           setText('shipperProfileCreated', new Date(joinDate).toLocaleDateString());
           setText('shipperProfileSince', new Date(joinDate).toLocaleDateString());
@@ -2544,7 +2574,7 @@
         } catch (error) { console.error('Error rendering shipper profile:', error); }
       };
       
-      // UPDATED: Similar updates for transporter profile
+      // Similar updates for transporter profile
       const renderTransporterProfile = async () => {
         const u = getCurrentUserSync();
         if (!u || u.data.user.role !== 'transporter') return;
@@ -2558,7 +2588,7 @@
           setText('transporterProfileAddress', user.address || 'Not specified');
           setText('transporterProfileRole', user.role);
           
-          // UPDATED: Use membership_date or created_at
+          // Use membership_date or created_at
           const joinDate = user.membership_date || user.created_at;
           setText('transporterProfileCreated', new Date(joinDate).toLocaleDateString());
           setText('transporterProfileSince', new Date(joinDate).toLocaleDateString());
@@ -2578,7 +2608,7 @@
         } catch (error) { console.error('Error rendering transporter profile:', error); }
       };
       
-      // UPDATED: Admin navigation - show all pages for admin
+      // Admin navigation - show all pages for admin
       const renderHeader = async () => {
         const u = getCurrentUserSync();
         const navLinks = el('navLinks');
@@ -2621,7 +2651,7 @@
                 { href: '#transporter-profile', text: 'Profile' }
               );
             } else if (u.data.user.role === 'admin') {
-              // UPDATED: Admin can see navigation to all pages
+              // Admin can see navigation to all pages
               links.push(
                 { href: '#control', text: 'Admin' },
                 { href: '#shipper-dashboard', text: 'Shipper Dashboard' },
@@ -2786,10 +2816,10 @@
         } catch (error) { console.error('Error rendering control:', error); }
       };
       
-      // UPDATED: Main render function to include banner updates
+      // Main render function to include banner updates
       const render = async () => {
         await renderHeader();
-        await renderBanners(); // UPDATED: Call after header
+        await renderBanners(); // Call after header
         await renderAccessWarnings();
         
         // Hide all pages first
@@ -2829,16 +2859,16 @@
             await renderTransporter();
             break;
           case 'market':
-            await renderMarket(); // UPDATED: Uses new market rendering
+            await renderMarket(); // Uses new market rendering
             break;
           case 'messages':
             await renderMessages();
             break;
           case 'shipper-profile':
-            await renderShipperProfile(); // UPDATED: Uses new profile rendering
+            await renderShipperProfile(); // Uses new profile rendering
             break;
           case 'transporter-profile':
-            await renderTransporterProfile(); // UPDATED: Uses new profile rendering
+            await renderTransporterProfile(); // Uses new profile rendering
             break;
           case 'control':
             await renderControl();
@@ -2995,7 +3025,7 @@
         }
       };
       
-      // UPDATED: Profile save handlers
+      // Profile save handlers
       const initProfileSaveHandlers = () => {
         // Shipper profile save
         el('saveProfileShipper')?.addEventListener('click', async () => {
@@ -3111,7 +3141,7 @@
           }
         });
         
-        // UPDATED: Post load form - removed shipper ID and email fields
+        // Post load form - removed shipper ID and email fields
         el('formPostLoad')?.addEventListener('submit', async (e) => {
           e.preventDefault();
           const formData = new FormData(e.target);
@@ -3242,7 +3272,7 @@
               const statusCell = document.createElement('td');
               statusCell.innerHTML = getStatusBadge(status);
               
-              // UPDATED: Show membership number instead of name/email
+              // Show membership number instead of name/email
               const postedByCell = document.createElement('td');
               postedByCell.textContent = sanitize(load.shipper_membership || load.posted_by || 'Unknown');
               
@@ -3254,9 +3284,12 @@
                 const membershipNumber = load.shipper_membership || load.posted_by;
                 if (membershipNumber) {
                   location.hash = '#messages';
-                  setTimeout(() => {
+                  // Use proper timeout
+                  const timeoutId = setTimeout(() => {
                     el('msgTo').value = membershipNumber;
                   }, 100);
+                  // Store timeout ID for potential cleanup
+                  contactButton.dataset.timeoutId = timeoutId;
                 }
               });
               actionsCell.appendChild(contactButton);
