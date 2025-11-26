@@ -861,10 +861,27 @@ def get_my_loads():
             "error": "Database connection issue"
         }), 500
 
-# Load endpoints - FIXED with timezone handling
+# Load endpoints - FIXED with timezone handling and access control
 @app.route('/api/loads', methods=['GET'])
 def get_loads():
     try:
+        # Check if user is logged in and has market access
+        user = check_auth(request)
+        if user and user.role != 'admin':
+            user_access = UserAccessControl.query.filter_by(user_id=user.id).first()
+            if user_access:
+                try:
+                    pages_data = json.loads(user_access.pages) if user_access.pages else {}
+                    if 'market' in pages_data and not pages_data['market'].get('enabled', True):
+                        return jsonify({
+                            "success": False,
+                            "message": "Access denied",
+                            "error": "You do not have permission to view the market"
+                        }), 403
+                except:
+                    # If there's an error parsing, allow by default
+                    pass
+        
         # Get all active loads (public access)
         current_time = get_current_time()
         # Ensure we're comparing timezone-aware datetimes
@@ -913,6 +930,23 @@ def get_loads():
 def create_load():
     try:
         user = check_auth(request)
+        
+        # Check if user has permission to post loads
+        if user.role != 'admin':
+            user_access = UserAccessControl.query.filter_by(user_id=user.id).first()
+            if user_access:
+                try:
+                    pages_data = json.loads(user_access.pages) if user_access.pages else {}
+                    if 'shipper-post' in pages_data and not pages_data['shipper-post'].get('enabled', True):
+                        return jsonify({
+                            "success": False,
+                            "message": "Access denied",
+                            "error": "You do not have permission to post loads"
+                        }), 403
+                except:
+                    # If there's an error parsing, allow by default
+                    pass
+        
         data = request.get_json()
         if not data:
             return jsonify({
@@ -1324,7 +1358,7 @@ def update_admin_access_control():
             "error": str(e)
         }), 500
 
-# User-specific access control endpoints - FIXED VERSION
+# User-specific access control endpoints - FIXED VERSION with independent page toggles
 @app.route('/api/admin/users/<string:user_id>/access', methods=['GET'])
 @admin_required
 def get_user_access(user_id):
@@ -1341,9 +1375,10 @@ def get_user_access(user_id):
         # Get user access control settings
         user_access = UserAccessControl.query.filter_by(user_id=user_id).first()
         
+        # Define ALL available pages with their default states
         default_pages = {
             'market': {'enabled': True},
-            'shipper-post': {'enabled': True},
+            'shipper-post': {'enabled': True},  # This controls "Post Load" access
             'dashboard': {'enabled': True},
             'profile': {'enabled': True},
             'messages': {'enabled': True}
@@ -1355,6 +1390,9 @@ def get_user_access(user_id):
                 "message": "User access retrieved",
                 "data": {
                     "user_id": user_id,
+                    "user_name": target_user.name,
+                    "user_email": target_user.email,
+                    "user_role": target_user.role,
                     "pages": default_pages
                 }
             })
@@ -1374,6 +1412,9 @@ def get_user_access(user_id):
             "message": "User access retrieved",
             "data": {
                 "user_id": user_id,
+                "user_name": target_user.name,
+                "user_email": target_user.email,
+                "user_role": target_user.role,
                 "pages": pages_data
             }
         })
@@ -1406,6 +1447,22 @@ def update_user_access(user_id):
                 "error": "User does not exist"
             }), 404
         
+        # Validate the pages data structure
+        if not isinstance(data['pages'], dict):
+            return jsonify({
+                "success": False,
+                "message": "Invalid pages format",
+                "error": "Pages must be an object"
+            }), 400
+        
+        # Ensure all required pages are present with proper structure
+        required_pages = ['market', 'shipper-post', 'dashboard', 'profile', 'messages']
+        for page in required_pages:
+            if page not in data['pages']:
+                data['pages'][page] = {'enabled': True}
+            elif not isinstance(data['pages'][page], dict) or 'enabled' not in data['pages'][page]:
+                data['pages'][page] = {'enabled': True}
+        
         # Get or create user access control
         user_access = UserAccessControl.query.filter_by(user_id=user_id).first()
         if not user_access:
@@ -1424,6 +1481,8 @@ def update_user_access(user_id):
             "message": "User access updated successfully",
             "data": {
                 "user_id": user_id,
+                "user_name": target_user.name,
+                "user_email": target_user.email,
                 "pages": data['pages']
             }
         })
@@ -1433,6 +1492,60 @@ def update_user_access(user_id):
         return jsonify({
             "success": False,
             "message": "Failed to update user access",
+            "error": str(e)
+        }), 500
+
+# Add this new endpoint to check if a user can access specific features
+@app.route('/api/users/me/access', methods=['GET'])
+@login_required
+def get_my_access():
+    """Get current user's access permissions"""
+    try:
+        user = check_auth(request)
+        
+        # Get user access control settings
+        user_access = UserAccessControl.query.filter_by(user_id=user.id).first()
+        
+        # Default access for all pages
+        default_pages = {
+            'market': {'enabled': True},
+            'shipper-post': {'enabled': True},
+            'dashboard': {'enabled': True},
+            'profile': {'enabled': True},
+            'messages': {'enabled': True}
+        }
+        
+        if user_access:
+            try:
+                pages_data = json.loads(user_access.pages) if user_access.pages else {}
+                # Merge with defaults
+                for page, settings in default_pages.items():
+                    if page not in pages_data:
+                        pages_data[page] = settings
+                access_data = pages_data
+            except:
+                access_data = default_pages
+        else:
+            access_data = default_pages
+        
+        # Admin always has full access
+        if user.role == 'admin':
+            for page in access_data:
+                access_data[page]['enabled'] = True
+        
+        return jsonify({
+            "success": True,
+            "message": "User access retrieved",
+            "data": {
+                "access": access_data,
+                "user_role": user.role
+            }
+        })
+    except Exception as e:
+        logger.error(f"Get my access error: {e}")
+        return jsonify({
+            "success": False,
+            "message": "Failed to retrieve user access",
             "error": str(e)
         }), 500
 
