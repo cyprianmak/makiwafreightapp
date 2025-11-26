@@ -5,57 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="description" content="MakiwaFreight - A marketplace where shippers meet transporters" />
   <meta name="author" content="MakiwaFreight Team" />
-  <!-- Enhanced CSP for production security -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; font-src 'self'; form-action 'self'; base-uri 'self';" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';" />
   <title>MakiwaFreight Load Board</title>
   <style>
     :root{--bg:#0b1220;--panel:#121a2b;--panel-2:#1b2742;--text:#d7e7ff;--muted:#8fb7ff;--accent:#4da3ff;--accent-2:#73c1ff;--good:#22c55e;--warn:#f59e0b;--bad:#ef4444;--border:#2a3b5f;--chip:#0e1a33}*{box-sizing:border-box}html,body{height:100%}body{margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:linear-gradient(180deg,var(--bg),#0d1426 40%,#0a1120);color:var(--text)}a{color:var(--accent)}.container{max-width:1100px;margin:0 auto;padding:24px}header{position:sticky;top:0;z-index:10;background:rgba(11,18,32,0.8);backdrop-filter:blur(8px);border-bottom:1px solid var(--border)}.nav{display:flex;gap:12px;align-items:center;justify-content:space-between}.brand{display:flex;gap:12px;align-items:center}.logo{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:grid;place-items:center;font-weight:800;color:#08203a}.brand h1{font-size:18px;margin:0;color:var(--text)}.auth-area{display:flex;gap:8px;align-items:center}.nav-links{display:flex;gap:8px;flex-wrap:wrap}button,.btn{border:1px solid var(--border);background:linear-gradient(180deg,var(--panel),var(--panel-2));color:var(--text);padding:10px 14px;border-radius:12px;cursor:pointer;font-weight:600;transition:all .15s ease;text-decoration:none;display:inline-flex;align-items:center;gap:8px}button:hover,.btn:hover{transform:translateY(-1px);border-color:var(--accent)}.btn.ghost{background:transparent}.btn.primary{background:linear-gradient(180deg,var(--accent),var(--accent-2));color:#0a1a2e;border-color:transparent}.grid{display:grid;gap:16px}.two{grid-template-columns:repeat(2,minmax(0,1fr))}.three{grid-template-columns:repeat(3,minmax(0,1fr))}@media (max-width:900px){.two,.three{grid-template-columns:1fr}}.card{border:1px solid var(--border);border-radius:16px;padding:16px;background:linear-gradient(180deg,var(--panel),var(--panel-2));box-shadow:0 10px 30px rgba(0,0,0,0.25)}.card h3{margin:0 0 8px}.muted{color:var(--muted)}.kpi{display:flex;gap:14px;align-items:center}.chip{background:var(--chip);border:1px solid var(--border);border-radius:999px;padding:6px 10px;font-size:12px}.danger{color:var(--bad)}.success{color:var(--good)}.warn{color:var(--warn)}.hidden{display:none !important}input,select,textarea{width:100%;padding:10px 12px;border-radius:12px;border:1px solid var(--border);background:#0c1530;color:var(--text)}label{font-size:12px;color:var(--muted)}form .grid{margin-top:8px}table{width:100%;border-collapse:separate;border-spacing:0 8px}th,td{padding:10px 12px;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}th{font-weight:700;text-align:left;color:var(--muted);background:#0f1940}tr td:first-child,tr th:first-child{border-left:1px solid var(--border);border-top-left-radius:12px;border-bottom-left-radius:12px}tr td:last-child,tr th:last-child{border-right:1px solid var(--border);border-top-right-radius:12px;border-bottom-right-radius:12px}.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between}.banner{border:1px dashed var(--border);padding:10px 14px;border-radius:12px;background:#0d1836;color:var(--muted)}.footer{opacity:.75;font-size:12px;text-align:center;padding:24px}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}.checkbox-group{display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:10px;margin-top:10px}.checkbox-item{display:flex;align-items:center;gap:8px}.checkbox-item input{width:auto}.expired{opacity:0.6; text-decoration: line-through;}.profile-header{display:flex;align-items:center;gap:16px;margin-bottom:16px}.profile-avatar{width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:800;color:#08203a}.profile-info h2{margin:0 0 4px}.profile-info .muted{margin:0}.status-indicator{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px}.status-active{background-color:var(--good)}.status-inactive{background-color:var(--bad)}.profile-details{background:var(--panel-2);border-radius:12px;padding:16px;margin-bottom:16px}.profile-details h3{margin:0 0 12px;color:var(--accent)}.detail-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)}.detail-row:last-child{border-bottom:none}.detail-label{color:var(--muted)}.detail-value{font-weight:500}.editable-section{margin-top:20px}.editable-section h3{margin:0 0 12px;color:var(--accent)}.form-notice{background:var(--panel-2);border-left:4px solid var(--accent);padding:10px 14px;border-radius:8px;margin-bottom:16px;font-size:14px}.recommendations-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:20px;margin-top:20px}.recommendation-card{padding:20px;border:1px solid var(--border);border-radius:12px;background:var(--panel-2);box-shadow:0 4px 12px rgba(0,0,0,0.1)}.recommendation-card h3{margin-top:0;color:var(--accent);margin-bottom:10px}
-    
-    /* Session timeout warning styles */
-    .session-modal {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.8);
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      z-index: 10000;
-    }
-    
-    .session-warning {
-      background: var(--panel);
-      border: 2px solid var(--warn);
-      border-radius: 16px;
-      padding: 30px;
-      max-width: 500px;
-      width: 90%;
-      text-align: center;
-    }
-    
-    .session-warning h3 {
-      color: var(--warn);
-      margin-bottom: 15px;
-    }
-    
-    .session-timer {
-      font-size: 24px;
-      font-weight: bold;
-      color: var(--warn);
-      margin: 20px 0;
-    }
-    
-    /* Rate limit warning */
-    .rate-limit-warning {
-      background: var(--panel);
-      border: 2px solid var(--bad);
-      border-radius: 12px;
-      padding: 15px;
-      margin: 10px 0;
-      text-align: center;
-    }
     
     /* Notification styles */
     .notification {
@@ -554,7 +507,7 @@
           </div>
           <div>
             <label for="loginPassword">Password</label>
-            <input required type="password" id="loginPassword" name="password" placeholder="••••••••" autocomplete="current-password" minlength="8" />
+            <input required type="password" id="loginPassword" name="password" placeholder="••••••••" autocomplete="current-password" />
           </div>
         </div>
         <div class="toolbar" style="margin-top:12px">
@@ -568,12 +521,12 @@
       <h2>Create Shipper Account</h2>
       <form id="formRegShipper" autocomplete="off" novalidate>
         <div class="grid two">
-          <div><label for="shipperName">Full Name</label><input required id="shipperName" name="name" autocomplete="name" minlength="2" maxlength="100" /></div>
-          <div><label for="shipperCompany">Company</label><input id="shipperCompany" name="company" autocomplete="organization" maxlength="100" /></div>
+          <div><label for="shipperName">Full Name</label><input required id="shipperName" name="name" autocomplete="name" /></div>
+          <div><label for="shipperCompany">Company</label><input id="shipperCompany" name="company" autocomplete="organization" /></div>
           <div><label for="shipperEmail">Email</label><input required type="email" id="shipperEmail" name="email" autocomplete="email" /></div>
-          <div><label for="shipperPhone">Phone</label><input required id="shipperPhone" name="phone" autocomplete="tel" pattern="[\+]?[1-9][\d]{0,15}" title="Enter a valid phone number" /></div>
-          <div><label for="shipperPassword">Password</label><input required type="password" id="shipperPassword" name="password" autocomplete="new-password" minlength="8" /></div>
-          <div><label for="shipperAddress">Address</label><input id="shipperAddress" name="address" autocomplete="street-address" maxlength="200" /></div>
+          <div><label for="shipperPhone">Phone</label><input required id="shipperPhone" name="phone" autocomplete="tel" /></div>
+          <div><label for="shipperPassword">Password</label><input required type="password" id="shipperPassword" name="password" autocomplete="new-password" /></div>
+          <div><label for="shipperAddress">Address</label><input id="shipperAddress" name="address" autocomplete="street-address" /></div>
         </div>
         <div class="membership-info">
           <p>Your unique membership number will be generated upon successful registration.</p>
@@ -590,13 +543,13 @@
       <h2>Create Transporter Account</h2>
       <form id="formRegTransporter" autocomplete="off" novalidate>
         <div class="grid two">
-          <div><label for="transporterName">Full Name</label><input required id="transporterName" name="name" autocomplete="name" minlength="2" maxlength="100" /></div>
-          <div><label for="transporterCompany">Company / Fleet</label><input id="transporterCompany" name="company" autocomplete="organization" maxlength="100" /></div>
+          <div><label for="transporterName">Full Name</label><input required id="transporterName" name="name" autocomplete="name" /></div>
+          <div><label for="transporterCompany">Company / Fleet</label><input id="transporterCompany" name="company" autocomplete="organization" /></div>
           <div><label for="transporterEmail">Email</label><input required type="email" id="transporterEmail" name="email" autocomplete="email" /></div>
-          <div><label for="transporterPhone">Phone</label><input required id="transporterPhone" name="phone" autocomplete="tel" pattern="[\+]?[1-9][\d]{0,15}" title="Enter a valid phone number" /></div>
-          <div><label for="transporterVehicle">Vehicle Info</label><input id="transporterVehicle" name="vehicle_info" placeholder="e.g. 2 x 34T Side Tipper" maxlength="200" /></div>
-          <div><label for="transporterPassword">Password</label><input required type="password" id="transporterPassword" name="password" autocomplete="new-password" minlength="8" /></div>
-          <div class="two" style="grid-column:1/-1"><label for="transporterAddress">Address</label><input id="transporterAddress" name="address" autocomplete="street-address" maxlength="200" /></div>
+          <div><label for="transporterPhone">Phone</label><input required id="transporterPhone" name="phone" autocomplete="tel" /></div>
+          <div><label for="transporterVehicle">Vehicle Info</label><input id="transporterVehicle" name="vehicle_info" placeholder="e.g. 2 x 34T Side Tipper" /></div>
+          <div><label for="transporterPassword">Password</label><input required type="password" id="transporterPassword" name="password" autocomplete="new-password" /></div>
+          <div class="two" style="grid-column:1/-1"><label for="transporterAddress">Address</label><input id="transporterAddress" name="address" autocomplete="street-address" /></div>
         </div>
         <div class="membership-info">
           <p>Your unique membership number will be generated upon successful registration.</p>
@@ -621,7 +574,6 @@
       </div>
       <div id="dashBannerShipper" class="banner hidden" role="alert"></div>
       <div id="accessWarningShipper" class="banner hidden" role="alert"></div>
-      <div id="rateLimitWarningShipper" class="rate-limit-warning hidden" role="alert"></div>
       <div class="card">
         <div class="toolbar">
           <h3>Your Posted Loads</h3>
@@ -638,15 +590,16 @@
       <h2>Post a Load</h2>
       <form id="formPostLoad" novalidate>
         <div class="grid two">
-          <div><label for="loadOrigin">Origin</label><input required id="loadOrigin" name="origin" maxlength="100" /></div>
-          <div><label for="loadDestination">Destination</label><input required id="loadDestination" name="destination" maxlength="100" /></div>
-          <div><label for="loadDate">Pickup Date</label><input required type="date" id="loadDate" name="date" min="" /></div>
-          <div><label for="loadCargo">Cargo Type</label><input required id="loadCargo" name="cargo_type" maxlength="100" /></div>
-          <div><label for="loadWeight">Weight (Tons)</label><input required id="loadWeight" name="weight" type="number" min="0" step="0.01" max="1000" /></div>
+          <div><label for="loadOrigin">Origin</label><input required id="loadOrigin" name="origin" /></div>
+          <div><label for="loadDestination">Destination</label><input required id="loadDestination" name="destination" /></div>
+          <div><label for="loadDate">Pickup Date</label><input required type="date" id="loadDate" name="date" /></div>
+          <div><label for="loadCargo">Cargo Type</label><input required id="loadCargo" name="cargo_type" /></div>
+          <div><label for="loadWeight">Weight (Tons)</label><input required id="loadWeight" name="weight" type="number" min="0" step="0.01" /></div>
+          <!-- REMOVED: Shipper ID and Email fields - they are auto-populated by backend -->
         </div>
         <div class="two" style="grid-column:1/-1">
           <label for="loadNotes">Notes</label>
-          <textarea id="loadNotes" name="notes" rows="3" maxlength="500"></textarea>
+          <textarea id="loadNotes" name="notes" rows="3"></textarea>
         </div>
         <div class="toolbar" style="margin-top:12px">
           <button class="btn primary" type="submit">Publish</button>
@@ -706,19 +659,19 @@
           <div class="grid two">
             <div>
               <label for="profileShipperName">Name</label>
-              <input type="text" id="profileShipperName" name="name" minlength="2" maxlength="100" />
+              <input type="text" id="profileShipperName" name="name" />
             </div>
             <div>
               <label for="profileShipperPhone">Phone</label>
-              <input type="tel" id="profileShipperPhone" name="phone" pattern="[\+]?[1-9][\d]{0,15}" title="Enter a valid phone number" />
+              <input type="tel" id="profileShipperPhone" name="phone" />
             </div>
             <div class="two" style="grid-column:1/-1">
               <label for="profileShipperAddress">Address</label>
-              <input type="text" id="profileShipperAddress" name="address" maxlength="200" />
+              <input type="text" id="profileShipperAddress" name="address" />
             </div>
             <div class="two" style="grid-column:1/-1">
               <label for="profileShipperPassword">New Password (leave blank to keep current)</label>
-              <input type="password" id="profileShipperPassword" name="password" minlength="8" />
+              <input type="password" id="profileShipperPassword" name="password" />
             </div>
           </div>
         </form>
@@ -742,7 +695,6 @@
       </div>
       <div id="dashBannerTransporter" class="banner hidden" role="alert"></div>
       <div id="accessWarningTransporter" class="banner hidden" role="alert"></div>
-      <div id="rateLimitWarningTransporter" class="rate-limit-warning hidden" role="alert"></div>
       <div class="card">
         <div class="toolbar">
           <h3>Your Posted Loads</h3>
@@ -810,19 +762,19 @@
           <div class="grid two">
             <div>
               <label for="profileTransporterName">Name</label>
-              <input type="text" id="profileTransporterName" name="name" minlength="2" maxlength="100" />
+              <input type="text" id="profileTransporterName" name="name" />
             </div>
             <div>
               <label for="profileTransporterPhone">Phone</label>
-              <input type="tel" id="profileTransporterPhone" name="phone" pattern="[\+]?[1-9][\d]{0,15}" title="Enter a valid phone number" />
+              <input type="tel" id="profileTransporterPhone" name="phone" />
             </div>
             <div class="two" style="grid-column:1/-1">
               <label for="profileTransporterAddress">Address</label>
-              <input type="text" id="profileTransporterAddress" name="address" maxlength="200" />
+              <input type="text" id="profileTransporterAddress" name="address" />
             </div>
             <div class="two" style="grid-column:1/-1">
               <label for="profileTransporterPassword">New Password (leave blank to keep current)</label>
-              <input type="password" id="profileTransporterPassword" name="password" minlength="8" />
+              <input type="password" id="profileTransporterPassword" name="password" />
             </div>
           </div>
         </form>
@@ -843,19 +795,19 @@
         </div>
       </div>
       <div id="marketBanner" class="banner hidden" role="alert"></div>
-      <div id="rateLimitWarningMarket" class="rate-limit-warning hidden" role="alert"></div>
       <div class="card">
         <div class="toolbar">
           <h3>Available Loads</h3>
           <div style="display:flex;gap:8px">
-            <input id="marketFilterOrigin" placeholder="Filter by origin" aria-label="Filter by origin" maxlength="100" />
-            <input id="marketFilterDest" placeholder="Filter by destination" aria-label="Filter by destination" maxlength="100" />
+            <input id="marketFilterOrigin" placeholder="Filter by origin" aria-label="Filter by origin" />
+            <input id="marketFilterDest" placeholder="Filter by destination" aria-label="Filter by destination" />
             <button id="btnMarketFilterLoads" class="btn">Filter</button>
           </div>
         </div>
         <div class="table-container" style="overflow-x:auto">
           <table id="tableMarketLoads" aria-label="Market loads"><thead><tr>
             <th scope="col">Ref</th><th scope="col">Origin</th><th scope="col">Destination</th><th scope="col">Date</th><th scope="col">Expires</th><th scope="col">Cargo</th><th scope="col">Weight</th><th scope="col">Status</th>
+            <!-- UPDATED: Changed from "Posted By" to show membership number -->
             <th scope="col">Posted By (Membership #)</th>
             <th scope="col">Actions</th>
           </tr></thead><tbody></tbody></table>
@@ -869,8 +821,8 @@
         <form id="formSendMsg" class="card" novalidate>
           <h3>Send a Message</h3>
           <div class="grid two">
-            <div><label for="msgTo">To (Membership Number)</label><input required id="msgTo" name="to" placeholder="MF000001" pattern="MF[0-9]{6}" title="Membership number format: MF followed by 6 digits" /></div>
-            <div><label for="msgBody">Message</label><input required id="msgBody" name="body" placeholder="Type your message..." maxlength="500" /></div>
+            <div><label for="msgTo">To (Membership Number)</label><input required id="msgTo" name="to" placeholder="MF000001" /></div>
+            <div><label for="msgBody">Message</label><input required id="msgBody" name="body" placeholder="Type your message..." /></div>
           </div>
           <div class="toolbar" style="margin-top:12px">
             <button class="btn primary" type="submit">Send</button>
@@ -969,62 +921,24 @@
           </div>
           <div style="margin-top: 10px;">
             <label for="resetPass">New Password</label>
-            <input id="resetPass" placeholder="new password" type="password" minlength="8" />
+            <input id="resetPass" placeholder="new password" type="password" />
           </div>
         </div>
       </div>
     </section>
-    <div class="footer">Production build – data stored in PostgreSQL database with enhanced security.</div>
+    <div class="footer">Demo build – data stored in PostgreSQL database.</div>
   </main>
-  
-  <!-- Session Timeout Modal -->
-  <div id="sessionTimeoutModal" class="session-modal hidden">
-    <div class="session-warning">
-      <h3>Session Timeout Warning</h3>
-      <p>Your session will expire due to inactivity in:</p>
-      <div class="session-timer" id="sessionTimer">05:00</div>
-      <p>Would you like to continue your session?</p>
-      <div class="toolbar" style="justify-content: center; margin-top: 20px;">
-        <button id="extendSession" class="btn primary">Continue Session</button>
-        <button id="logoutSession" class="btn danger">Logout</button>
-      </div>
-    </div>
-  </div>
   
   <!-- Notification Container -->
   <div id="notificationContainer"></div>
   <script>
-    // MakiwaFreight App Frontend (Production-Ready Version with Enhanced Security)
+    // MakiwaFreight App Frontend (Updated Version)
     (function() {
       'use strict';
       
       // Configuration
       const API_BASE = '/api';
       const LOAD_EXPIRY_DAYS = 7;
-      
-      // Session Management Configuration
-      const SESSION_CONFIG = {
-        timeout: 30 * 60 * 1000, // 30 minutes in milliseconds
-        warningTime: 5 * 60 * 1000, // 5 minutes warning
-        checkInterval: 60 * 1000 // Check every minute
-      };
-      
-      // Rate Limiting Configuration
-      const RATE_LIMIT_CONFIG = {
-        maxRequests: 100, // Maximum requests per window
-        windowMs: 15 * 60 * 1000, // 15 minutes
-        retryAfter: 60 * 1000 // Wait 1 minute after limit exceeded
-      };
-      
-      // Request tracking for rate limiting
-      let requestCount = 0;
-      let requestWindowStart = Date.now();
-      let rateLimitedUntil = 0;
-      
-      // Session Management
-      let sessionTimer;
-      let sessionWarningTimer;
-      let lastActivityTime = Date.now();
       
       // Page definitions for access control
       const PAGES = {
@@ -1053,185 +967,32 @@
       const setText = (id, txt) => { const e = el(id); if(e) e.textContent = txt; };
       const setHidden = (id, hid) => { const e = el(id); if(e) e.classList[hid ? 'add' : 'remove']('hidden'); };
       
-      // Enhanced XSS sanitization
-      const sanitize = (str) => {
+      // Sanitize input to prevent XSS
+      const sanitize = str => {
         if (!str) return '';
-        const div = document.createElement('div');
-        div.textContent = str.toString();
-        return div.innerHTML;
+        return str.toString()
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#039;');
       };
       
-      // Enhanced input validation
-      const validateInput = (input, type) => {
-        const value = input.value.trim();
-        
-        switch(type) {
-          case 'email':
-            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            return emailRegex.test(value);
-          case 'phone':
-            const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
-            return phoneRegex.test(value.replace(/[-\s\(\)]/g, ''));
-          case 'password':
-            return value.length >= 8;
-          case 'membership':
-            const membershipRegex = /^MF\d{6}$/;
-            return membershipRegex.test(value);
-          case 'date':
-            return !isNaN(Date.parse(value)) && new Date(value) >= new Date();
-          case 'number':
-            return !isNaN(parseFloat(value)) && isFinite(value);
-          default:
-            return value.length > 0;
-        }
+      // Validate email format
+      const isValidEmail = email => {
+        const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return re.test(email);
       };
       
-      // Enhanced error handling with logging
-      const handleError = async (fn, context = 'Unknown operation') => {
+      // Error handling wrapper
+      const handleError = async (fn, fallbackMsg = 'An error occurred') => {
         try {
           return await fn();
         } catch (error) {
-          console.error(`MakiwaFreight Error [${context}]:`, error);
-          
-          // Log error to server (in production)
-          logError({
-            context,
-            error: error.message,
-            timestamp: new Date().toISOString(),
-            user: getCurrentUserSync()?.data?.user?.email || 'anonymous',
-            url: window.location.href,
-            userAgent: navigator.userAgent
-          });
-          
-          // User-friendly error messages
-          let userMessage = 'An error occurred';
-          if (error.message.includes('Network')) {
-            userMessage = 'Network error. Please check your connection.';
-          } else if (error.message.includes('rate limit')) {
-            userMessage = 'Too many requests. Please try again later.';
-          } else if (error.message.includes('session')) {
-            userMessage = 'Your session has expired. Please login again.';
-          } else if (error.message.includes('validation')) {
-            userMessage = 'Invalid input provided. Please check your data.';
-          } else if (error.message.includes('401')) {
-            userMessage = 'Authentication failed. Please login again.';
-            logout();
-          }
-          
-          showNotification(userMessage + ': ' + error.message, 'error');
+          console.error('MakiwaFreight Error:', error);
+          showNotification(fallbackMsg + ': ' + error.message, 'error');
           return null;
         }
-      };
-      
-      // Error logging function
-      const logError = async (errorData) => {
-        try {
-          // In production, this would send to your logging service
-          if (window.console && console.error) {
-            console.error('Application Error:', errorData);
-          }
-          
-          // Optional: Send to backend for centralized logging
-          await apiRequest('/log/error', {
-            method: 'POST',
-            body: JSON.stringify(errorData)
-          }).catch(() => {}); // Silent fail for logging errors
-        } catch (e) {
-          // Fallback logging
-          console.error('Logging failed:', e);
-        }
-      };
-      
-      // Rate limiting implementation
-      const checkRateLimit = () => {
-        const now = Date.now();
-        
-        // Reset counter if window has passed
-        if (now - requestWindowStart > RATE_LIMIT_CONFIG.windowMs) {
-          requestCount = 0;
-          requestWindowStart = now;
-        }
-        
-        // Check if currently rate limited
-        if (now < rateLimitedUntil) {
-          const waitTime = Math.ceil((rateLimitedUntil - now) / 1000);
-          throw new Error(`Rate limit exceeded. Please try again in ${waitTime} seconds.`);
-        }
-        
-        // Check request count
-        if (requestCount >= RATE_LIMIT_CONFIG.maxRequests) {
-          rateLimitedUntil = now + RATE_LIMIT_CONFIG.retryAfter;
-          throw new Error('Rate limit exceeded. Please try again later.');
-        }
-        
-        requestCount++;
-        return true;
-      };
-      
-      // Session management functions
-      const updateActivityTime = () => {
-        lastActivityTime = Date.now();
-      };
-      
-      const startSessionTimer = () => {
-        // Clear existing timers
-        if (sessionTimer) clearTimeout(sessionTimer);
-        if (sessionWarningTimer) clearTimeout(sessionWarningTimer);
-        
-        // Set warning timer
-        sessionWarningTimer = setTimeout(showSessionWarning, SESSION_CONFIG.timeout - SESSION_CONFIG.warningTime);
-        
-        // Set session timeout timer
-        sessionTimer = setTimeout(forceLogout, SESSION_CONFIG.timeout);
-      };
-      
-      const showSessionWarning = () => {
-        const modal = el('sessionTimeoutModal');
-        const timer = el('sessionTimer');
-        
-        if (!modal || !timer) return;
-        
-        let timeLeft = SESSION_CONFIG.warningTime / 1000; // Convert to seconds
-        
-        const updateTimer = () => {
-          const minutes = Math.floor(timeLeft / 60);
-          const seconds = timeLeft % 60;
-          timer.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-          
-          if (timeLeft > 0) {
-            timeLeft--;
-            setTimeout(updateTimer, 1000);
-          }
-        };
-        
-        modal.classList.remove('hidden');
-        updateTimer();
-      };
-      
-      const extendSession = () => {
-        updateActivityTime();
-        setHidden('sessionTimeoutModal', true);
-        startSessionTimer();
-        showNotification('Session extended', 'success');
-      };
-      
-      const forceLogout = () => {
-        setHidden('sessionTimeoutModal', true);
-        showNotification('Your session has expired due to inactivity', 'warning');
-        logout();
-      };
-      
-      const resetSessionTimer = () => {
-        updateActivityTime();
-        startSessionTimer();
-      };
-      
-      // Activity tracking
-      const setupActivityTracking = () => {
-        const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
-        events.forEach(event => {
-          document.addEventListener(event, resetSessionTimer, { passive: true });
-        });
       };
       
       // Calculate expiry date (7 days from now)
@@ -1325,11 +1086,8 @@
         }, 5000);
       }
       
-      // Enhanced API helper with rate limiting and session management
+      // API helper functions that call correct backend endpoints
       const apiRequest = async (endpoint, options = {}) => {
-        // Check rate limit
-        checkRateLimit();
-        
         const headers = {
           'Content-Type': 'application/json',
           ...options.headers
@@ -1341,35 +1099,14 @@
           headers['Authorization'] = `Bearer ${user.data.token}`;
         }
         
-        // Add session activity header
-        headers['X-Session-Activity'] = lastActivityTime;
-        
         try {
           const response = await fetch(`${API_BASE}${endpoint}`, {
             ...options,
-            headers,
-            credentials: 'include' // Include cookies for session management
+            headers
           });
-          
-          // Update session on successful request
-          updateActivityTime();
           
           if (!response.ok) {
             const error = await response.json().catch(() => ({}));
-            
-            // Handle session expiration
-            if (response.status === 401) {
-              forceLogout();
-              throw new Error('Session expired. Please login again.');
-            }
-            
-            // Handle rate limiting
-            if (response.status === 429) {
-              const retryAfter = response.headers.get('Retry-After');
-              rateLimitedUntil = Date.now() + (parseInt(retryAfter) || 60) * 1000;
-              throw new Error('Rate limit exceeded. Please try again later.');
-            }
-            
             throw new Error(error.error || `API error: ${response.status}`);
           }
           
@@ -1393,8 +1130,6 @@
           });
           if (user) {
             sessionStorage.setItem('currentUser', JSON.stringify(user));
-            startSessionTimer();
-            setupActivityTracking();
             showNotification('Login successful', 'success');
             return user;
           }
@@ -1407,38 +1142,19 @@
       };
       
       const logout = () => {
-        // Clear session timers
-        if (sessionTimer) clearTimeout(sessionTimer);
-        if (sessionWarningTimer) clearTimeout(sessionWarningTimer);
-        
-        // Clear session storage
         sessionStorage.removeItem('currentUser');
-        
-        // Send logout request to server
-        apiRequest('/auth/logout', { method: 'POST' }).catch(() => {});
-        
         showNotification('Logged out successfully', 'info');
         location.hash = '#login';
         render();
       };
       
-      // Enhanced user registration with validation
+      // User API functions
       const registerUser = async (data) => {
-        // Client-side validation
         if (!data.name || !data.email || !data.password || !data.phone) {
           throw new Error('All required fields must be filled');
         }
-        
-        if (!validateInput({ value: data.email }, 'email')) {
+        if (!isValidEmail(data.email)) {
           throw new Error('Please enter a valid email address');
-        }
-        
-        if (!validateInput({ value: data.phone }, 'phone')) {
-          throw new Error('Please enter a valid phone number');
-        }
-        
-        if (!validateInput({ value: data.password }, 'password')) {
-          throw new Error('Password must be at least 8 characters long');
         }
 
         const sanitizedData = {
@@ -1481,8 +1197,6 @@
 
           if (response && response.data) {
             sessionStorage.setItem('currentUser', JSON.stringify(response));
-            startSessionTimer();
-            setupActivityTracking();
           }
 
           return response;
@@ -1493,30 +1207,1895 @@
         }
       };
       
-      // [Rest of the JavaScript code remains the same as previous version, 
-      // but all API calls are now wrapped with enhanced error handling and rate limiting]
+      const updateUserProfile = async (profileData) => {
+        if (!profileData) throw new Error('Profile data is required');
+        const sanitizedData = {};
+        for (const key in profileData) {
+          if (['name', 'phone', 'address', 'password', 'company', 'vehicle_info'].includes(key)) {
+            sanitizedData[key] = profileData[key];
+          }
+        }
+        try {
+          const user = await apiRequest('/users/me', {
+            method: 'PUT',
+            body: JSON.stringify(sanitizedData)
+          });
+          const currentUser = getCurrentUserSync();
+          if (currentUser) {
+            const updatedUser = { ...currentUser, ...sanitizedData };
+            sessionStorage.setItem('currentUser', JSON.stringify(updatedUser));
+          }
+          showNotification('Profile updated successfully', 'success');
+          return user;
+        } catch (error) {
+          console.error('Profile update error:', error);
+          showNotification('Profile update failed: ' + error.message, 'error');
+          throw error;
+        }
+      };
       
-      // Initialize the application with enhanced security
-      const init = () => {
-        // Set minimum date for load date input
-        const loadDateInput = el('loadDate');
-        if (loadDateInput) {
-          const today = new Date().toISOString().split('T')[0];
-          loadDateInput.min = today;
+      // NEW: Get user's posted loads
+      const getUserLoads = async () => {
+        try {
+          const response = await apiRequest('/users/me/loads');
+          return response.data ? response.data.loads : response;
+        } catch (error) {
+          console.error('Get user loads error:', error);
+          showNotification('Failed to get your loads', 'error');
+          throw error;
         }
-        
-        // Session timeout event handlers
-        el('extendSession')?.addEventListener('click', extendSession);
-        el('logoutSession')?.addEventListener('click', forceLogout);
-        
-        // [Rest of initialization code remains the same...]
-        
-        // Start session management if user is logged in
+      };
+      
+      // Load API functions
+      const postLoad = async (payload) => {
+        if (!payload.origin || !payload.destination || !payload.date || !payload.cargo_type || !payload.weight) {
+          throw new Error('All required fields must be filled');
+        }
         const user = getCurrentUserSync();
-        if (user) {
-          startSessionTimer();
-          setupActivityTracking();
+        if (!user) throw new Error('User not logged in');
+        
+        // REMOVED: Shipper ID and Email are now auto-populated by backend
+        const ref = 'LD' + Date.now().toString().slice(-6);
+        const sanitizedPayload = {
+          ref: ref,
+          origin: sanitize(payload.origin),
+          destination: sanitize(payload.destination),
+          date: payload.date,
+          cargo_type: sanitize(payload.cargo_type),
+          weight: parseFloat(payload.weight),
+          notes: sanitize(payload.notes || '')
+          // shipper_id and shipper_email are automatically added by backend
+        };
+        try {
+          const load = await apiRequest('/loads', {
+            method: 'POST',
+            body: JSON.stringify(sanitizedPayload)
+          });
+          showNotification('Load posted successfully', 'success');
+          return load;
+        } catch (error) {
+          console.error('Post load error:', error);
+          showNotification('Failed to post load: ' + error.message, 'error');
+          throw error;
         }
+      };
+      
+      const getLoads = async (filters = {}) => {
+        try {
+          const response = await apiRequest('/loads');
+          let loads = response.data ? response.data.loads : response;
+          
+          // Filter expired loads and auto-delete them
+          const now = new Date();
+          const validLoads = [];
+          const expiredLoads = [];
+          
+          loads.forEach(load => {
+            if (isLoadExpired(load)) {
+              expiredLoads.push(load);
+            } else {
+              validLoads.push(load);
+            }
+          });
+          
+          // Auto-delete expired loads
+          if (expiredLoads.length > 0) {
+            for (const load of expiredLoads) {
+              try {
+                await apiRequest(`/loads/${load.id}`, { method: 'DELETE' });
+              } catch (error) {
+                console.error('Error auto-deleting expired load:', error);
+              }
+            }
+          }
+          
+          let filteredLoads = validLoads;
+          
+          if (filters.shipper_id) {
+            filteredLoads = filteredLoads.filter(l => l.shipper_id === filters.shipper_id);
+          }
+          if (filters.origin) {
+            filteredLoads = filteredLoads.filter(l => l.origin.toLowerCase().includes(filters.origin.toLowerCase()));
+          }
+          if (filters.destination) {
+            filteredLoads = filteredLoads.filter(l => l.destination.toLowerCase().includes(filters.destination.toLowerCase()));
+          }
+          return filteredLoads;
+        } catch (error) {
+          console.error('Get loads error:', error);
+          showNotification('Failed to get loads: ' + error.message, 'error');
+          throw error;
+        }
+      };
+      
+      const updateLoad = async (loadId, patch) => {
+        if (!loadId) throw new Error('Load ID is required');
+        
+        // Check if load object has id property
+        if (!loadId || typeof loadId !== 'string') {
+          console.error('Invalid load ID:', loadId);
+          throw new Error('Invalid load ID provided');
+        }
+        
+        const sanitizedPatch = {};
+        for (const key in patch) {
+          if (key === 'weight') {
+            sanitizedPatch[key] = parseFloat(patch[key]);
+          } else {
+            sanitizedPatch[key] = sanitize(patch[key]);
+          }
+        }
+        try {
+          const load = await apiRequest(`/loads/${loadId}`, {
+            method: 'PUT',
+            body: JSON.stringify(sanitizedPatch)
+          });
+          showNotification('Load updated successfully', 'success');
+          return load;
+        } catch (error) {
+          console.error('Update load error:', error);
+          showNotification('Failed to update load: ' + error.message, 'error');
+          throw error;
+        }
+      };
+      
+      const deleteLoad = async (loadId) => {
+        if (!loadId) throw new Error('Load ID is required');
+        try {
+          await apiRequest(`/loads/${loadId}`, { method: 'DELETE' });
+          showNotification('Load deleted successfully', 'success');
+        } catch (error) {
+          console.error('Delete load error:', error);
+          showNotification('Failed to delete load: ' + error.message, 'error');
+          throw error;
+        }
+      };
+      
+      // Message API functions
+      const sendMessage = async (toMembership, body) => {
+        if (!toMembership || !body) {
+          throw new Error('Recipient and message are required');
+        }
+        const user = getCurrentUserSync();
+        if (!user) throw new Error('User not logged in');
+        
+        try {
+          const senderMembership = user.data.user.membership_number || 'Admin';
+          const message = await apiRequest('/messages', {
+            method: 'POST',
+            body: JSON.stringify({ 
+              sender_membership: senderMembership, 
+              recipient_membership: toMembership, 
+              body: sanitize(body) 
+            })
+          });
+          showNotification('Message sent successfully', 'success');
+          return message;
+        } catch (error) {
+          console.error('Send message error:', error);
+          if (error.message.includes('not being sent to user with specified membership')) {
+            showNotification('Failed to send message: Recipient membership number not found in the system', 'error');
+          } else {
+            showNotification('Failed to send message: ' + error.message, 'error');
+          }
+          throw error;
+        }
+      };
+      
+      const getMessages = async () => {
+        const user = getCurrentUserSync();
+        if (!user) throw new Error('User not logged in');
+        try {
+          const response = await apiRequest('/messages');
+          const messages = response.data ? response.data.messages : response;
+          const userMembership = user.data.user.membership_number || 'Admin';
+          return messages.filter(m => 
+            m.sender_membership === userMembership || m.recipient_membership === userMembership
+          );
+        } catch (error) {
+          console.error('Get messages error:', error);
+          showNotification('Failed to get messages: ' + error.message, 'error');
+          throw error;
+        }
+      };
+      
+      const deleteMessage = async (messageId) => {
+        if (!messageId) throw new Error('Message ID is required');
+        try {
+          await apiRequest(`/messages/${messageId}`, { method: 'DELETE' });
+          showNotification('Message deleted successfully', 'success');
+        } catch (error) {
+          console.error('Delete message error:', error);
+          showNotification('Failed to delete message: ' + error.message, 'error');
+          throw error;
+        }
+      };
+      
+      // Admin API functions
+      const isAdmin = u => u && u.data && u.data.user && u.data.user.role === 'admin';
+      
+      const getUsers = async () => {
+        try {
+          const response = await apiRequest('/users');
+          return response.data ? response.data.users : response;
+        } catch (error) {
+          console.error('Get users error:', error);
+          showNotification('Failed to get users: ' + error.message, 'error');
+          throw error;
+        }
+      };
+      
+      const deleteUser = async (email) => {
+        if (!email) throw new Error('Email is required');
+        try {
+          await apiRequest(`/admin/users/${encodeURIComponent(email)}`, { method: 'DELETE' });
+          showNotification('User deleted successfully', 'success');
+        } catch (error) {
+          console.error('Delete user error:', error);
+          showNotification('Failed to delete user: ' + error.message, 'error');
+          throw error;
+        }
+      };
+      
+      const resetPassword = async (email, newPass) => {
+        if (!email || !newPass) throw new Error('Email and password are required');
+        try {
+          await apiRequest('/admin/reset-password', {
+            method: 'POST',
+            body: JSON.stringify({ email, new_password: newPass })
+          });
+          showNotification('Password reset successfully', 'success');
+        } catch (error) {
+          console.error('Reset password error:', error);
+          showNotification('Failed to reset password: ' + error.message, 'error');
+          throw error;
+        }
+      };
+      
+      const getBanners = async () => {
+        try {
+          const response = await apiRequest('/admin/banners');
+          return response.data || response;
+        } catch (error) {
+          console.error('Get banners error:', error);
+          showNotification('Failed to get banners: ' + error.message, 'error');
+          throw error;
+        }
+      };
+      
+      const updateBanners = async (banners) => {
+        try {
+          await apiRequest('/admin/banners', {
+            method: 'PUT',
+            body: JSON.stringify(banners)
+          });
+          showNotification('Banners updated successfully', 'success');
+          return banners;
+        } catch (error) {
+          console.error('Update banners error:', error);
+          showNotification('Failed to update banners: ' + error.message, 'error');
+          throw error;
+        }
+      };
+      
+      const getAccessControl = async () => {
+        try {
+          const response = await apiRequest('/admin/access-control');
+          return response.data || response;
+        } catch (error) {
+          console.error('Get access control error:', error);
+          showNotification('Failed to get access control: ' + error.message, 'error');
+          throw error;
+        }
+      };
+      
+      const updateAccessControl = async (acl) => {
+        try {
+          await apiRequest('/admin/access-control', {
+            method: 'PUT',
+            body: JSON.stringify(acl)
+          });
+          showNotification('Access control updated successfully', 'success');
+          return acl;
+        } catch (error) {
+          console.error('Update access control error:', error);
+          showNotification('Failed to update access control: ' + error.message, 'error');
+          throw error;
+        }
+      };
+      
+      const updateUserAccess = async (userId, access) => {
+        try {
+          await apiRequest(`/admin/users/${userId}/access`, {
+            method: 'PUT',
+            body: JSON.stringify(access)
+          });
+          showNotification('User access updated successfully', 'success');
+        } catch (error) {
+          console.error('Update user access error:', error);
+          showNotification('Failed to update user access: ' + error.message, 'error');
+          throw error;
+        }
+      };
+      
+      const getUserAccess = async (userId) => {
+        try {
+          const response = await apiRequest(`/admin/users/${userId}/access`);
+          return response.data || response;
+        } catch (error) {
+          console.error('Get user access error:', error);
+          showNotification('Failed to get user access: ' + error.message, 'error');
+          throw error;
+        }
+      };
+      
+      const canAccessPage = (user, pageId) => {
+        if (!user) return false;
+        if (isAdmin(user)) return true;
+        
+        // All pages except market and post-load are accessible by default
+        if (pageId !== 'market' && pageId !== 'shipper-post') {
+          return true;
+        }
+        
+        const page = PAGES[pageId];
+        if (page && page.roles.includes(user.data.user.role)) {
+          return true;
+        }
+        return false;
+      };
+      
+      const checkPageAccess = async (pageId) => {
+        try {
+          const user = getCurrentUserSync();
+          if (!user) return false;
+          if (canAccessPage(user, pageId)) return true;
+          
+          // For market and post-load pages, check user-specific access
+          if (pageId === 'market' || pageId === 'shipper-post') {
+            const userId = user.data.user.id;
+            const userAccess = await getUserAccess(userId);
+            if (userAccess && userAccess.pages && userAccess.pages[pageId]) {
+              return userAccess.pages[pageId].enabled === true;
+            }
+          }
+          
+          return false;
+        } catch (error) {
+          console.error('Check page access error:', error);
+          return false;
+        }
+      };
+      
+      // NEW: Get active banners for current page
+      const getActiveBanners = async (page) => {
+        try {
+          const response = await apiRequest(`/banners/active?page=${page}`);
+          return response.data || response;
+        } catch (error) {
+          console.error('Get active banners error:', error);
+          return { banner: '' };
+        }
+      };
+      
+      // User Access Control Functions
+      let currentSelectedUser = null;
+      
+      const populateUserDropdown = async () => {
+        try {
+          const users = await getUsers();
+          const select = el('selectUserForAccess');
+          select.innerHTML = '<option value="">-- Select User --</option>';
+          
+          users.forEach(user => {
+            const option = document.createElement('option');
+            option.value = user.id;
+            option.textContent = `${user.name} (${user.email}) - ${user.role}`;
+            select.appendChild(option);
+          });
+        } catch (error) {
+          console.error('Error populating user dropdown:', error);
+        }
+      };
+      
+      const loadUserAccess = async () => {
+        const select = el('selectUserForAccess');
+        const userId = select.value;
+        
+        if (!userId) {
+          showNotification('Please select a user first', 'warning');
+          return;
+        }
+        
+        try {
+          const userAccess = await getUserAccess(userId);
+          currentSelectedUser = userId;
+          
+          // Reset all toggles to unchecked first
+          Object.values(ACCESS_PAGES).forEach(page => {
+            const toggle = el(page.id);
+            if (toggle) {
+              toggle.checked = false;
+            }
+          });
+          
+          // Set toggles based on user access
+          if (userAccess && userAccess.pages) {
+            Object.entries(userAccess.pages).forEach(([pageId, access]) => {
+              const page = ACCESS_PAGES[pageId];
+              if (page && access.enabled) {
+                const toggle = el(page.id);
+                if (toggle) {
+                  toggle.checked = true;
+                }
+              }
+            });
+          }
+          
+          showNotification(`Loaded access for selected user`, 'success');
+        } catch (error) {
+          console.error('Error loading user access:', error);
+          showNotification('Failed to load user access', 'error');
+        }
+      };
+      
+      const saveUserAccess = async () => {
+        if (!currentSelectedUser) {
+          showNotification('Please select and load a user first', 'warning');
+          return;
+        }
+        
+        const accessData = {
+          pages: {}
+        };
+        
+        // Collect all toggle states
+        Object.entries(ACCESS_PAGES).forEach(([pageId, page]) => {
+          const toggle = el(page.id);
+          if (toggle) {
+            accessData.pages[pageId] = {
+              enabled: toggle.checked,
+              name: page.name
+            };
+          }
+        });
+        
+        try {
+          await updateUserAccess(currentSelectedUser, accessData);
+          showNotification('User access saved successfully', 'success');
+        } catch (error) {
+          console.error('Error saving user access:', error);
+          showNotification('Failed to save user access', 'error');
+        }
+      };
+      
+      const refreshAccessControl = async () => {
+        await populateUserDropdown();
+        currentSelectedUser = null;
+        
+        // Reset all toggles
+        Object.values(ACCESS_PAGES).forEach(page => {
+          const toggle = el(page.id);
+          if (toggle) {
+            toggle.checked = false;
+          }
+        });
+        
+        showNotification('Access control refreshed', 'info');
+      };
+      
+      // Load Management Functions for Admin
+      const populateLoadDropdown = async () => {
+        try {
+          const loads = await getLoads();
+          const select = el('selectLoad');
+          select.innerHTML = '<option value="">-- Select Load --</option>';
+          
+          loads.forEach(load => {
+            const option = document.createElement('option');
+            option.value = load.id;
+            option.textContent = `${load.ref} - ${load.origin} to ${load.destination}`;
+            select.appendChild(option);
+          });
+        } catch (error) {
+          console.error('Error populating load dropdown:', error);
+        }
+      };
+      
+      const displayLoadDetails = async (loadId) => {
+        try {
+          const loads = await getLoads();
+          const load = loads.find(l => l.id === loadId);
+          
+          if (!load) {
+            showNotification('Load not found', 'error');
+            return;
+          }
+          
+          const loadDetails = el('loadDetails');
+          const loadEditForm = el('loadEditForm');
+          
+          // Clear previous content
+          loadDetails.innerHTML = '';
+          loadEditForm.innerHTML = '';
+          
+          // Create load details using createElement
+          const detailsContainer = document.createElement('div');
+          detailsContainer.className = 'load-details-content';
+          
+          const title = document.createElement('h4');
+          title.textContent = 'Load Details';
+          detailsContainer.appendChild(title);
+          
+          const detailRows = [
+            { label: 'Reference', value: load.ref },
+            { label: 'Origin', value: load.origin },
+            { label: 'Destination', value: load.destination },
+            { label: 'Pickup Date', value: new Date(load.date).toLocaleDateString() },
+            { label: 'Expiry Date', value: new Date(load.expires_at).toLocaleDateString() },
+            { label: 'Cargo Type', value: load.cargo_type },
+            { label: 'Weight (Tons)', value: load.weight },
+            { label: 'Status', value: getLoadStatus(load) },
+            { label: 'Shipper', value: load.shipper_name || load.shipper_email },
+            { label: 'Notes', value: load.notes || 'None' }
+          ];
+          
+          detailRows.forEach(row => {
+            const detailRow = document.createElement('div');
+            detailRow.className = 'load-detail-row';
+            
+            const label = document.createElement('span');
+            label.className = 'load-detail-label';
+            label.textContent = row.label + ':';
+            
+            const value = document.createElement('span');
+            value.className = 'load-detail-value';
+            value.textContent = row.value;
+            
+            detailRow.appendChild(label);
+            detailRow.appendChild(value);
+            detailsContainer.appendChild(detailRow);
+          });
+          
+          loadDetails.appendChild(detailsContainer);
+          setHidden('loadDetails', false);
+          
+          // Create edit form
+          const formContainer = document.createElement('div');
+          formContainer.className = 'load-edit-form-content';
+          
+          const formTitle = document.createElement('h4');
+          formTitle.textContent = 'Edit Load';
+          formContainer.appendChild(formTitle);
+          
+          const editForm = document.createElement('form');
+          editForm.id = 'formEditLoad';
+          
+          const formGrid = document.createElement('div');
+          formGrid.className = 'grid two';
+          
+          const fields = [
+            { id: 'editOrigin', label: 'Origin', value: load.origin, required: true },
+            { id: 'editDestination', label: 'Destination', value: load.destination, required: true },
+            { id: 'editDate', label: 'Pickup Date', value: load.date.split('T')[0], type: 'date', required: true },
+            { id: 'editCargo', label: 'Cargo Type', value: load.cargo_type, required: true },
+            { id: 'editWeight', label: 'Weight (Tons)', value: load.weight, type: 'number', required: true }
+          ];
+          
+          fields.forEach(field => {
+            const fieldContainer = document.createElement('div');
+            
+            const label = document.createElement('label');
+            label.htmlFor = field.id;
+            label.textContent = field.label;
+            
+            const input = document.createElement('input');
+            input.id = field.id;
+            input.name = field.id.replace('edit', '').toLowerCase();
+            input.value = field.value;
+            input.required = field.required;
+            
+            if (field.type) {
+              input.type = field.type;
+            }
+            
+            fieldContainer.appendChild(label);
+            fieldContainer.appendChild(input);
+            formGrid.appendChild(fieldContainer);
+          });
+          
+          const notesContainer = document.createElement('div');
+          notesContainer.className = 'two';
+          notesContainer.style.gridColumn = '1 / -1';
+          
+          const notesLabel = document.createElement('label');
+          notesLabel.htmlFor = 'editNotes';
+          notesLabel.textContent = 'Notes';
+          
+          const notesTextarea = document.createElement('textarea');
+          notesTextarea.id = 'editNotes';
+          notesTextarea.name = 'notes';
+          notesTextarea.rows = 3;
+          notesTextarea.textContent = load.notes || '';
+          
+          notesContainer.appendChild(notesLabel);
+          notesContainer.appendChild(notesTextarea);
+          formGrid.appendChild(notesContainer);
+          
+          editForm.appendChild(formGrid);
+          
+          const formToolbar = document.createElement('div');
+          formToolbar.className = 'toolbar';
+          formToolbar.style.marginTop = '12px';
+          
+          const saveButton = document.createElement('button');
+          saveButton.type = 'button';
+          saveButton.className = 'btn primary';
+          saveButton.textContent = 'Save Changes';
+          saveButton.onclick = () => updateSelectedLoad(loadId);
+          
+          formToolbar.appendChild(saveButton);
+          editForm.appendChild(formToolbar);
+          
+          formContainer.appendChild(editForm);
+          loadEditForm.appendChild(formContainer);
+          setHidden('loadEditForm', false);
+          
+        } catch (error) {
+          console.error('Error displaying load details:', error);
+          showNotification('Failed to load details', 'error');
+        }
+      };
+      
+      const updateSelectedLoad = async (loadId) => {
+        try {
+          const origin = el('editOrigin').value;
+          const destination = el('editDestination').value;
+          const date = el('editDate').value;
+          const cargo = el('editCargo').value;
+          const weight = el('editWeight').value;
+          const notes = el('editNotes').value;
+          
+          if (!origin || !destination || !date || !cargo || !weight) {
+            showNotification('Please fill in all required fields', 'error');
+            return;
+          }
+          
+          await updateLoad(loadId, {
+            origin,
+            destination,
+            date,
+            cargo_type: cargo,
+            weight: parseFloat(weight),
+            notes
+          });
+          
+          showNotification('Load updated successfully', 'success');
+          await populateLoadDropdown();
+          setHidden('loadEditForm', true);
+          
+        } catch (error) {
+          console.error('Error updating load:', error);
+          showNotification('Failed to update load', 'error');
+        }
+      };
+      
+      const deleteSelectedLoad = async () => {
+        const select = el('selectLoad');
+        const loadId = select.value;
+        
+        if (!loadId) {
+          showNotification('Please select a load first', 'warning');
+          return;
+        }
+        
+        if (confirm('Are you sure you want to delete this load?')) {
+          try {
+            await deleteLoad(loadId);
+            await populateLoadDropdown();
+            setHidden('loadDetails', true);
+            setHidden('loadEditForm', true);
+            showNotification('Load deleted successfully', 'success');
+          } catch (error) {
+            console.error('Error deleting load:', error);
+            showNotification('Failed to delete load', 'error');
+          }
+        }
+      };
+      
+      // UPDATED: Render functions to use new API endpoints and data
+      const renderShipper = async () => {
+        const u = getCurrentUserSync();
+        if (!u || u.data.user.role !== 'shipper') return;
+        try {
+          // UPDATED: Use the new user-specific loads endpoint
+          const loads = await getUserLoads();
+          const tbody = el('tableMyLoadsShipper').querySelector('tbody');
+          
+          // Clear table using safe method
+          while (tbody.firstChild) {
+            tbody.removeChild(tbody.firstChild);
+          }
+          
+          if (!loads || loads.length === 0) {
+            const row = document.createElement('tr');
+            const cell = document.createElement('td');
+            cell.colSpan = 9;
+            cell.className = 'muted';
+            cell.textContent = 'No loads posted yet.';
+            row.appendChild(cell);
+            tbody.appendChild(row);
+            return;
+          }
+          
+          loads.forEach(load => {
+            const row = document.createElement('tr');
+            if (isLoadExpired(load)) row.classList.add('expired');
+            
+            const postedDate = new Date(load.created_at).toLocaleDateString();
+            const expiryDate = new Date(load.expires_at).toLocaleDateString();
+            const status = getLoadStatus(load);
+            
+            const refCell = document.createElement('td');
+            refCell.textContent = sanitize(load.ref);
+            
+            const originCell = document.createElement('td');
+            originCell.textContent = sanitize(load.origin);
+            
+            const destCell = document.createElement('td');
+            destCell.textContent = sanitize(load.destination);
+            
+            const dateCell = document.createElement('td');
+            dateCell.textContent = postedDate;
+            
+            const expiryCell = document.createElement('td');
+            expiryCell.textContent = expiryDate;
+            
+            const cargoCell = document.createElement('td');
+            cargoCell.textContent = sanitize(load.cargo_type);
+            
+            const weightCell = document.createElement('td');
+            weightCell.textContent = load.weight;
+            
+            const statusCell = document.createElement('td');
+            statusCell.innerHTML = getStatusBadge(status);
+            
+            const actionsCell = document.createElement('td');
+            
+            const editButton = document.createElement('button');
+            editButton.className = 'btn';
+            editButton.textContent = 'Edit';
+            editButton.onclick = () => editUserLoad(load.id);
+            
+            const deleteButton = document.createElement('button');
+            deleteButton.className = 'btn danger';
+            deleteButton.textContent = 'Delete';
+            deleteButton.onclick = () => deleteUserLoad(load.id);
+            
+            actionsCell.appendChild(editButton);
+            actionsCell.appendChild(deleteButton);
+            
+            row.appendChild(refCell);
+            row.appendChild(originCell);
+            row.appendChild(destCell);
+            row.appendChild(dateCell);
+            row.appendChild(expiryCell);
+            row.appendChild(cargoCell);
+            row.appendChild(weightCell);
+            row.appendChild(statusCell);
+            row.appendChild(actionsCell);
+            
+            tbody.appendChild(row);
+          });
+        } catch (error) { console.error('Error rendering shipper dashboard:', error); }
+      };
+      
+      const renderTransporter = async () => {
+        const u = getCurrentUserSync();
+        if (!u || u.data.user.role !== 'transporter') return;
+        try {
+          const loads = await getUserLoads();
+          const tbody = el('tableMyLoadsTransporter').querySelector('tbody');
+          
+          // Clear table using safe method
+          while (tbody.firstChild) {
+            tbody.removeChild(tbody.firstChild);
+          }
+          
+          if (!loads || loads.length === 0) {
+            const row = document.createElement('tr');
+            const cell = document.createElement('td');
+            cell.colSpan = 9;
+            cell.className = 'muted';
+            cell.textContent = 'No loads posted yet.';
+            row.appendChild(cell);
+            tbody.appendChild(row);
+            return;
+          }
+          
+          loads.forEach(load => {
+            const row = document.createElement('tr');
+            if (isLoadExpired(load)) row.classList.add('expired');
+            
+            const postedDate = new Date(load.created_at).toLocaleDateString();
+            const expiryDate = new Date(load.expires_at).toLocaleDateString();
+            const status = getLoadStatus(load);
+            
+            const refCell = document.createElement('td');
+            refCell.textContent = sanitize(load.ref);
+            
+            const originCell = document.createElement('td');
+            originCell.textContent = sanitize(load.origin);
+            
+            const destCell = document.createElement('td');
+            destCell.textContent = sanitize(load.destination);
+            
+            const dateCell = document.createElement('td');
+            dateCell.textContent = postedDate;
+            
+            const expiryCell = document.createElement('td');
+            expiryCell.textContent = expiryDate;
+            
+            const cargoCell = document.createElement('td');
+            cargoCell.textContent = sanitize(load.cargo_type);
+            
+            const weightCell = document.createElement('td');
+            weightCell.textContent = load.weight;
+            
+            const statusCell = document.createElement('td');
+            statusCell.innerHTML = getStatusBadge(status);
+            
+            const actionsCell = document.createElement('td');
+            
+            const editButton = document.createElement('button');
+            editButton.className = 'btn';
+            editButton.textContent = 'Edit';
+            editButton.onclick = () => editUserLoad(load.id);
+            
+            const deleteButton = document.createElement('button');
+            deleteButton.className = 'btn danger';
+            deleteButton.textContent = 'Delete';
+            deleteButton.onclick = () => deleteUserLoad(load.id);
+            
+            actionsCell.appendChild(editButton);
+            actionsCell.appendChild(deleteButton);
+            
+            row.appendChild(refCell);
+            row.appendChild(originCell);
+            row.appendChild(destCell);
+            row.appendChild(dateCell);
+            row.appendChild(expiryCell);
+            row.appendChild(cargoCell);
+            row.appendChild(weightCell);
+            row.appendChild(statusCell);
+            row.appendChild(actionsCell);
+            
+            tbody.appendChild(row);
+          });
+        } catch (error) { console.error('Error rendering transporter dashboard:', error); }
+      };
+      
+      // UPDATED: Render market page to show membership numbers
+      const renderMarket = async () => {
+        try {
+          const loads = await getLoads();
+          const tbody = el('tableMarketLoads').querySelector('tbody');
+          
+          // Clear table using safe method
+          while (tbody.firstChild) {
+            tbody.removeChild(tbody.firstChild);
+          }
+          
+          if (!loads || loads.length === 0) {
+            const row = document.createElement('tr');
+            const cell = document.createElement('td');
+            cell.colSpan = 10; // UPDATED: Changed to 10 columns
+            cell.className = 'muted';
+            cell.textContent = 'No loads available.';
+            row.appendChild(cell);
+            tbody.appendChild(row);
+            return;
+          }
+          
+          loads.forEach(load => {
+            const row = document.createElement('tr');
+            if (isLoadExpired(load)) row.classList.add('expired');
+            
+            const postedDate = new Date(load.created_at).toLocaleDateString();
+            const expiryDate = new Date(load.expires_at).toLocaleDateString();
+            const status = getLoadStatus(load);
+            
+            const refCell = document.createElement('td');
+            refCell.textContent = sanitize(load.ref);
+            
+            const originCell = document.createElement('td');
+            originCell.textContent = sanitize(load.origin);
+            
+            const destCell = document.createElement('td');
+            destCell.textContent = sanitize(load.destination);
+            
+            const dateCell = document.createElement('td');
+            dateCell.textContent = postedDate;
+            
+            const expiryCell = document.createElement('td');
+            expiryCell.textContent = expiryDate;
+            
+            const cargoCell = document.createElement('td');
+            cargoCell.textContent = sanitize(load.cargo_type);
+            
+            const weightCell = document.createElement('td');
+            weightCell.textContent = load.weight;
+            
+            const statusCell = document.createElement('td');
+            statusCell.innerHTML = getStatusBadge(status);
+            
+            // UPDATED: Show membership number instead of name/email
+            const postedByCell = document.createElement('td');
+            postedByCell.textContent = sanitize(load.shipper_membership || load.posted_by || 'Unknown');
+            
+            const actionsCell = document.createElement('td');
+            const contactButton = document.createElement('button');
+            contactButton.className = 'btn';
+            contactButton.textContent = 'Contact';
+            contactButton.onclick = () => {
+              const membershipNumber = load.shipper_membership || load.posted_by;
+              if (membershipNumber) {
+                location.hash = '#messages';
+                setTimeout(() => {
+                  el('msgTo').value = membershipNumber;
+                }, 100);
+              }
+            };
+            actionsCell.appendChild(contactButton);
+            
+            row.appendChild(refCell);
+            row.appendChild(originCell);
+            row.appendChild(destCell);
+            row.appendChild(dateCell);
+            row.appendChild(expiryCell);
+            row.appendChild(cargoCell);
+            row.appendChild(weightCell);
+            row.appendChild(statusCell);
+            row.appendChild(postedByCell);
+            row.appendChild(actionsCell);
+            
+            tbody.appendChild(row);
+          });
+        } catch (error) { console.error('Error rendering market:', error); }
+      };
+      
+      const renderMessages = async () => {
+        try {
+          const messages = await getMessages();
+          const messageContainer = el('messageContainer');
+          
+          // Clear container using safe method
+          while (messageContainer.firstChild) {
+            messageContainer.removeChild(messageContainer.firstChild);
+          }
+          
+          if (!messages || messages.length === 0) {
+            const noMessages = document.createElement('div');
+            noMessages.className = 'muted';
+            noMessages.textContent = 'No messages.';
+            messageContainer.appendChild(noMessages);
+            return;
+          }
+          
+          // Sort messages by date (newest first)
+          messages.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+          
+          messages.forEach(msg => {
+            const messageDiv = document.createElement('div');
+            const user = getCurrentUserSync();
+            const userMembership = user.data.user.membership_number || 'Admin';
+            
+            if (msg.sender_membership === userMembership) {
+              messageDiv.className = 'message message-sent';
+            } else {
+              messageDiv.className = 'message message-received';
+            }
+            
+            const messageHeader = document.createElement('div');
+            messageHeader.className = 'message-header';
+            
+            const sender = document.createElement('div');
+            sender.className = 'message-sender';
+            sender.textContent = msg.sender_membership === 'Admin' ? 'Admin' : `From: ${msg.sender_membership}`;
+            
+            const time = document.createElement('div');
+            time.className = 'message-time';
+            time.textContent = new Date(msg.created_at).toLocaleString();
+            
+            messageHeader.appendChild(sender);
+            messageHeader.appendChild(time);
+            
+            const messageBody = document.createElement('div');
+            messageBody.className = 'message-body';
+            messageBody.textContent = msg.body;
+            
+            messageDiv.appendChild(messageHeader);
+            messageDiv.appendChild(messageBody);
+            messageContainer.appendChild(messageDiv);
+          });
+        } catch (error) { console.error('Error rendering messages:', error); }
+      };
+      
+      // UPDATED: Render banners based on page context
+      const renderBanners = async () => {
+        const hash = location.hash.slice(1) || 'index';
+        
+        // Only show banners on index and dashboard pages
+        if (hash === 'index' || hash.includes('dashboard')) {
+          try {
+            const banners = await getActiveBanners(hash);
+            const indexBanner = el('indexBanner');
+            const dashBannerShipper = el('dashBannerShipper');
+            const dashBannerTransporter = el('dashBannerTransporter');
+            
+            if (hash === 'index' && indexBanner && banners.banner) {
+              indexBanner.textContent = banners.banner;
+              indexBanner.classList.remove('hidden');
+            } else if (indexBanner) {
+              indexBanner.classList.add('hidden');
+            }
+            
+            if (hash === 'shipper-dashboard' && dashBannerShipper && banners.banner) {
+              dashBannerShipper.textContent = banners.banner;
+              dashBannerShipper.classList.remove('hidden');
+            } else if (dashBannerShipper) {
+              dashBannerShipper.classList.add('hidden');
+            }
+            
+            if (hash === 'transporter-dashboard' && dashBannerTransporter && banners.banner) {
+              dashBannerTransporter.textContent = banners.banner;
+              dashBannerTransporter.classList.remove('hidden');
+            } else if (dashBannerTransporter) {
+              dashBannerTransporter.classList.add('hidden');
+            }
+          } catch (error) {
+            console.error('Error rendering banners:', error);
+          }
+        } else {
+          // Hide all banners on other pages
+          const indexBanner = el('indexBanner');
+          const dashBannerShipper = el('dashBannerShipper');
+          const dashBannerTransporter = el('dashBannerTransporter');
+          const marketBanner = el('marketBanner');
+          
+          if (indexBanner) indexBanner.classList.add('hidden');
+          if (dashBannerShipper) dashBannerShipper.classList.add('hidden');
+          if (dashBannerTransporter) dashBannerTransporter.classList.add('hidden');
+          if (marketBanner) marketBanner.classList.add('hidden');
+        }
+      };
+      
+      // UPDATED: Profile rendering with membership date
+      const renderShipperProfile = async () => {
+        const u = getCurrentUserSync();
+        if (!u || u.data.user.role !== 'shipper') return;
+        try {
+          const user = u.data.user;
+          setText('shipperProfileName', user.name);
+          setText('shipperProfileEmail', user.email);
+          setText('shipperProfileCompany', user.company || 'Not specified');
+          setText('shipperProfilePhone', user.phone || 'Not specified');
+          setText('shipperProfileAddress', user.address || 'Not specified');
+          setText('shipperProfileRole', user.role);
+          
+          // UPDATED: Use membership_date or created_at
+          const joinDate = user.membership_date || user.created_at;
+          setText('shipperProfileCreated', new Date(joinDate).toLocaleDateString());
+          setText('shipperProfileSince', new Date(joinDate).toLocaleDateString());
+          
+          // Display membership number
+          const membershipNumber = user.membership_number || 'Not assigned';
+          setText('shipperProfileMembership', membershipNumber);
+          
+          const avatar = el('shipperProfileAvatar');
+          if (avatar) avatar.textContent = user.name.charAt(0).toUpperCase();
+          
+          // Populate form fields
+          el('profileShipperName').value = user.name || '';
+          el('profileShipperPhone').value = user.phone || '';
+          el('profileShipperAddress').value = user.address || '';
+          
+        } catch (error) { console.error('Error rendering shipper profile:', error); }
+      };
+      
+      // UPDATED: Similar updates for transporter profile
+      const renderTransporterProfile = async () => {
+        const u = getCurrentUserSync();
+        if (!u || u.data.user.role !== 'transporter') return;
+        try {
+          const user = u.data.user;
+          setText('transporterProfileName', user.name);
+          setText('transporterProfileEmail', user.email);
+          setText('transporterProfileCompany', user.company || 'Not specified');
+          setText('transporterProfileVehicle', user.vehicle_info || 'Not specified');
+          setText('transporterProfilePhone', user.phone || 'Not specified');
+          setText('transporterProfileAddress', user.address || 'Not specified');
+          setText('transporterProfileRole', user.role);
+          
+          // UPDATED: Use membership_date or created_at
+          const joinDate = user.membership_date || user.created_at;
+          setText('transporterProfileCreated', new Date(joinDate).toLocaleDateString());
+          setText('transporterProfileSince', new Date(joinDate).toLocaleDateString());
+          
+          // Display membership number
+          const membershipNumber = user.membership_number || 'Not assigned';
+          setText('transporterProfileMembership', membershipNumber);
+          
+          const avatar = el('transporterProfileAvatar');
+          if (avatar) avatar.textContent = user.name.charAt(0).toUpperCase();
+          
+          // Populate form fields
+          el('profileTransporterName').value = user.name || '';
+          el('profileTransporterPhone').value = user.phone || '';
+          el('profileTransporterAddress').value = user.address || '';
+          
+        } catch (error) { console.error('Error rendering transporter profile:', error); }
+      };
+      
+      // UPDATED: Admin navigation - show all pages for admin
+      const renderHeader = async () => {
+        const u = getCurrentUserSync();
+        const navLinks = el('navLinks');
+        const authUser = el('authUser');
+        const btnLoginNav = el('btnLoginNav');
+        const btnLogout = el('btnLogout');
+        const roleChip = el('roleChip');
+        
+        if (u && u.data && u.data.user) {
+          // Clear navLinks using safe method
+          while (navLinks.firstChild) {
+            navLinks.removeChild(navLinks.firstChild);
+          }
+          
+          if (authUser) authUser.textContent = u.data.user.name;
+          if (btnLoginNav) btnLoginNav.classList.add('hidden');
+          if (btnLogout) btnLogout.classList.remove('hidden');
+          if (roleChip) {
+            roleChip.textContent = u.data.user.role;
+            roleChip.classList.remove('hidden');
+          }
+          
+          if (navLinks) {
+            const links = [];
+            
+            if (u.data.user.role === 'shipper') {
+              links.push(
+                { href: '#shipper-dashboard', text: 'Dashboard' },
+                { href: '#shipper-post', text: 'Post Load' },
+                { href: '#market', text: 'Market' },
+                { href: '#messages', text: 'Messages' },
+                { href: '#shipper-profile', text: 'Profile' }
+              );
+            } else if (u.data.user.role === 'transporter') {
+              links.push(
+                { href: '#transporter-dashboard', text: 'Dashboard' },
+                { href: '#shipper-post', text: 'Post Load' },
+                { href: '#market', text: 'Market' },
+                { href: '#messages', text: 'Messages' },
+                { href: '#transporter-profile', text: 'Profile' }
+              );
+            } else if (u.data.user.role === 'admin') {
+              // UPDATED: Admin can see navigation to all pages
+              links.push(
+                { href: '#control', text: 'Admin' },
+                { href: '#shipper-dashboard', text: 'Shipper Dashboard' },
+                { href: '#transporter-dashboard', text: 'Transporter Dashboard' },
+                { href: '#market', text: 'Market' },
+                { href: '#messages', text: 'Messages' }
+              );
+            }
+            
+            links.forEach(link => {
+              const a = document.createElement('a');
+              a.className = 'btn';
+              a.href = link.href;
+              a.textContent = link.text;
+              navLinks.appendChild(a);
+            });
+          }
+        } else {
+          // Clear navLinks using safe method
+          while (navLinks.firstChild) {
+            navLinks.removeChild(navLinks.firstChild);
+          }
+          
+          if (authUser) authUser.textContent = '';
+          if (btnLoginNav) btnLoginNav.classList.remove('hidden');
+          if (btnLogout) btnLogout.classList.add('hidden');
+          if (roleChip) roleChip.classList.add('hidden');
+        }
+      };
+      
+      const renderAccessWarnings = async () => {
+        const u = getCurrentUserSync();
+        if (!u) return;
+        
+        const shipperWarning = el('accessWarningShipper');
+        const transporterWarning = el('accessWarningTransporter');
+        
+        // Reset warnings
+        if (shipperWarning) {
+          shipperWarning.classList.add('hidden');
+          shipperWarning.textContent = '';
+        }
+        if (transporterWarning) {
+          transporterWarning.classList.add('hidden');
+          transporterWarning.textContent = '';
+        }
+        
+        // Check access to post load and market pages
+        const hasPostLoadAccess = await checkPageAccess('shipper-post');
+        const hasMarketAccess = await checkPageAccess('market');
+        
+        if (u.data.user.role === 'shipper') {
+          if (!hasPostLoadAccess || !hasMarketAccess) {
+            let warningText = '';
+            if (!hasPostLoadAccess && !hasMarketAccess) {
+              warningText = 'You do not have access to Post Load and Market pages. Please contact admin via Messages page.';
+            } else if (!hasPostLoadAccess) {
+              warningText = 'You do not have access to Post Load page. Please contact admin via Messages page.';
+            } else if (!hasMarketAccess) {
+              warningText = 'You do not have access to Market page. Please contact admin via Messages page.';
+            }
+            
+            if (shipperWarning) {
+              shipperWarning.textContent = warningText;
+              shipperWarning.classList.remove('hidden');
+            }
+          }
+        } else if (u.data.user.role === 'transporter') {
+          if (!hasPostLoadAccess || !hasMarketAccess) {
+            let warningText = '';
+            if (!hasPostLoadAccess && !hasMarketAccess) {
+              warningText = 'You do not have access to Post Load and Market pages. Please contact admin via Messages page.';
+            } else if (!hasPostLoadAccess) {
+              warningText = 'You do not have access to Post Load page. Please contact admin via Messages page.';
+            } else if (!hasMarketAccess) {
+              warningText = 'You do not have access to Market page. Please contact admin via Messages page.';
+            }
+            
+            if (transporterWarning) {
+              transporterWarning.textContent = warningText;
+              transporterWarning.classList.remove('hidden');
+            }
+          }
+        }
+      };
+      
+      const renderControl = async () => {
+        const u = getCurrentUserSync();
+        if (!isAdmin(u)) return;
+        
+        try {
+          const users = await getUsers();
+          const tbodyUsers = el('tableUsers').querySelector('tbody');
+          
+          // Clear table using safe method
+          while (tbodyUsers.firstChild) {
+            tbodyUsers.removeChild(tbodyUsers.firstChild);
+          }
+          
+          users.forEach(user => {
+            const row = document.createElement('tr');
+            
+            const nameCell = document.createElement('td');
+            nameCell.textContent = user.name;
+            
+            const emailCell = document.createElement('td');
+            emailCell.textContent = user.email;
+            
+            const membershipCell = document.createElement('td');
+            const membershipSpan = document.createElement('span');
+            membershipSpan.className = 'membership-number';
+            membershipSpan.textContent = user.membership_number || 'Not assigned';
+            membershipCell.appendChild(membershipSpan);
+            
+            const roleCell = document.createElement('td');
+            roleCell.textContent = user.role;
+            
+            const joinDateCell = document.createElement('td');
+            joinDateCell.textContent = new Date(user.created_at).toLocaleDateString();
+            
+            const actionsCell = document.createElement('td');
+            const deleteButton = document.createElement('button');
+            deleteButton.className = 'btn danger';
+            deleteButton.textContent = 'Delete';
+            deleteButton.onclick = () => deleteUser(user.email);
+            actionsCell.appendChild(deleteButton);
+            
+            row.appendChild(nameCell);
+            row.appendChild(emailCell);
+            row.appendChild(membershipCell);
+            row.appendChild(roleCell);
+            row.appendChild(joinDateCell);
+            row.appendChild(actionsCell);
+            
+            tbodyUsers.appendChild(row);
+          });
+          
+          // Populate user dropdowns
+          await populateUserDropdown();
+          await populateLoadDropdown();
+          
+          const selectUserForPassword = el('selectUserForPassword');
+          if (selectUserForPassword) {
+            // Clear dropdown using safe method
+            while (selectUserForPassword.firstChild) {
+              selectUserForPassword.removeChild(selectUserForPassword.firstChild);
+            }
+            
+            const defaultOption = document.createElement('option');
+            defaultOption.value = '';
+            defaultOption.textContent = '-- Select User --';
+            selectUserForPassword.appendChild(defaultOption);
+            
+            users.forEach(user => {
+              const option = document.createElement('option');
+              option.value = user.email;
+              option.textContent = `${user.name} (${user.email})`;
+              selectUserForPassword.appendChild(option);
+            });
+          }
+          
+        } catch (error) { console.error('Error rendering control:', error); }
+      };
+      
+      // UPDATED: Main render function to include banner updates
+      const render = async () => {
+        await renderHeader();
+        await renderBanners(); // UPDATED: Call after header
+        await renderAccessWarnings();
+        
+        // Hide all pages first
+        document.querySelectorAll('section').forEach(s => s.classList.add('hidden'));
+        
+        const hash = location.hash.slice(1) || 'index';
+        const u = getCurrentUserSync();
+        
+        // Check if user can access the requested page
+        let canAccess = false;
+        if (hash === 'index' || hash === 'login' || hash === 'register-options' || 
+            hash === 'register-shipper' || hash === 'register-transporter') {
+          canAccess = true;
+        } else if (u) {
+          canAccess = await checkPageAccess(hash);
+        }
+        
+        if (!canAccess) {
+          if (u) {
+            location.hash = u.data.user.role === 'admin' ? '#control' : 
+                           u.data.user.role === 'shipper' ? '#shipper-dashboard' : '#transporter-dashboard';
+          } else {
+            location.hash = '#login';
+          }
+          return;
+        }
+        
+        // Show the appropriate page
+        setHidden(`page-${hash}`, false);
+        
+        // Render page-specific content
+        switch(hash) {
+          case 'shipper-dashboard':
+            await renderShipper();
+            break;
+          case 'transporter-dashboard':
+            await renderTransporter();
+            break;
+          case 'market':
+            await renderMarket(); // UPDATED: Uses new market rendering
+            break;
+          case 'messages':
+            await renderMessages();
+            break;
+          case 'shipper-profile':
+            await renderShipperProfile(); // UPDATED: Uses new profile rendering
+            break;
+          case 'transporter-profile':
+            await renderTransporterProfile(); // UPDATED: Uses new profile rendering
+            break;
+          case 'control':
+            await renderControl();
+            break;
+        }
+      };
+      
+      // User load management functions
+      const editUserLoad = async (loadId) => {
+        try {
+          const loads = await getLoads();
+          const load = loads.find(l => l.id === loadId);
+          
+          if (!load) {
+            showNotification('Load not found', 'error');
+            return;
+          }
+          
+          // Create a simple edit form in a modal-like approach
+          const editForm = document.createElement('div');
+          editForm.style.position = 'fixed';
+          editForm.style.top = '0';
+          editForm.style.left = '0';
+          editForm.style.width = '100%';
+          editForm.style.height = '100%';
+          editForm.style.backgroundColor = 'rgba(0,0,0,0.7)';
+          editForm.style.display = 'flex';
+          editForm.style.justifyContent = 'center';
+          editForm.style.alignItems = 'center';
+          editForm.style.zIndex = '1000';
+          
+          const formContent = document.createElement('div');
+          formContent.className = 'card';
+          formContent.style.maxWidth = '500px';
+          formContent.style.width = '90%';
+          formContent.style.maxHeight = '90vh';
+          formContent.style.overflowY = 'auto';
+          
+          const formTitle = document.createElement('h3');
+          formTitle.textContent = 'Edit Load';
+          formContent.appendChild(formTitle);
+          
+          const form = document.createElement('form');
+          form.id = 'formEditUserLoad';
+          
+          const formGrid = document.createElement('div');
+          formGrid.className = 'grid two';
+          
+          const fields = [
+            { id: 'userEditOrigin', label: 'Origin', value: load.origin, required: true },
+            { id: 'userEditDestination', label: 'Destination', value: load.destination, required: true },
+            { id: 'userEditDate', label: 'Pickup Date', value: load.date.split('T')[0], type: 'date', required: true },
+            { id: 'userEditCargo', label: 'Cargo Type', value: load.cargo_type, required: true },
+            { id: 'userEditWeight', label: 'Weight (Tons)', value: load.weight, type: 'number', required: true }
+          ];
+          
+          fields.forEach(field => {
+            const fieldContainer = document.createElement('div');
+            
+            const label = document.createElement('label');
+            label.htmlFor = field.id;
+            label.textContent = field.label;
+            
+            const input = document.createElement('input');
+            input.id = field.id;
+            input.name = field.id.replace('userEdit', '').toLowerCase();
+            input.value = field.value;
+            input.required = field.required;
+            
+            if (field.type) {
+              input.type = field.type;
+            }
+            
+            fieldContainer.appendChild(label);
+            fieldContainer.appendChild(input);
+            formGrid.appendChild(fieldContainer);
+          });
+          
+          const notesContainer = document.createElement('div');
+          notesContainer.className = 'two';
+          notesContainer.style.gridColumn = '1 / -1';
+          
+          const notesLabel = document.createElement('label');
+          notesLabel.htmlFor = 'userEditNotes';
+          notesLabel.textContent = 'Notes';
+          
+          const notesTextarea = document.createElement('textarea');
+          notesTextarea.id = 'userEditNotes';
+          notesTextarea.name = 'notes';
+          notesTextarea.rows = 3;
+          notesTextarea.textContent = load.notes || '';
+          
+          notesContainer.appendChild(notesLabel);
+          notesContainer.appendChild(notesTextarea);
+          formGrid.appendChild(notesContainer);
+          
+          form.appendChild(formGrid);
+          
+          const formToolbar = document.createElement('div');
+          formToolbar.className = 'toolbar';
+          formToolbar.style.marginTop = '12px';
+          
+          const saveButton = document.createElement('button');
+          saveButton.type = 'button';
+          saveButton.className = 'btn primary';
+          saveButton.textContent = 'Save Changes';
+          saveButton.onclick = async () => {
+            const origin = el('userEditOrigin').value;
+            const destination = el('userEditDestination').value;
+            const date = el('userEditDate').value;
+            const cargo = el('userEditCargo').value;
+            const weight = el('userEditWeight').value;
+            const notes = el('userEditNotes').value;
+            
+            if (!origin || !destination || !date || !cargo || !weight) {
+              showNotification('Please fill in all required fields', 'error');
+              return;
+            }
+            
+            try {
+              await updateLoad(loadId, {
+                origin,
+                destination,
+                date,
+                cargo_type: cargo,
+                weight: parseFloat(weight),
+                notes
+              });
+              
+              showNotification('Load updated successfully', 'success');
+              document.body.removeChild(editForm);
+              await render();
+            } catch (error) {
+              console.error('Error updating load:', error);
+              showNotification('Failed to update load', 'error');
+            }
+          };
+          
+          const cancelButton = document.createElement('button');
+          cancelButton.type = 'button';
+          cancelButton.className = 'btn';
+          cancelButton.textContent = 'Cancel';
+          cancelButton.onclick = () => document.body.removeChild(editForm);
+          
+          formToolbar.appendChild(saveButton);
+          formToolbar.appendChild(cancelButton);
+          form.appendChild(formToolbar);
+          
+          formContent.appendChild(form);
+          editForm.appendChild(formContent);
+          document.body.appendChild(editForm);
+          
+        } catch (error) {
+          console.error('Error editing load:', error);
+          showNotification('Failed to edit load', 'error');
+        }
+      };
+      
+      const deleteUserLoad = async (loadId) => {
+        if (confirm('Are you sure you want to delete this load?')) {
+          try {
+            await deleteLoad(loadId);
+            showNotification('Load deleted successfully', 'success');
+            await render();
+          } catch (error) {
+            console.error('Error deleting load:', error);
+            showNotification('Failed to delete load', 'error');
+          }
+        }
+      };
+      
+      // UPDATED: Profile save handlers
+      const initProfileSaveHandlers = () => {
+        // Shipper profile save
+        el('saveProfileShipper')?.addEventListener('click', async () => {
+          const name = el('profileShipperName').value;
+          const phone = el('profileShipperPhone').value;
+          const address = el('profileShipperAddress').value;
+          const password = el('profileShipperPassword').value;
+          
+          if (!name || !phone) {
+            showNotification('Name and phone are required', 'error');
+            return;
+          }
+          
+          setButtonLoading('saveProfileShipper', true);
+          try {
+            const profileData = { name, phone, address };
+            if (password) {
+              profileData.password = password;
+            }
+            await updateUserProfile(profileData);
+            showNotification('Profile updated successfully', 'success');
+            location.hash = '#shipper-dashboard';
+          } catch (error) {
+            console.error('Error updating profile:', error);
+          } finally {
+            setButtonLoading('saveProfileShipper', false);
+          }
+        });
+        
+        // Transporter profile save
+        el('saveProfileTransporter')?.addEventListener('click', async () => {
+          const name = el('profileTransporterName').value;
+          const phone = el('profileTransporterPhone').value;
+          const address = el('profileTransporterAddress').value;
+          const password = el('profileTransporterPassword').value;
+          
+          if (!name || !phone) {
+            showNotification('Name and phone are required', 'error');
+            return;
+          }
+          
+          setButtonLoading('saveProfileTransporter', true);
+          try {
+            const profileData = { name, phone, address };
+            if (password) {
+              profileData.password = password;
+            }
+            await updateUserProfile(profileData);
+            showNotification('Profile updated successfully', 'success');
+            location.hash = '#transporter-dashboard';
+          } catch (error) {
+            console.error('Error updating profile:', error);
+          } finally {
+            setButtonLoading('saveProfileTransporter', false);
+          }
+        });
+      };
+      
+      // Event handlers
+      const init = () => {
+        // Form submissions
+        el('formLogin')?.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const email = el('loginEmail').value;
+          const password = el('loginPassword').value;
+          if (!email || !password) {
+            showNotification('Please fill in all fields', 'error');
+            return;
+          }
+          setButtonLoading('formLogin', true);
+          try {
+            const user = await login(email, password);
+            if (user) {
+              location.hash = user.data.user.role === 'admin' ? '#control' : 
+                             user.data.user.role === 'shipper' ? '#shipper-dashboard' : '#transporter-dashboard';
+            }
+          } catch (error) {
+            console.error('Login error:', error);
+          } finally {
+            setButtonLoading('formLogin', false);
+          }
+        });
+        
+        el('formRegShipper')?.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const formData = new FormData(e.target);
+          const data = Object.fromEntries(formData);
+          data.role = 'shipper';
+          setButtonLoading('formRegShipper', true);
+          try {
+            await registerUser(data);
+            location.hash = '#shipper-dashboard';
+          } catch (error) {
+            console.error('Registration error:', error);
+          } finally {
+            setButtonLoading('formRegShipper', false);
+          }
+        });
+        
+        el('formRegTransporter')?.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const formData = new FormData(e.target);
+          const data = Object.fromEntries(formData);
+          data.role = 'transporter';
+          setButtonLoading('formRegTransporter', true);
+          try {
+            await registerUser(data);
+            location.hash = '#transporter-dashboard';
+          } catch (error) {
+            console.error('Registration error:', error);
+          } finally {
+            setButtonLoading('formRegTransporter', false);
+          }
+        });
+        
+        // UPDATED: Post load form - removed shipper ID and email fields
+        el('formPostLoad')?.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const formData = new FormData(e.target);
+          const data = Object.fromEntries(formData);
+          setButtonLoading('formPostLoad', true);
+          try {
+            await postLoad(data);
+            e.target.reset();
+            location.hash = getCurrentUserSync()?.data?.user?.role === 'shipper' ? '#shipper-dashboard' : '#transporter-dashboard';
+          } catch (error) {
+            console.error('Post load error:', error);
+          } finally {
+            setButtonLoading('formPostLoad', false);
+          }
+        });
+        
+        el('formSendMsg')?.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const to = el('msgTo').value;
+          const body = el('msgBody').value;
+          setButtonLoading('formSendMsg', true);
+          try {
+            await sendMessage(to, body);
+            e.target.reset();
+            await renderMessages();
+          } catch (error) {
+            console.error('Send message error:', error);
+          } finally {
+            setButtonLoading('formSendMsg', false);
+          }
+        });
+        
+        // Access control event listeners
+        el('btnLoadUserAccess')?.addEventListener('click', loadUserAccess);
+        el('btnSaveUserAccess')?.addEventListener('click', saveUserAccess);
+        el('btnRefreshAccessControl')?.addEventListener('click', refreshAccessControl);
+        
+        // Load management event listeners
+        el('btnLoadLoadDetails')?.addEventListener('click', async () => {
+          const select = el('selectLoad');
+          const loadId = select.value;
+          
+          if (!loadId) {
+            showNotification('Please select a load first', 'warning');
+            return;
+          }
+          
+          await displayLoadDetails(loadId);
+        });
+        
+        el('btnDeleteLoad')?.addEventListener('click', deleteSelectedLoad);
+        
+        // Reset password functionality
+        el('btnResetPass')?.addEventListener('click', async () => {
+          const select = el('selectUserForPassword');
+          const password = el('resetPass').value;
+          const email = select.value;
+          
+          if (!email || !password) {
+            showNotification('Please select a user and enter a new password', 'warning');
+            return;
+          }
+          
+          try {
+            await resetPassword(email, password);
+            showNotification('Password reset successfully', 'success');
+            el('resetPass').value = '';
+          } catch (error) {
+            console.error('Reset password error:', error);
+            showNotification('Failed to reset password: ' + error.message, 'error');
+          }
+        });
+        
+        el('btnLogout')?.addEventListener('click', logout);
+        
+        el('btnMarketFilterLoads')?.addEventListener('click', async () => {
+          const origin = el('marketFilterOrigin').value;
+          const destination = el('marketFilterDest').value;
+          try {
+            const loads = await getLoads({ origin, destination });
+            const tbody = el('tableMarketLoads').querySelector('tbody');
+            
+            // Clear table using safe method
+            while (tbody.firstChild) {
+              tbody.removeChild(tbody.firstChild);
+            }
+            
+            if (!loads || loads.length === 0) {
+              const row = document.createElement('tr');
+              const cell = document.createElement('td');
+              cell.colSpan = 10;
+              cell.className = 'muted';
+              cell.textContent = 'No loads found matching your criteria.';
+              row.appendChild(cell);
+              tbody.appendChild(row);
+              return;
+            }
+            
+            loads.forEach(load => {
+              const row = document.createElement('tr');
+              if (isLoadExpired(load)) row.classList.add('expired');
+              
+              const postedDate = new Date(load.created_at).toLocaleDateString();
+              const expiryDate = new Date(load.expires_at).toLocaleDateString();
+              const status = getLoadStatus(load);
+              
+              const refCell = document.createElement('td');
+              refCell.textContent = sanitize(load.ref);
+              
+              const originCell = document.createElement('td');
+              originCell.textContent = sanitize(load.origin);
+              
+              const destCell = document.createElement('td');
+              destCell.textContent = sanitize(load.destination);
+              
+              const dateCell = document.createElement('td');
+              dateCell.textContent = postedDate;
+              
+              const expiryCell = document.createElement('td');
+              expiryCell.textContent = expiryDate;
+              
+              const cargoCell = document.createElement('td');
+              cargoCell.textContent = sanitize(load.cargo_type);
+              
+              const weightCell = document.createElement('td');
+              weightCell.textContent = load.weight;
+              
+              const statusCell = document.createElement('td');
+              statusCell.innerHTML = getStatusBadge(status);
+              
+              // UPDATED: Show membership number instead of name/email
+              const postedByCell = document.createElement('td');
+              postedByCell.textContent = sanitize(load.shipper_membership || load.posted_by || 'Unknown');
+              
+              const actionsCell = document.createElement('td');
+              const contactButton = document.createElement('button');
+              contactButton.className = 'btn';
+              contactButton.textContent = 'Contact';
+              contactButton.onclick = () => {
+                const membershipNumber = load.shipper_membership || load.posted_by;
+                if (membershipNumber) {
+                  location.hash = '#messages';
+                  setTimeout(() => {
+                    el('msgTo').value = membershipNumber;
+                  }, 100);
+                }
+              };
+              actionsCell.appendChild(contactButton);
+              
+              row.appendChild(refCell);
+              row.appendChild(originCell);
+              row.appendChild(destCell);
+              row.appendChild(dateCell);
+              row.appendChild(expiryCell);
+              row.appendChild(cargoCell);
+              row.appendChild(weightCell);
+              row.appendChild(statusCell);
+              row.appendChild(postedByCell);
+              row.appendChild(actionsCell);
+              
+              tbody.appendChild(row);
+            });
+          } catch (error) { console.error('Error filtering loads:', error); }
+        });
+        
+        // Initialize profile save handlers
+        initProfileSaveHandlers();
+        
+        // Global functions for onclick handlers
+        window.deleteUser = async (email) => {
+          if (confirm('Are you sure you want to delete this user?')) {
+            try {
+              await deleteUser(email);
+              await render();
+            } catch (error) {
+              console.error('Error deleting user:', error);
+            }
+          }
+        };
+        
+        window.deleteMessage = async (messageId) => {
+          if (confirm('Are you sure you want to delete this message?')) {
+            try {
+              await deleteMessage(messageId);
+              await renderMessages();
+            } catch (error) {
+              console.error('Error deleting message:', error);
+            }
+          }
+        };
         
         // Initialize the app
         render();
