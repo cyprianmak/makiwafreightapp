@@ -15,7 +15,7 @@ const pool = new Pool({
   database: process.env.DB_DATABASE,
   password: process.env.DB_PASSWORD,
   port: process.env.DB_PORT,
-  ssl: { rejectUnauthorized: false } // Required for Render
+  ssl: { rejectUnauthorized: false }
 });
 
 // Middleware
@@ -23,46 +23,15 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static('.'));
 
-// API Routes
-
-// User registration
-app.post('/api/users/register', async (req, res) => {
-  const { name, email, password, phone, company, address, role, vehicle_info } = req.body;
-
-  try {
-    // Check if user exists
-    const userCheck = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
-    if (userCheck.rows.length > 0) {
-      return res.status(400).json({ error: 'Email already in use' });
-    }
-
-    // Hash password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-
-    // Insert user
-    const result = await pool.query(
-      `INSERT INTO users (name, email, password, phone, company, address, role, vehicle_info, created_at, updated_at) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW()) RETURNING *`,
-      [name, email, hashedPassword, phone, company, address, role, vehicle_info]
-    );
-
-    // Set default ACLs
-    await pool.query('INSERT INTO acl (user_email, post, market) VALUES ($1, $2, $3)', [
-      email, 
-      role === 'shipper' ? true : false, 
-      role === 'transporter' ? true : false
-    ]);
-
-    res.status(201).json(result.rows[0]);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
-  }
+// Serve the main HTML file
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// User login
-app.post('/api/users/login', async (req, res) => {
+// API Routes that match frontend expectations
+
+// Auth routes (match frontend)
+app.post('/api/auth/login', async (req, res) => {
   const { email, password } = req.body;
 
   try {
@@ -83,34 +52,93 @@ app.post('/api/users/login', async (req, res) => {
 
     // Remove password from response
     const { password: _, ...userWithoutPassword } = user;
-    res.json({ ...userWithoutPassword, acl });
+    
+    // Return format expected by frontend
+    res.json({ 
+      data: { 
+        user: userWithoutPassword, 
+        token: 'mock-jwt-token-' + user.id,
+        acl 
+      } 
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
   }
 });
 
-// Get user by ID
-app.get('/api/users/:id', async (req, res) => {
+app.post('/api/auth/register', async (req, res) => {
+  const { name, email, password, phone, company, address, role, vehicle_info } = req.body;
+
   try {
-    const result = await pool.query('SELECT id, name, email, phone, company, address, role, vehicle_info, created_at, updated_at FROM users WHERE id = $1', [req.params.id]);
-    if (result.rows.length === 0) {
+    // Check if user exists
+    const userCheck = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    if (userCheck.rows.length > 0) {
+      return res.status(400).json({ error: 'Email already in use' });
+    }
+
+    // Hash password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    // Generate membership number
+    const membershipNumber = 'MF' + Math.random().toString(36).substr(2, 6).toUpperCase();
+
+    // Insert user
+    const result = await pool.query(
+      `INSERT INTO users (name, email, password, phone, company, address, role, vehicle_info, membership_number, created_at, updated_at) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW()) RETURNING *`,
+      [name, email, hashedPassword, phone, company, address, role, vehicle_info, membershipNumber]
+    );
+
+    const newUser = result.rows[0];
+
+    // Set default ACLs
+    await pool.query('INSERT INTO acl (user_email, post, market) VALUES ($1, $2, $3)', [
+      email, 
+      role === 'shipper' ? true : false, 
+      role === 'transporter' ? true : false
+    ]);
+
+    // Remove password from response
+    const { password: _, ...userWithoutPassword } = newUser;
+
+    // Return format expected by frontend
+    res.status(201).json({ 
+      data: { 
+        user: userWithoutPassword, 
+        token: 'mock-jwt-token-' + newUser.id 
+      },
+      membership_number: membershipNumber
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// User routes (match frontend)
+app.get('/api/users/me', async (req, res) => {
+  try {
+    // This is a mock - you'll need to implement proper JWT auth
+    const user = await pool.query('SELECT id, name, email, phone, company, address, role, vehicle_info, membership_number, created_at FROM users WHERE id = $1', [1]);
+    if (user.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
     }
-    res.json(result.rows[0]);
+    res.json({ data: user.rows[0] });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
   }
 });
 
-// Update user
-app.put('/api/users/:id', async (req, res) => {
+app.put('/api/users/me', async (req, res) => {
   const { name, phone, address, password } = req.body;
-  const id = req.params.id;
 
   try {
-    // Build the update query dynamically
+    // Mock user ID - implement proper auth
+    const userId = 1;
+    
     let updateFields = [];
     let values = [];
     let paramIndex = 1;
@@ -139,7 +167,7 @@ app.put('/api/users/:id', async (req, res) => {
     }
 
     updateFields.push(`updated_at = NOW()`);
-    values.push(id);
+    values.push(userId);
 
     const query = `UPDATE users SET ${updateFields.join(', ')} WHERE id = $${paramIndex} RETURNING *`;
     const result = await pool.query(query, values);
@@ -148,75 +176,50 @@ app.put('/api/users/:id', async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    // Remove password from response
     const { password: _, ...userWithoutPassword } = result.rows[0];
-    res.json(userWithoutPassword);
+    res.json({ data: userWithoutPassword });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
   }
 });
 
-// Create a load
+// Load routes (already match frontend)
 app.post('/api/loads', async (req, res) => {
-  const { origin, destination, date, cargo_type, weight, notes, shipper_id } = req.body;
+  const { origin, destination, date, cargo_type, weight, notes } = req.body;
 
   try {
+    // Mock user ID - implement proper auth
+    const shipper_id = 1;
+    const ref = 'LD' + Date.now().toString().slice(-6);
+    
     // Calculate expiry date (7 days from now)
     const expires_at = new Date();
     expires_at.setDate(expires_at.getDate() + 7);
 
     const result = await pool.query(
-      `INSERT INTO loads (origin, destination, date, cargo_type, weight, notes, shipper_id, created_at, updated_at, expires_at, status) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW(), $8, 'active') RETURNING *`,
-      [origin, destination, date, cargo_type, weight, notes, shipper_id, expires_at]
+      `INSERT INTO loads (ref, origin, destination, date, cargo_type, weight, notes, shipper_id, created_at, updated_at, expires_at, status) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW(), $9, 'active') RETURNING *`,
+      [ref, origin, destination, date, cargo_type, weight, notes, shipper_id, expires_at]
     );
 
-    res.status(201).json(result.rows[0]);
+    res.status(201).json({ data: result.rows[0] });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
   }
 });
 
-// Get loads by shipper ID
-app.get('/api/loads/shipper/:shipperId', async (req, res) => {
-  try {
-    const result = await pool.query('SELECT * FROM loads WHERE shipper_id = $1 ORDER BY created_at DESC', [req.params.shipperId]);
-    res.json(result.rows);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
-// Get all active loads (for market)
 app.get('/api/loads', async (req, res) => {
   try {
-    // Only return loads that haven't expired
-    const result = await pool.query("SELECT * FROM loads WHERE expires_at > NOW() AND status = 'active' ORDER BY created_at DESC");
-    res.json(result.rows);
+    const result = await pool.query("SELECT l.*, u.membership_number as shipper_membership FROM loads l LEFT JOIN users u ON l.shipper_id = u.id WHERE expires_at > NOW() AND status = 'active' ORDER BY created_at DESC");
+    res.json({ data: { loads: result.rows } });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
   }
 });
 
-// Delete a load
-app.delete('/api/loads/:id', async (req, res) => {
-  try {
-    const result = await pool.query('DELETE FROM loads WHERE id = $1 RETURNING *', [req.params.id]);
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Load not found' });
-    }
-    res.json({ message: 'Load deleted successfully' });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
-// Update a load
 app.put('/api/loads/:id', async (req, res) => {
   const { origin, destination, date, cargo_type, weight, notes } = req.body;
   const id = req.params.id;
@@ -232,24 +235,40 @@ app.put('/api/loads/:id', async (req, res) => {
       return res.status(404).json({ error: 'Load not found' });
     }
 
-    res.json(result.rows[0]);
+    res.json({ data: result.rows[0] });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
   }
 });
 
-// Send a message
+app.delete('/api/loads/:id', async (req, res) => {
+  try {
+    const result = await pool.query('DELETE FROM loads WHERE id = $1 RETURNING *', [req.params.id]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Load not found' });
+    }
+    res.json({ message: 'Load deleted successfully' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Message routes (match frontend)
 app.post('/api/messages', async (req, res) => {
-  const { sender_id, receiver_email, body } = req.body;
+  const { sender_membership, recipient_membership, body } = req.body;
 
   try {
-    // Get receiver ID
-    const receiverResult = await pool.query('SELECT id FROM users WHERE email = $1', [receiver_email]);
-    if (receiverResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Receiver not found' });
+    // Get sender and receiver IDs from membership numbers
+    const senderResult = await pool.query('SELECT id FROM users WHERE membership_number = $1', [sender_membership]);
+    const receiverResult = await pool.query('SELECT id FROM users WHERE membership_number = $1', [recipient_membership]);
+    
+    if (senderResult.rows.length === 0 || receiverResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Sender or recipient not found' });
     }
 
+    const sender_id = senderResult.rows[0].id;
     const receiver_id = receiverResult.rows[0].id;
 
     const result = await pool.query(
@@ -257,62 +276,48 @@ app.post('/api/messages', async (req, res) => {
       [sender_id, receiver_id, body]
     );
 
-    res.status(201).json(result.rows[0]);
+    res.status(201).json({ data: result.rows[0] });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
   }
 });
 
-// Get messages for a user
-app.get('/api/messages/:userId', async (req, res) => {
+app.get('/api/messages', async (req, res) => {
   try {
+    // Mock - get messages for current user
+    const userId = 1;
     const result = await pool.query(
-      `SELECT m.*, u.name as sender_name, u.email as sender_email 
+      `SELECT m.*, 
+              u1.membership_number as sender_membership,
+              u2.membership_number as recipient_membership
        FROM messages m 
-       JOIN users u ON m.sender_id = u.id 
-       WHERE m.receiver_id = $1 
+       JOIN users u1 ON m.sender_id = u1.id 
+       JOIN users u2 ON m.receiver_id = u2.id 
+       WHERE m.sender_id = $1 OR m.receiver_id = $1 
        ORDER BY m.created_at DESC`,
-      [req.params.userId]
+      [userId]
     );
-    res.json(result.rows);
+    res.json({ data: { messages: result.rows } });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
   }
 });
 
-// Delete a message
-app.delete('/api/messages/:id', async (req, res) => {
+// Admin routes (match frontend)
+app.get('/api/users', async (req, res) => {
   try {
-    const result = await pool.query('DELETE FROM messages WHERE id = $1 RETURNING *', [req.params.id]);
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Message not found' });
-    }
-    res.json({ message: 'Message deleted successfully' });
+    const result = await pool.query('SELECT id, name, email, phone, company, address, role, vehicle_info, membership_number, created_at, updated_at FROM users ORDER BY created_at DESC');
+    res.json({ data: { users: result.rows } });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
   }
 });
 
-// Admin routes
-
-// Get all users (admin)
-app.get('/api/admin/users', async (req, res) => {
-  try {
-    const result = await pool.query('SELECT id, name, email, phone, company, address, role, vehicle_info, created_at, updated_at FROM users ORDER BY created_at DESC');
-    res.json(result.rows);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
-// Delete a user (admin)
 app.delete('/api/admin/users/:email', async (req, res) => {
   try {
-    // First, get the user ID
     const userResult = await pool.query('SELECT id FROM users WHERE email = $1', [req.params.email]);
     if (userResult.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
@@ -320,7 +325,6 @@ app.delete('/api/admin/users/:email', async (req, res) => {
 
     const userId = userResult.rows[0].id;
 
-    // Delete related data
     await pool.query('DELETE FROM messages WHERE sender_id = $1 OR receiver_id = $1', [userId]);
     await pool.query('DELETE FROM loads WHERE shipper_id = $1', [userId]);
     await pool.query('DELETE FROM acl WHERE user_email = $1', [req.params.email]);
@@ -333,13 +337,12 @@ app.delete('/api/admin/users/:email', async (req, res) => {
   }
 });
 
-// Reset password (admin)
 app.post('/api/admin/reset-password', async (req, res) => {
-  const { email, newPassword } = req.body;
+  const { email, new_password } = req.body;
 
   try {
     const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(newPassword, salt);
+    const hashedPassword = await bcrypt.hash(new_password, salt);
 
     const result = await pool.query(
       'UPDATE users SET password = $1, updated_at = NOW() WHERE email = $2 RETURNING *',
@@ -357,92 +360,9 @@ app.post('/api/admin/reset-password', async (req, res) => {
   }
 });
 
-// Get all loads (admin)
-app.get('/api/admin/loads', async (req, res) => {
-  try {
-    const result = await pool.query('SELECT * FROM loads ORDER BY created_at DESC');
-    res.json(result.rows);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
-// Get ACLs (admin)
-app.get('/api/admin/acl', async (req, res) => {
-  try {
-    const result = await pool.query('SELECT * FROM acl');
-    res.json(result.rows);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
-// Update ACL (admin)
-app.put('/api/admin/acl', async (req, res) => {
-  const { user_email, post, market } = req.body;
-
-  try {
-    const result = await pool.query(
-      'UPDATE acl SET post = $1, market = $2 WHERE user_email = $3 RETURNING *',
-      [post, market, user_email]
-    );
-
-    if (result.rows.length === 0) {
-      // Insert if not exists
-      const insertResult = await pool.query(
-        'INSERT INTO acl (user_email, post, market) VALUES ($1, $2, $3) RETURNING *',
-        [user_email, post, market]
-      );
-      return res.json(insertResult.rows[0]);
-    }
-
-    res.json(result.rows[0]);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
-// Get banners (admin)
-app.get('/api/admin/banners', async (req, res) => {
-  try {
-    const result = await pool.query('SELECT * FROM banners');
-    if (result.rows.length === 0) {
-      // Insert default banners if not exist
-      await pool.query("INSERT INTO banners (index, dashboard) VALUES ('', '')");
-      const newResult = await pool.query('SELECT * FROM banners');
-      return res.json(newResult.rows[0]);
-    }
-    res.json(result.rows[0]);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
-// Update banners (admin)
-app.put('/api/admin/banners', async (req, res) => {
-  const { index, dashboard } = req.body;
-
-  try {
-    const result = await pool.query(
-      'UPDATE banners SET index = $1, dashboard = $2 WHERE id = 1 RETURNING *',
-      [index, dashboard]
-    );
-
-    res.json(result.rows[0]);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
-// Initialize database tables
+// Initialize database (same as before)
 const initializeDatabase = async () => {
   try {
-    // Create tables if they don't exist
     await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
@@ -454,6 +374,7 @@ const initializeDatabase = async () => {
         address TEXT,
         role VARCHAR(50) NOT NULL,
         vehicle_info TEXT,
+        membership_number VARCHAR(20) UNIQUE,
         created_at TIMESTAMP DEFAULT NOW(),
         updated_at TIMESTAMP DEFAULT NOW()
       )
@@ -504,26 +425,24 @@ const initializeDatabase = async () => {
       )
     `);
 
-    // Check if admin user exists
+    // Create admin user if not exists
     const adminEmail = 'cyprianmak@gmail.com';
     const adminResult = await pool.query('SELECT * FROM users WHERE email = $1', [adminEmail]);
     
     if (adminResult.rows.length === 0) {
-      // Create admin user
       const salt = await bcrypt.genSalt(10);
       const hashedPassword = await bcrypt.hash('Muchandida@1', salt);
+      const adminMembership = 'MFADMIN01';
       
       await pool.query(
-        `INSERT INTO users (name, email, password, role, created_at, updated_at) 
-         VALUES ($1, $2, $3, $4, NOW(), NOW())`,
-        ['Admin', adminEmail, hashedPassword, 'admin']
+        `INSERT INTO users (name, email, password, role, membership_number, created_at, updated_at) 
+         VALUES ($1, $2, $3, $4, $5, NOW(), NOW())`,
+        ['Admin', adminEmail, hashedPassword, 'admin', adminMembership]
       );
 
-      // Set admin ACLs
       await pool.query('INSERT INTO acl (user_email, post, market) VALUES ($1, true, true)', [adminEmail]);
     }
 
-    // Check if banners exist
     const bannerResult = await pool.query('SELECT * FROM banners');
     if (bannerResult.rows.length === 0) {
       await pool.query("INSERT INTO banners (index, dashboard) VALUES ('', '')");
@@ -540,172 +459,3 @@ app.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`);
   await initializeDatabase();
 });
-// Bulk import functions
-const bulkImportLoads = async (file) => {
-    if (!file) {
-        showNotification('Please select a file', 'error');
-        return;
-    }
-
-    const formData = new FormData();
-    formData.append('file', file);
-
-    try {
-        const response = await fetch(`${API_BASE}/admin/bulk-import`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${getCurrentUserSync()?.data?.token}`
-            },
-            body: formData
-        });
-
-        const result = await response.json();
-        
-        if (result.success) {
-            displayImportResults(result.data);
-            showNotification(`Successfully imported ${result.data.created.length} loads`, 'success');
-            
-            // Refresh the loads display
-            if (location.hash === '#control') {
-                await populateLoadDropdown();
-            }
-        } else {
-            showNotification('Import failed: ' + result.error, 'error');
-        }
-    } catch (error) {
-        console.error('Bulk import error:', error);
-        showNotification('Import failed: ' + error.message, 'error');
-    }
-};
-
-const downloadImportTemplate = async () => {
-    try {
-        const response = await fetch(`${API_BASE}/admin/bulk-import/template`, {
-            headers: {
-                'Authorization': `Bearer ${getCurrentUserSync()?.data?.token}`,
-                'Content-Type': 'application/json'
-            }
-        });
-
-        const result = await response.json();
-        
-        if (result.success) {
-            // Create a downloadable text file
-            const templateContent = result.data.template;
-            const blob = new Blob([templateContent], { type: 'text/plain' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'bulk_load_import_template.txt';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-            
-            showNotification('Template downloaded successfully', 'success');
-        } else {
-            showNotification('Failed to download template', 'error');
-        }
-    } catch (error) {
-        console.error('Template download error:', error);
-        showNotification('Failed to download template: ' + error.message, 'error');
-    }
-};
-
-const displayImportResults = (results) => {
-    const resultsContainer = el('importResults');
-    const resultsContent = el('importResultsContent');
-    
-    if (!resultsContainer || !resultsContent) return;
-    
-    let html = `
-        <div class="banner success">
-            <strong>Successfully imported:</strong> ${results.created.length} loads<br>
-            <strong>Failed:</strong> ${results.failed.length} loads<br>
-            <strong>Total processed:</strong> ${results.total_processed} loads
-        </div>
-    `;
-    
-    if (results.created.length > 0) {
-        html += `
-            <div style="margin-top: 12px;">
-                <h5>Imported Loads:</h5>
-                <div style="max-height: 200px; overflow-y: auto;">
-                    <table style="width: 100%; font-size: 12px;">
-                        <thead>
-                            <tr>
-                                <th>Ref</th>
-                                <th>Origin</th>
-                                <th>Destination</th>
-                                <th>Date</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-        `;
-        
-        results.created.forEach(load => {
-            html += `
-                <tr>
-                    <td>${sanitize(load.ref)}</td>
-                    <td>${sanitize(load.origin)}</td>
-                    <td>${sanitize(load.destination)}</td>
-                    <td>${sanitize(load.date)}</td>
-                </tr>
-            `;
-        });
-        
-        html += `
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        `;
-    }
-    
-    if (results.failed.length > 0) {
-        html += `
-            <div style="margin-top: 12px;">
-                <h5 class="danger">Failed Imports:</h5>
-                <div style="max-height: 150px; overflow-y: auto; font-size: 12px;">
-        `;
-        
-        results.failed.forEach((failed, index) => {
-            html += `
-                <div class="banner" style="margin-bottom: 8px;">
-                    <strong>Error ${index + 1}:</strong> ${sanitize(failed.error)}<br>
-                    <strong>Data:</strong> ${JSON.stringify(failed.data)}
-                </div>
-            `;
-        });
-        
-        html += `
-                </div>
-            </div>
-        `;
-    }
-    
-    resultsContent.innerHTML = html;
-    resultsContainer.classList.remove('hidden');
-};
-
-// Add these event listeners to the init function
-const init = () => {
-    // ... existing event listeners ...
-    
-    // Bulk import form submission
-    el('formBulkImport')?.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const fileInput = el('bulkImportFile');
-        if (fileInput && fileInput.files.length > 0) {
-            setButtonLoading('formBulkImport', true);
-            await bulkImportLoads(fileInput.files[0]);
-            setButtonLoading('formBulkImport', false);
-            fileInput.value = ''; // Reset file input
-        }
-    });
-    
-    // Template download
-    el('btnDownloadTemplate')?.addEventListener('click', downloadImportTemplate);
-    
-    // ... rest of existing initialization code ...
-};
