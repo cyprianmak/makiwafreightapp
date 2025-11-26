@@ -8,6 +8,12 @@ import os
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 from functools import wraps
+import time
+import logging
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
@@ -19,14 +25,14 @@ if os.environ.get('RENDER'):
         if database_url.startswith("postgres://"):
             database_url = database_url.replace("postgres://", "postgresql://", 1)
         app.config['SQLALCHEMY_DATABASE_URI'] = database_url
-        print(f"✅ Using PostgreSQL database at: {database_url}")
+        logger.info(f"✅ Using PostgreSQL database at: {database_url}")
     else:
         # Fallback to persistent SQLite if DATABASE_URL not found
         persistent_dir = '/opt/render/project/.render/data'
         os.makedirs(persistent_dir, exist_ok=True)
         db_path = os.path.join(persistent_dir, 'makiwafreight.db')
         app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
-        print(f"⚠️ DATABASE_URL not found, using SQLite fallback at: {db_path}")
+        logger.info(f"⚠️ DATABASE_URL not found, using SQLite fallback at: {db_path}")
 else:
     # Local development: check for DATABASE_URL first, else fallback to SQLite
     database_url = os.environ.get('DATABASE_URL')
@@ -34,19 +40,22 @@ else:
         if database_url.startswith("postgres://"):
             database_url = database_url.replace("postgres://", "postgresql://", 1)
         app.config['SQLALCHEMY_DATABASE_URI'] = database_url
-        print(f"✅ Using local PostgreSQL database at: {database_url}")
+        logger.info(f"✅ Using local PostgreSQL database at: {database_url}")
     else:
         basedir = os.path.abspath(os.path.dirname(__file__))
         db_dir = os.path.join(basedir, 'data')
         os.makedirs(db_dir, exist_ok=True)
         db_path = os.path.join(db_dir, 'makiwafreight.db')
         app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
-        print(f"⚙️ Using local SQLite at: {db_path}")
+        logger.info(f"⚙️ Using local SQLite at: {db_path}")
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     'pool_recycle': 300,
-    'pool_pre_ping': True
+    'pool_pre_ping': True,
+    'pool_size': 10,
+    'max_overflow': 20,
+    'pool_timeout': 30
 }
 db = SQLAlchemy(app)
 
@@ -150,35 +159,51 @@ class Banner(db.Model):
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        user = check_auth(request)
-        if not user:
+        try:
+            user = check_auth(request)
+            if not user:
+                return jsonify({
+                    "success": False,
+                    "message": "Authentication required",
+                    "error": "Please login to continue"
+                }), 401
+            return f(*args, **kwargs)
+        except Exception as e:
+            logger.error(f"Authentication error: {e}")
             return jsonify({
                 "success": False,
-                "message": "Authentication required",
-                "error": "Please login to continue"
+                "message": "Authentication failed",
+                "error": "Please login again"
             }), 401
-        return f(*args, **kwargs)
     return decorated_function
 
 def admin_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        user = check_auth(request)
-        if not user:
+        try:
+            user = check_auth(request)
+            if not user:
+                return jsonify({
+                    "success": False,
+                    "message": "Authentication required",
+                    "error": "Please login to continue"
+                }), 401
+            
+            if user.role != 'admin':
+                return jsonify({
+                    "success": False,
+                    "message": "Access denied",
+                    "error": "Admin access required"
+                }), 403
+            
+            return f(*args, **kwargs)
+        except Exception as e:
+            logger.error(f"Admin authentication error: {e}")
             return jsonify({
                 "success": False,
-                "message": "Authentication required",
-                "error": "Please login to continue"
+                "message": "Authentication failed",
+                "error": "Please login again"
             }), 401
-        
-        if user.role != 'admin':
-            return jsonify({
-                "success": False,
-                "message": "Access denied",
-                "error": "Admin access required"
-            }), 403
-        
-        return f(*args, **kwargs)
     return decorated_function
 
 # DB helper: generate membership number MF000001 style
@@ -207,7 +232,7 @@ def generate_membership_number():
         
         return f"MF{str(next_id).zfill(6)}"
     except Exception as e:
-        print(f"Error generating membership number: {e}")
+        logger.error(f"Error generating membership number: {e}")
         # If anything goes wrong (e.g., table doesn't exist yet), start from 1
         return f"MF000001"
 
@@ -221,7 +246,7 @@ def check_auth(request):
     try:
         return User.query.filter_by(token=token).first()
     except Exception as e:
-        print(f"Auth error: {e}")
+        logger.error(f"Auth error: {e}")
         return None
 
 def get_default_access_control_data():
@@ -313,7 +338,7 @@ def get_access_control():
             db.session.commit()
         return data
     except Exception as e:
-        print(f"Error in get_access_control: {e}")
+        logger.error(f"Error in get_access_control: {e}")
         return get_default_access_control_data()
 
 def update_access_control(data):
@@ -327,7 +352,7 @@ def update_access_control(data):
         db.session.commit()
         return data
     except Exception as e:
-        print(f"Error updating access control: {e}")
+        logger.error(f"Error updating access control: {e}")
         db.session.rollback()
         return data
 
@@ -339,7 +364,7 @@ def get_banners():
             'dashboard': ac_data.get('banners', {}).get('dashboard', '')
         }
     except Exception as e:
-        print(f"Error getting banners: {e}")
+        logger.error(f"Error getting banners: {e}")
         return {'index': '', 'dashboard': ''}
 
 def update_banners(banners):
@@ -353,7 +378,7 @@ def update_banners(banners):
         
         return update_access_control(ac_data)
     except Exception as e:
-        print(f"Error updating banners: {e}")
+        logger.error(f"Error updating banners: {e}")
         return banners
 
 def can_access_page(user, page_name):
@@ -364,79 +389,102 @@ def can_access_page(user, page_name):
     allowed_roles = ac_data.get('pages', {}).get(page_name, {}).get('allowed_roles', [])
     return user.role in allowed_roles
 
-# Initialize database - FIXED VERSION
+# Database connection health check
+def check_db_connection():
+    """Check if database connection is healthy"""
+    try:
+        db.session.execute(text("SELECT 1"))
+        return True
+    except Exception as e:
+        logger.error(f"Database connection error: {e}")
+        return False
+
+# Initialize database - FIXED VERSION with better error handling
 def initialize_data():
     with app.app_context():
-        try:
-            print("Initializing database...")
-            
-            # Create all tables if they don't exist (instead of dropping)
-            db.create_all()
-            print("✅ Database tables ensured")
-            
-            # Check if admin user exists and create if not
-            admin_email = 'cyprianmak@gmail.com'
-            admin = User.query.filter_by(email=admin_email).first()
-            
-            if not admin:
-                print("Creating admin user...")
-                admin = User(
-                    name="Admin",
-                    email=admin_email,
-                    role="admin",
-                    membership_number="MF000001"
-                )
-                admin.set_password("Muchandida@1")
-                db.session.add(admin)
-                db.session.commit()  # Commit to get the ID
-                print("✅ Admin user created")
-            else:
-                # Ensure admin password is correct (in case it was changed)
-                if not admin.check_password("Muchandida@1"):
-                    admin.set_password("Muchandida@1")
-                    db.session.commit()
-                    print("✅ Admin password reset")
-                print("✅ Admin user already exists")
-            
-            # Check if access control data exists
-            ac = AccessControl.query.first()
-            if not ac:
-                print("Creating access control data...")
-                default_data = get_default_access_control_data()
-                ac = AccessControl(data=json.dumps(default_data))
-                db.session.add(ac)
-                db.session.commit()
-                print("✅ Access control data created")
-            else:
-                print("✅ Access control data already exists")
-            
-            # Create user access control for admin AFTER user exists
-            if admin:
-                user_access = UserAccessControl.query.filter_by(user_id=admin.id).first()
-                if not user_access:
-                    print("Creating admin access control...")
-                    user_access = UserAccessControl(
-                        user_id=admin.id,
-                        pages=json.dumps({
-                            "market": {"enabled": True},
-                            "shipper-post": {"enabled": True},
-                            "admin": {"enabled": True},
-                            "dashboard": {"enabled": True},
-                            "profile": {"enabled": True},
-                            "messages": {"enabled": True}
-                        })
-                    )
-                    db.session.add(user_access)
-                    db.session.commit()
-                    print("✅ Admin access control created")
-                else:
-                    print("✅ Admin access control already exists")
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                logger.info(f"Initializing database... Attempt {attempt + 1}")
                 
-            print("✅ Database initialization complete")
-            
-        except Exception as e:
-            print(f"❌ Error during database initialization: {e}")
-            db.session.rollback()
+                # Test database connection first
+                if not check_db_connection():
+                    logger.warning("Database connection failed, retrying...")
+                    time.sleep(2)
+                    continue
+                
+                # Create all tables if they don't exist (instead of dropping)
+                db.create_all()
+                logger.info("✅ Database tables ensured")
+                
+                # Check if admin user exists and create if not
+                admin_email = 'cyprianmak@gmail.com'
+                admin = User.query.filter_by(email=admin_email).first()
+                
+                if not admin:
+                    logger.info("Creating admin user...")
+                    admin = User(
+                        name="Admin",
+                        email=admin_email,
+                        role="admin",
+                        membership_number="MF000001"
+                    )
+                    admin.set_password("Muchandida@1")
+                    db.session.add(admin)
+                    db.session.commit()  # Commit to get the ID
+                    logger.info("✅ Admin user created")
+                else:
+                    # Ensure admin password is correct (in case it was changed)
+                    if not admin.check_password("Muchandida@1"):
+                        admin.set_password("Muchandida@1")
+                        db.session.commit()
+                        logger.info("✅ Admin password reset")
+                    logger.info("✅ Admin user already exists")
+                
+                # Check if access control data exists
+                ac = AccessControl.query.first()
+                if not ac:
+                    logger.info("Creating access control data...")
+                    default_data = get_default_access_control_data()
+                    ac = AccessControl(data=json.dumps(default_data))
+                    db.session.add(ac)
+                    db.session.commit()
+                    logger.info("✅ Access control data created")
+                else:
+                    logger.info("✅ Access control data already exists")
+                
+                # Create user access control for admin AFTER user exists
+                if admin:
+                    user_access = UserAccessControl.query.filter_by(user_id=admin.id).first()
+                    if not user_access:
+                        logger.info("Creating admin access control...")
+                        user_access = UserAccessControl(
+                            user_id=admin.id,
+                            pages=json.dumps({
+                                "market": {"enabled": True},
+                                "shipper-post": {"enabled": True},
+                                "admin": {"enabled": True},
+                                "dashboard": {"enabled": True},
+                                "profile": {"enabled": True},
+                                "messages": {"enabled": True}
+                            })
+                        )
+                        db.session.add(user_access)
+                        db.session.commit()
+                        logger.info("✅ Admin access control created")
+                    else:
+                        logger.info("✅ Admin access control already exists")
+                    
+                logger.info("✅ Database initialization complete")
+                break  # Success, break out of retry loop
+                
+            except Exception as e:
+                logger.error(f"❌ Error during database initialization (attempt {attempt + 1}): {e}")
+                db.session.rollback()
+                if attempt == max_retries - 1:
+                    logger.error("❌ All retries failed for database initialization")
+                else:
+                    time.sleep(2)  # Wait before retry
 
 # Error handlers
 @app.errorhandler(401)
@@ -462,6 +510,14 @@ def not_found(error):
         "message": "Resource not found",
         "error": "The requested resource was not found"
     }), 404
+
+@app.errorhandler(500)
+def internal_error(error):
+    return jsonify({
+        "success": False,
+        "message": "Internal server error",
+        "error": "Something went wrong on our end"
+    }), 500
 
 # Routes
 @app.route('/')
@@ -497,13 +553,16 @@ def api_info():
 def health():
     try:
         # Test database connection
-        db.session.execute(text("SELECT 1"))
+        db_healthy = check_db_connection()
+        status = "healthy" if db_healthy else "degraded"
+        
         return jsonify({
             "success": True,
-            "message": "Service is healthy",
+            "message": "Service status",
             "data": {
-                "status": "healthy",
-                "database": "connected"
+                "status": status,
+                "database": "connected" if db_healthy else "disconnected",
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }
         })
     except Exception as e:
@@ -596,6 +655,7 @@ def register():
         }), 201
     except Exception as e:
         db.session.rollback()
+        logger.error(f"Registration error: {e}")
         return jsonify({
             "success": False,
             "message": "Registration failed",
@@ -651,6 +711,7 @@ def login():
             }), 401
     except Exception as e:
         db.session.rollback()
+        logger.error(f"Login error: {e}")
         return jsonify({
             "success": False,
             "message": "Login failed",
@@ -684,6 +745,7 @@ def get_current_user():
             }
         })
     except Exception as e:
+        logger.error(f"Get current user error: {e}")
         return jsonify({
             "success": False,
             "message": "Failed to retrieve user data",
@@ -737,22 +799,24 @@ def update_current_user():
         })
     except Exception as e:
         db.session.rollback()
+        logger.error(f"Update user error: {e}")
         return jsonify({
             "success": False,
             "message": "Profile update failed",
             "error": str(e)
         }), 500
 
-# Get user's posted loads - FIXED VERSION
+# Get user's posted loads - FIXED with better error handling
 @app.route('/api/users/me/loads', methods=['GET'])
 @login_required
 def get_my_loads():
     try:
         user = check_auth(request)
-        # Get loads posted by current user - FIXED: order by created_at descending
+        # Get loads posted by current user
         loads = Load.query.filter_by(shipper_id=user.id).order_by(Load.created_at.desc()).all()
         
         result = []
+        current_time = datetime.now(timezone.utc)
         for load in loads:
             result.append({
                 "id": load.id,
@@ -765,7 +829,8 @@ def get_my_loads():
                 "notes": load.notes,
                 "expires_at": load.expires_at.isoformat(),
                 "created_at": load.created_at.isoformat(),
-                "status": "active" if load.expires_at >= datetime.now(timezone.utc) else "expired"
+                "status": "active" if load.expires_at >= current_time else "expired",
+                "days_remaining": (load.expires_at - current_time).days if load.expires_at >= current_time else 0
             })
         
         return jsonify({
@@ -774,17 +839,18 @@ def get_my_loads():
             "data": {"loads": result}
         })
     except Exception as e:
+        logger.error(f"Get my loads error: {e}")
         return jsonify({
             "success": False,
             "message": "Failed to retrieve your loads",
-            "error": str(e)
+            "error": "Database connection issue"
         }), 500
 
-# Load endpoints - FIXED VERSION
+# Load endpoints - FIXED with better error handling
 @app.route('/api/loads', methods=['GET'])
 def get_loads():
     try:
-        # Get all active loads (public access) - FIXED: only show non-expired loads
+        # Get all active loads (public access)
         current_time = datetime.now(timezone.utc)
         loads = Load.query.filter(Load.expires_at >= current_time).order_by(Load.created_at.desc()).all()
         
@@ -812,10 +878,11 @@ def get_loads():
             "data": {"loads": result}
         })
     except Exception as e:
+        logger.error(f"Get loads error: {e}")
         return jsonify({
             "success": False,
             "message": "Failed to retrieve loads",
-            "error": str(e)
+            "error": "Database connection issue"
         }), 500
 
 @app.route('/api/loads', methods=['POST'])
@@ -878,6 +945,7 @@ def create_load():
         }), 201
     except Exception as e:
         db.session.rollback()
+        logger.error(f"Create load error: {e}")
         return jsonify({
             "success": False,
             "message": "Failed to create load",
@@ -945,6 +1013,7 @@ def update_load_endpoint(load_id):
         })
     except Exception as e:
         db.session.rollback()
+        logger.error(f"Update load error: {e}")
         return jsonify({
             "success": False,
             "message": "Failed to update load",
@@ -983,6 +1052,7 @@ def delete_load_endpoint(load_id):
         })
     except Exception as e:
         db.session.rollback()
+        logger.error(f"Delete load error: {e}")
         return jsonify({
             "success": False,
             "message": "Failed to delete load",
@@ -1027,6 +1097,7 @@ def get_messages():
             "data": {"messages": result}
         })
     except Exception as e:
+        logger.error(f"Get messages error: {e}")
         return jsonify({
             "success": False,
             "message": "Failed to retrieve messages",
@@ -1090,6 +1161,7 @@ def send_message():
         }), 201
     except Exception as e:
         db.session.rollback()
+        logger.error(f"Send message error: {e}")
         return jsonify({
             "success": False,
             "message": "Failed to send message",
@@ -1100,28 +1172,35 @@ def send_message():
 @app.route('/api/banners/active')
 def get_active_banners():
     """Get banners for current page context"""
-    referrer = request.headers.get('Referer', '')
-    current_path = request.args.get('page', '')
-    
-    banners = get_banners()
-    
-    # Determine which banner to show based on current page
-    if current_path == 'index' or current_path == '' or referrer.endswith('/'):
+    try:
+        referrer = request.headers.get('Referer', '')
+        current_path = request.args.get('page', '')
+        
+        banners = get_banners()
+        
+        # Determine which banner to show based on current page
+        if current_path == 'index' or current_path == '' or referrer.endswith('/'):
+            return jsonify({
+                "success": True,
+                "data": {"banner": banners.get('index', '')}
+            })
+        elif current_path == 'dashboard' or 'dashboard' in referrer:
+            return jsonify({
+                "success": True,
+                "data": {"banner": banners.get('dashboard', '')}
+            })
+        
+        # Default: no banner for other pages
         return jsonify({
             "success": True,
-            "data": {"banner": banners.get('index', '')}
+            "data": {"banner": ""}
         })
-    elif current_path == 'dashboard' or 'dashboard' in referrer:
+    except Exception as e:
+        logger.error(f"Get banners error: {e}")
         return jsonify({
             "success": True,
-            "data": {"banner": banners.get('dashboard', '')}
+            "data": {"banner": ""}
         })
-    
-    # Default: no banner for other pages
-    return jsonify({
-        "success": True,
-        "data": {"banner": ""}
-    })
 
 # Admin endpoints
 @app.route('/api/admin/banners', methods=['GET'])
@@ -1134,6 +1213,7 @@ def get_admin_banners():
             "data": get_banners()
         })
     except Exception as e:
+        logger.error(f"Get admin banners error: {e}")
         return jsonify({
             "success": False,
             "message": "Failed to retrieve banners",
@@ -1159,6 +1239,7 @@ def update_admin_banners():
             "data": updated_banners
         })
     except Exception as e:
+        logger.error(f"Update admin banners error: {e}")
         return jsonify({
             "success": False,
             "message": "Banner update failed",
@@ -1182,6 +1263,7 @@ def get_admin_access_control():
             "data": ac_data
         })
     except Exception as e:
+        logger.error(f"Get access control error: {e}")
         return jsonify({
             "success": False,
             "message": "Failed to retrieve access control data",
@@ -1212,6 +1294,7 @@ def update_admin_access_control():
             "data": updated_data
         })
     except Exception as e:
+        logger.error(f"Update access control error: {e}")
         return jsonify({
             "success": False,
             "message": "Failed to update access control",
@@ -1272,6 +1355,7 @@ def get_user_access(user_id):
             }
         })
     except Exception as e:
+        logger.error(f"Get user access error: {e}")
         return jsonify({
             "success": False,
             "message": "Failed to retrieve user access",
@@ -1322,6 +1406,7 @@ def update_user_access(user_id):
         })
     except Exception as e:
         db.session.rollback()
+        logger.error(f"Update user access error: {e}")
         return jsonify({
             "success": False,
             "message": "Failed to update user access",
@@ -1354,6 +1439,7 @@ def get_users():
             "data": {"users": result}
         })
     except Exception as e:
+        logger.error(f"Get users error: {e}")
         return jsonify({
             "success": False,
             "message": "Failed to retrieve users",
@@ -1396,6 +1482,7 @@ def delete_user_endpoint(email):
         })
     except Exception as e:
         db.session.rollback()
+        logger.error(f"Delete user error: {e}")
         return jsonify({
             "success": False,
             "message": "Failed to delete user",
@@ -1436,6 +1523,7 @@ def reset_password():
         })
     except Exception as e:
         db.session.rollback()
+        logger.error(f"Reset password error: {e}")
         return jsonify({
             "success": False,
             "message": "Password reset failed",
@@ -1447,9 +1535,16 @@ def reset_password():
 def debug_db():
     try:
         # First, test basic database connection
-        db.session.execute(text("SELECT 1"))
-        db.session.commit()
-        connection_status = "OK"
+        db_healthy = check_db_connection()
+        connection_status = "OK" if db_healthy else "ERROR"
+        
+        if not db_healthy:
+            return jsonify({
+                "database_type": "PostgreSQL",
+                "connection_status": "ERROR",
+                "error": "Database connection failed"
+            }), 500
+
     except Exception as e:
         db.session.rollback()
         connection_status = "ERROR"
@@ -1502,6 +1597,7 @@ def debug_db():
         return jsonify(response), 200
         
     except Exception as e:
+        logger.error(f"Debug DB error: {e}")
         return jsonify({
             "database_type": db.engine.name if hasattr(db, 'engine') else "Unknown",
             "connection_status": "ERROR",
@@ -1511,6 +1607,7 @@ def debug_db():
 # Initialize application
 if __name__ == '__main__':
     initialize_data()
-    port = int(os.environ.get('PORT', 5000))
-    print(f"🚀 Starting MakiwaFreight server on port {port}")
-    app.run(debug=True, host='0.0.0.0', port=port)
+    port = int(os.environ.get('PORT', 10000))
+    logger.info(f"🚀 Starting MakiwaFreight server on port {port}")
+    # Turn off debug mode for production
+    app.run(debug=False, host='0.0.0.0', port=port)
