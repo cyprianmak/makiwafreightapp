@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="description" content="MakiwaFreight - A marketplace where shippers meet transporters" />
   <meta name="author" content="MakiwaFreight Team" />
-  <!-- Enhanced CSP for production -->
+  <!-- Enhanced CSP for production security -->
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; font-src 'self'; form-action 'self'; base-uri 'self';" />
   <title>MakiwaFreight Load Board</title>
   <style>
@@ -45,6 +45,16 @@
       font-weight: bold;
       color: var(--warn);
       margin: 20px 0;
+    }
+    
+    /* Rate limit warning */
+    .rate-limit-warning {
+      background: var(--panel);
+      border: 2px solid var(--bad);
+      border-radius: 12px;
+      padding: 15px;
+      margin: 10px 0;
+      text-align: center;
     }
     
     /* Notification styles */
@@ -544,7 +554,7 @@
           </div>
           <div>
             <label for="loginPassword">Password</label>
-            <input required type="password" id="loginPassword" name="password" placeholder="••••••••" autocomplete="current-password" />
+            <input required type="password" id="loginPassword" name="password" placeholder="••••••••" autocomplete="current-password" minlength="8" />
           </div>
         </div>
         <div class="toolbar" style="margin-top:12px">
@@ -558,12 +568,12 @@
       <h2>Create Shipper Account</h2>
       <form id="formRegShipper" autocomplete="off" novalidate>
         <div class="grid two">
-          <div><label for="shipperName">Full Name</label><input required id="shipperName" name="name" autocomplete="name" /></div>
-          <div><label for="shipperCompany">Company</label><input id="shipperCompany" name="company" autocomplete="organization" /></div>
+          <div><label for="shipperName">Full Name</label><input required id="shipperName" name="name" autocomplete="name" minlength="2" maxlength="100" /></div>
+          <div><label for="shipperCompany">Company</label><input id="shipperCompany" name="company" autocomplete="organization" maxlength="100" /></div>
           <div><label for="shipperEmail">Email</label><input required type="email" id="shipperEmail" name="email" autocomplete="email" /></div>
-          <div><label for="shipperPhone">Phone</label><input required id="shipperPhone" name="phone" autocomplete="tel" /></div>
+          <div><label for="shipperPhone">Phone</label><input required id="shipperPhone" name="phone" autocomplete="tel" pattern="[\+]?[1-9][\d]{0,15}" title="Enter a valid phone number" /></div>
           <div><label for="shipperPassword">Password</label><input required type="password" id="shipperPassword" name="password" autocomplete="new-password" minlength="8" /></div>
-          <div><label for="shipperAddress">Address</label><input id="shipperAddress" name="address" autocomplete="street-address" /></div>
+          <div><label for="shipperAddress">Address</label><input id="shipperAddress" name="address" autocomplete="street-address" maxlength="200" /></div>
         </div>
         <div class="membership-info">
           <p>Your unique membership number will be generated upon successful registration.</p>
@@ -580,13 +590,13 @@
       <h2>Create Transporter Account</h2>
       <form id="formRegTransporter" autocomplete="off" novalidate>
         <div class="grid two">
-          <div><label for="transporterName">Full Name</label><input required id="transporterName" name="name" autocomplete="name" /></div>
-          <div><label for="transporterCompany">Company / Fleet</label><input id="transporterCompany" name="company" autocomplete="organization" /></div>
+          <div><label for="transporterName">Full Name</label><input required id="transporterName" name="name" autocomplete="name" minlength="2" maxlength="100" /></div>
+          <div><label for="transporterCompany">Company / Fleet</label><input id="transporterCompany" name="company" autocomplete="organization" maxlength="100" /></div>
           <div><label for="transporterEmail">Email</label><input required type="email" id="transporterEmail" name="email" autocomplete="email" /></div>
-          <div><label for="transporterPhone">Phone</label><input required id="transporterPhone" name="phone" autocomplete="tel" /></div>
-          <div><label for="transporterVehicle">Vehicle Info</label><input id="transporterVehicle" name="vehicle_info" placeholder="e.g. 2 x 34T Side Tipper" /></div>
+          <div><label for="transporterPhone">Phone</label><input required id="transporterPhone" name="phone" autocomplete="tel" pattern="[\+]?[1-9][\d]{0,15}" title="Enter a valid phone number" /></div>
+          <div><label for="transporterVehicle">Vehicle Info</label><input id="transporterVehicle" name="vehicle_info" placeholder="e.g. 2 x 34T Side Tipper" maxlength="200" /></div>
           <div><label for="transporterPassword">Password</label><input required type="password" id="transporterPassword" name="password" autocomplete="new-password" minlength="8" /></div>
-          <div class="two" style="grid-column:1/-1"><label for="transporterAddress">Address</label><input id="transporterAddress" name="address" autocomplete="street-address" /></div>
+          <div class="two" style="grid-column:1/-1"><label for="transporterAddress">Address</label><input id="transporterAddress" name="address" autocomplete="street-address" maxlength="200" /></div>
         </div>
         <div class="membership-info">
           <p>Your unique membership number will be generated upon successful registration.</p>
@@ -611,6 +621,7 @@
       </div>
       <div id="dashBannerShipper" class="banner hidden" role="alert"></div>
       <div id="accessWarningShipper" class="banner hidden" role="alert"></div>
+      <div id="rateLimitWarningShipper" class="rate-limit-warning hidden" role="alert"></div>
       <div class="card">
         <div class="toolbar">
           <h3>Your Posted Loads</h3>
@@ -627,15 +638,15 @@
       <h2>Post a Load</h2>
       <form id="formPostLoad" novalidate>
         <div class="grid two">
-          <div><label for="loadOrigin">Origin</label><input required id="loadOrigin" name="origin" /></div>
-          <div><label for="loadDestination">Destination</label><input required id="loadDestination" name="destination" /></div>
+          <div><label for="loadOrigin">Origin</label><input required id="loadOrigin" name="origin" maxlength="100" /></div>
+          <div><label for="loadDestination">Destination</label><input required id="loadDestination" name="destination" maxlength="100" /></div>
           <div><label for="loadDate">Pickup Date</label><input required type="date" id="loadDate" name="date" min="" /></div>
-          <div><label for="loadCargo">Cargo Type</label><input required id="loadCargo" name="cargo_type" /></div>
-          <div><label for="loadWeight">Weight (Tons)</label><input required id="loadWeight" name="weight" type="number" min="0" step="0.01" /></div>
+          <div><label for="loadCargo">Cargo Type</label><input required id="loadCargo" name="cargo_type" maxlength="100" /></div>
+          <div><label for="loadWeight">Weight (Tons)</label><input required id="loadWeight" name="weight" type="number" min="0" step="0.01" max="1000" /></div>
         </div>
         <div class="two" style="grid-column:1/-1">
           <label for="loadNotes">Notes</label>
-          <textarea id="loadNotes" name="notes" rows="3"></textarea>
+          <textarea id="loadNotes" name="notes" rows="3" maxlength="500"></textarea>
         </div>
         <div class="toolbar" style="margin-top:12px">
           <button class="btn primary" type="submit">Publish</button>
@@ -695,15 +706,15 @@
           <div class="grid two">
             <div>
               <label for="profileShipperName">Name</label>
-              <input type="text" id="profileShipperName" name="name" />
+              <input type="text" id="profileShipperName" name="name" minlength="2" maxlength="100" />
             </div>
             <div>
               <label for="profileShipperPhone">Phone</label>
-              <input type="tel" id="profileShipperPhone" name="phone" />
+              <input type="tel" id="profileShipperPhone" name="phone" pattern="[\+]?[1-9][\d]{0,15}" title="Enter a valid phone number" />
             </div>
             <div class="two" style="grid-column:1/-1">
               <label for="profileShipperAddress">Address</label>
-              <input type="text" id="profileShipperAddress" name="address" />
+              <input type="text" id="profileShipperAddress" name="address" maxlength="200" />
             </div>
             <div class="two" style="grid-column:1/-1">
               <label for="profileShipperPassword">New Password (leave blank to keep current)</label>
@@ -731,6 +742,7 @@
       </div>
       <div id="dashBannerTransporter" class="banner hidden" role="alert"></div>
       <div id="accessWarningTransporter" class="banner hidden" role="alert"></div>
+      <div id="rateLimitWarningTransporter" class="rate-limit-warning hidden" role="alert"></div>
       <div class="card">
         <div class="toolbar">
           <h3>Your Posted Loads</h3>
@@ -798,15 +810,15 @@
           <div class="grid two">
             <div>
               <label for="profileTransporterName">Name</label>
-              <input type="text" id="profileTransporterName" name="name" />
+              <input type="text" id="profileTransporterName" name="name" minlength="2" maxlength="100" />
             </div>
             <div>
               <label for="profileTransporterPhone">Phone</label>
-              <input type="tel" id="profileTransporterPhone" name="phone" />
+              <input type="tel" id="profileTransporterPhone" name="phone" pattern="[\+]?[1-9][\d]{0,15}" title="Enter a valid phone number" />
             </div>
             <div class="two" style="grid-column:1/-1">
               <label for="profileTransporterAddress">Address</label>
-              <input type="text" id="profileTransporterAddress" name="address" />
+              <input type="text" id="profileTransporterAddress" name="address" maxlength="200" />
             </div>
             <div class="two" style="grid-column:1/-1">
               <label for="profileTransporterPassword">New Password (leave blank to keep current)</label>
@@ -831,12 +843,13 @@
         </div>
       </div>
       <div id="marketBanner" class="banner hidden" role="alert"></div>
+      <div id="rateLimitWarningMarket" class="rate-limit-warning hidden" role="alert"></div>
       <div class="card">
         <div class="toolbar">
           <h3>Available Loads</h3>
           <div style="display:flex;gap:8px">
-            <input id="marketFilterOrigin" placeholder="Filter by origin" aria-label="Filter by origin" />
-            <input id="marketFilterDest" placeholder="Filter by destination" aria-label="Filter by destination" />
+            <input id="marketFilterOrigin" placeholder="Filter by origin" aria-label="Filter by origin" maxlength="100" />
+            <input id="marketFilterDest" placeholder="Filter by destination" aria-label="Filter by destination" maxlength="100" />
             <button id="btnMarketFilterLoads" class="btn">Filter</button>
           </div>
         </div>
@@ -961,7 +974,7 @@
         </div>
       </div>
     </section>
-    <div class="footer">Demo build – data stored in PostgreSQL database.</div>
+    <div class="footer">Production build – data stored in PostgreSQL database with enhanced security.</div>
   </main>
   
   <!-- Session Timeout Modal -->
@@ -1085,7 +1098,9 @@
             context,
             error: error.message,
             timestamp: new Date().toISOString(),
-            user: getCurrentUserSync()?.data?.user?.email || 'anonymous'
+            user: getCurrentUserSync()?.data?.user?.email || 'anonymous',
+            url: window.location.href,
+            userAgent: navigator.userAgent
           });
           
           // User-friendly error messages
@@ -1098,6 +1113,9 @@
             userMessage = 'Your session has expired. Please login again.';
           } else if (error.message.includes('validation')) {
             userMessage = 'Invalid input provided. Please check your data.';
+          } else if (error.message.includes('401')) {
+            userMessage = 'Authentication failed. Please login again.';
+            logout();
           }
           
           showNotification(userMessage + ': ' + error.message, 'error');
