@@ -462,3 +462,61 @@ app.listen(PORT, async () => {
   console.log(`MakiwaFreight server running on port ${PORT}`);
   await initializeDatabase();
 });
+
+// Add this route to check and fix admin user
+app.get('/api/debug/fix-admin', async (req, res) => {
+  try {
+    // Check if admin exists
+    const adminResult = await pool.query('SELECT * FROM users WHERE email = $1', ['cyprianmak@gmail.com']);
+    
+    if (adminResult.rows.length === 0) {
+      // Create admin user
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash('Muchandida@1', salt);
+      
+      await pool.query(
+        `INSERT INTO users (name, email, password, role, membership_number, created_at, updated_at) 
+         VALUES ($1, $2, $3, $4, $5, NOW(), NOW())`,
+        ['Admin', 'cyprianmak@gmail.com', hashedPassword, 'admin', 'MFADMIN01']
+      );
+      
+      return res.json({ message: 'Admin user created successfully' });
+    } else {
+      const admin = adminResult.rows[0];
+      
+      // Check if password is missing or invalid
+      if (!admin.password || admin.password === 'undefined') {
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash('Muchandida@1', salt);
+        
+        await pool.query(
+          'UPDATE users SET password = $1, updated_at = NOW() WHERE email = $2',
+          [hashedPassword, 'cyprianmak@gmail.com']
+        );
+        
+        return res.json({ message: 'Admin password fixed successfully' });
+      }
+      
+      return res.json({ 
+        message: 'Admin user exists', 
+        admin: { 
+          email: admin.email, 
+          role: admin.role,
+          has_password: !!admin.password
+        } 
+      });
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Add this to see all users in database
+app.get('/api/debug/all-users', async (req, res) => {
+  try {
+    const users = await pool.query('SELECT id, name, email, role, membership_number, password IS NOT NULL as has_password FROM users');
+    res.json(users.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
