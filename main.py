@@ -743,13 +743,13 @@ def update_current_user():
             "error": str(e)
         }), 500
 
-# Get user's posted loads
+# Get user's posted loads - FIXED VERSION
 @app.route('/api/users/me/loads', methods=['GET'])
 @login_required
 def get_my_loads():
     try:
         user = check_auth(request)
-        # Get loads posted by current user
+        # Get loads posted by current user - FIXED: order by created_at descending
         loads = Load.query.filter_by(shipper_id=user.id).order_by(Load.created_at.desc()).all()
         
         result = []
@@ -764,7 +764,8 @@ def get_my_loads():
                 "weight": load.weight,
                 "notes": load.notes,
                 "expires_at": load.expires_at.isoformat(),
-                "created_at": load.created_at.isoformat()
+                "created_at": load.created_at.isoformat(),
+                "status": "active" if load.expires_at >= datetime.now(timezone.utc) else "expired"
             })
         
         return jsonify({
@@ -779,12 +780,14 @@ def get_my_loads():
             "error": str(e)
         }), 500
 
-# Load endpoints
+# Load endpoints - FIXED VERSION
 @app.route('/api/loads', methods=['GET'])
 def get_loads():
     try:
-        # Get all loads (public access)
-        loads = Load.query.filter(Load.expires_at >= datetime.now(timezone.utc)).all()
+        # Get all active loads (public access) - FIXED: only show non-expired loads
+        current_time = datetime.now(timezone.utc)
+        loads = Load.query.filter(Load.expires_at >= current_time).order_by(Load.created_at.desc()).all()
+        
         result = []
         for load in loads:
             result.append({
@@ -800,7 +803,8 @@ def get_loads():
                 "shipper_membership": load.shipper.membership_number if load.shipper else "Unknown",
                 "posted_by": load.shipper.membership_number if load.shipper else "Unknown",
                 "expires_at": load.expires_at.isoformat(),
-                "created_at": load.created_at.isoformat()
+                "created_at": load.created_at.isoformat(),
+                "days_remaining": (load.expires_at - current_time).days
             })
         return jsonify({
             "success": True,
@@ -985,14 +989,23 @@ def delete_load_endpoint(load_id):
             "error": str(e)
         }), 500
 
-# Message endpoints
+# Message endpoints - FIXED VERSION
 @app.route('/api/messages', methods=['GET'])
 @login_required
 def get_messages():
     try:
         user = check_auth(request)
-        # Get user's messages using membership number
-        user_membership = user.membership_number or 'Admin'
+        # Get user's messages using membership number - FIXED: proper filtering
+        user_membership = user.membership_number
+        
+        if not user_membership:
+            return jsonify({
+                "success": False,
+                "message": "No membership number found",
+                "error": "User doesn't have a valid membership number"
+            }), 400
+        
+        # Get messages where user is sender OR recipient
         messages = Message.query.filter(
             (Message.sender_membership == user_membership) | 
             (Message.recipient_membership == user_membership)
@@ -1005,7 +1018,8 @@ def get_messages():
                 "sender_membership": msg.sender_membership,
                 "recipient_membership": msg.recipient_membership,
                 "body": msg.body,
-                "created_at": msg.created_at.isoformat()
+                "created_at": msg.created_at.isoformat(),
+                "direction": "sent" if msg.sender_membership == user_membership else "received"
             })
         return jsonify({
             "success": True,
@@ -1051,8 +1065,14 @@ def send_message():
                 "error": "Recipient not found"
             }), 404
         
-        # Use current user's membership number or 'Admin' for admin users
-        sender_membership = user.membership_number or 'Admin'
+        # Use current user's membership number
+        sender_membership = user.membership_number
+        if not sender_membership:
+            return jsonify({
+                "success": False,
+                "message": "Message not sent",
+                "error": "You don't have a valid membership number"
+            }), 400
         
         new_message = Message(
             sender_membership=sender_membership,
@@ -1145,15 +1165,21 @@ def update_admin_banners():
             "error": str(e)
         }), 500
 
-# Admin access control endpoints
+# Admin access control endpoints - FIXED VERSION
 @app.route('/api/admin/access-control', methods=['GET'])
 @admin_required
 def get_admin_access_control():
     try:
+        ac_data = get_access_control()
+        
+        # Ensure proper structure for frontend
+        if 'pages' not in ac_data:
+            ac_data['pages'] = get_default_access_control_data()['pages']
+        
         return jsonify({
             "success": True,
             "message": "Access control data retrieved",
-            "data": get_access_control()
+            "data": ac_data
         })
     except Exception as e:
         return jsonify({
@@ -1167,6 +1193,17 @@ def get_admin_access_control():
 def update_admin_access_control():
     try:
         data = request.get_json()
+        if not data:
+            return jsonify({
+                "success": False,
+                "message": "Update failed",
+                "error": "No JSON data provided"
+            }), 400
+        
+        # Ensure proper structure
+        if 'pages' not in data:
+            data['pages'] = get_default_access_control_data()['pages']
+        
         updated_data = update_access_control(data)
         
         return jsonify({
@@ -1181,7 +1218,7 @@ def update_admin_access_control():
             "error": str(e)
         }), 500
 
-# User-specific access control endpoints
+# User-specific access control endpoints - FIXED VERSION
 @app.route('/api/admin/users/<string:user_id>/access', methods=['GET'])
 @admin_required
 def get_user_access(user_id):
@@ -1198,29 +1235,40 @@ def get_user_access(user_id):
         # Get user access control settings
         user_access = UserAccessControl.query.filter_by(user_id=user_id).first()
         
+        default_pages = {
+            'market': {'enabled': True},
+            'shipper-post': {'enabled': True},
+            'dashboard': {'enabled': True},
+            'profile': {'enabled': True},
+            'messages': {'enabled': True}
+        }
+        
         if not user_access:
-            # Return default access without creating it in database
             return jsonify({
                 "success": True,
                 "message": "User access retrieved",
                 "data": {
                     "user_id": user_id,
-                    "pages": {
-                        'market': {'enabled': True},
-                        'shipper-post': {'enabled': True},
-                        'dashboard': {'enabled': True},
-                        'profile': {'enabled': True},
-                        'messages': {'enabled': True}
-                    }
+                    "pages": default_pages
                 }
             })
+        
+        # Parse pages JSON and ensure all required pages exist
+        try:
+            pages_data = json.loads(user_access.pages) if user_access.pages else {}
+            # Merge with defaults to ensure all pages are present
+            for page, settings in default_pages.items():
+                if page not in pages_data:
+                    pages_data[page] = settings
+        except:
+            pages_data = default_pages
         
         return jsonify({
             "success": True,
             "message": "User access retrieved",
             "data": {
                 "user_id": user_id,
-                "pages": json.loads(user_access.pages) if user_access.pages else {}
+                "pages": pages_data
             }
         })
     except Exception as e:
