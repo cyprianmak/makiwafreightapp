@@ -155,6 +155,10 @@ class Banner(db.Model):
     index = db.Column(db.String(200))
     dashboard = db.Column(db.String(200))
 
+# Helper function to ensure timezone-aware datetime
+def get_current_time():
+    return datetime.now(timezone.utc)
+
 # Authentication decorators
 def login_required(f):
     @wraps(f)
@@ -562,7 +566,7 @@ def health():
             "data": {
                 "status": status,
                 "database": "connected" if db_healthy else "disconnected",
-                "timestamp": datetime.now(timezone.utc).isoformat()
+                "timestamp": get_current_time().isoformat()
             }
         })
     except Exception as e:
@@ -806,7 +810,7 @@ def update_current_user():
             "error": str(e)
         }), 500
 
-# Get user's posted loads - FIXED with better error handling
+# Get user's posted loads - FIXED with timezone handling
 @app.route('/api/users/me/loads', methods=['GET'])
 @login_required
 def get_my_loads():
@@ -816,8 +820,19 @@ def get_my_loads():
         loads = Load.query.filter_by(shipper_id=user.id).order_by(Load.created_at.desc()).all()
         
         result = []
-        current_time = datetime.now(timezone.utc)
+        current_time = get_current_time()
         for load in loads:
+            # Ensure both datetimes are timezone-aware for comparison
+            expires_at = load.expires_at
+            if expires_at.tzinfo is None:
+                expires_at = expires_at.replace(tzinfo=timezone.utc)
+            
+            days_remaining = 0
+            status = "expired"
+            if expires_at >= current_time:
+                days_remaining = (expires_at - current_time).days
+                status = "active"
+            
             result.append({
                 "id": load.id,
                 "ref": load.ref,
@@ -827,10 +842,10 @@ def get_my_loads():
                 "cargo_type": load.cargo_type,
                 "weight": load.weight,
                 "notes": load.notes,
-                "expires_at": load.expires_at.isoformat(),
+                "expires_at": expires_at.isoformat(),
                 "created_at": load.created_at.isoformat(),
-                "status": "active" if load.expires_at >= current_time else "expired",
-                "days_remaining": (load.expires_at - current_time).days if load.expires_at >= current_time else 0
+                "status": status,
+                "days_remaining": days_remaining
             })
         
         return jsonify({
@@ -846,16 +861,24 @@ def get_my_loads():
             "error": "Database connection issue"
         }), 500
 
-# Load endpoints - FIXED with better error handling
+# Load endpoints - FIXED with timezone handling
 @app.route('/api/loads', methods=['GET'])
 def get_loads():
     try:
         # Get all active loads (public access)
-        current_time = datetime.now(timezone.utc)
+        current_time = get_current_time()
+        # Ensure we're comparing timezone-aware datetimes
         loads = Load.query.filter(Load.expires_at >= current_time).order_by(Load.created_at.desc()).all()
         
         result = []
         for load in loads:
+            # Ensure both datetimes are timezone-aware for comparison
+            expires_at = load.expires_at
+            if expires_at.tzinfo is None:
+                expires_at = expires_at.replace(tzinfo=timezone.utc)
+            
+            days_remaining = (expires_at - current_time).days
+            
             result.append({
                 "id": load.id,
                 "ref": load.ref,
@@ -868,9 +891,9 @@ def get_loads():
                 "shipper_name": load.shipper.name if load.shipper else "Unknown",
                 "shipper_membership": load.shipper.membership_number if load.shipper else "Unknown",
                 "posted_by": load.shipper.membership_number if load.shipper else "Unknown",
-                "expires_at": load.expires_at.isoformat(),
+                "expires_at": expires_at.isoformat(),
                 "created_at": load.created_at.isoformat(),
-                "days_remaining": (load.expires_at - current_time).days
+                "days_remaining": days_remaining
             })
         return jsonify({
             "success": True,
@@ -882,7 +905,7 @@ def get_loads():
         return jsonify({
             "success": False,
             "message": "Failed to retrieve loads",
-            "error": "Database connection issue"
+            "error": str(e)
         }), 500
 
 @app.route('/api/loads', methods=['POST'])
@@ -907,11 +930,11 @@ def create_load():
                     "error": f"Missing field: {field}"
                 }), 400
         
-        # Set expiration date (7 days from creation)
-        expires_at = datetime.now(timezone.utc) + timedelta(days=7)
+        # Set expiration date (7 days from creation) - ensure timezone-aware
+        expires_at = get_current_time() + timedelta(days=7)
         
         # Generate reference
-        ref = 'LD' + str(int(datetime.now(timezone.utc).timestamp()))[-6:]
+        ref = 'LD' + str(int(get_current_time().timestamp()))[-6:]
         
         # Auto-populate shipper information from logged-in user
         new_load = Load(
