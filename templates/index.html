@@ -1950,10 +1950,10 @@
           const loads = await getLoads();
           const load = loads.find(l => l.id === loadId);
           
-        if (!load) {
-          showNotification('Load not found', 'error');
-          return;
-        }
+          if (!load) {
+            showNotification('Load not found', 'error');
+            return;
+          }
           
           const loadDetails = el('loadDetails');
           const loadEditForm = el('loadEditForm');
