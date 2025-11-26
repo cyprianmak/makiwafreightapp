@@ -1009,7 +1009,7 @@ def create_load():
             "error": str(e)
         }), 500
 
-# Update load endpoint
+# Update load endpoint - FIXED with admin permissions
 @app.route('/api/loads/<load_id>', methods=['PUT'])
 @login_required
 def update_load_endpoint(load_id):
@@ -1023,8 +1023,8 @@ def update_load_endpoint(load_id):
                 "error": "Load does not exist"
             }), 404
         
-        # Only shipper who posted load can update it
-        if load.shipper_id != user.id:
+        # Only shipper who posted load OR admin can update it
+        if load.shipper_id != user.id and user.role != 'admin':
             return jsonify({
                 "success": False,
                 "message": "Access denied",
@@ -1077,7 +1077,7 @@ def update_load_endpoint(load_id):
             "error": str(e)
         }), 500
 
-# Delete load endpoint
+# Delete load endpoint - FIXED with admin permissions
 @app.route('/api/loads/<load_id>', methods=['DELETE'])
 @login_required
 def delete_load_endpoint(load_id):
@@ -1091,8 +1091,8 @@ def delete_load_endpoint(load_id):
                 "error": "Load does not exist"
             }), 404
         
-        # Only shipper who posted load can delete it
-        if load.shipper_id != user.id:
+        # Only shipper who posted load OR admin can delete it
+        if load.shipper_id != user.id and user.role != 'admin':
             return jsonify({
                 "success": False,
                 "message": "Access denied",
@@ -1740,10 +1740,24 @@ def debug_db():
             "error": str(e)
         }), 500
 
-# Initialize application
+# Production server setup
+def create_app():
+    """Application factory for production deployment"""
+    return app
+
+# For production deployment with Gunicorn
 if __name__ == '__main__':
     initialize_data()
     port = int(os.environ.get('PORT', 10000))
     logger.info(f"🚀 Starting MakiwaFreight server on port {port}")
-    # Turn off debug mode for production
-    app.run(debug=False, host='0.0.0.0', port=port)
+    
+    # Production configuration - use Waitress or Gunicorn in production
+    if os.environ.get('RENDER') or os.environ.get('PRODUCTION'):
+        # For production deployment
+        from waitress import serve
+        logger.info("🚀 Starting production server with Waitress")
+        serve(app, host='0.0.0.0', port=port)
+    else:
+        # For local development only
+        logger.info("🚀 Starting development server")
+        app.run(debug=False, host='0.0.0.0', port=port)
