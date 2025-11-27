@@ -44,6 +44,28 @@ const generateLoadReference = () => {
   return 'LD' + Date.now().toString().slice(-8);
 };
 
+// Reset database tables (for development)
+app.post('/api/admin/reset-db', async (req, res) => {
+  try {
+    console.log('Resetting database tables...');
+    
+    // Drop tables in correct order (due to foreign key constraints)
+    await pool.query('DROP TABLE IF EXISTS messages CASCADE');
+    await pool.query('DROP TABLE IF EXISTS loads CASCADE');
+    await pool.query('DROP TABLE IF EXISTS acl CASCADE');
+    await pool.query('DROP TABLE IF EXISTS banners CASCADE');
+    await pool.query('DROP TABLE IF EXISTS users CASCADE');
+    
+    console.log('Tables dropped, recreating...');
+    await initializeDatabase();
+    
+    res.json({ message: 'Database reset successfully' });
+  } catch (err) {
+    console.error('Reset database error:', err);
+    res.status(500).json({ error: 'Failed to reset database' });
+  }
+});
+
 // API Routes
 
 // Health check endpoint
@@ -139,6 +161,16 @@ app.post('/api/users/login', async (req, res) => {
     });
   } catch (err) {
     console.error('Login error:', err);
+    
+    // If column doesn't exist, reset the database
+    if (err.code === '42703') { // undefined_column error code
+      console.log('Database schema mismatch detected. Consider resetting the database.');
+      return res.status(500).json({ 
+        error: 'Database configuration error. Please contact administrator.',
+        hint: 'Database may need to be reset'
+      });
+    }
+    
     res.status(500).json({ error: 'Server error during login' });
   }
 });
@@ -591,7 +623,7 @@ const initializeDatabase = async () => {
   try {
     console.log('Initializing database tables...');
 
-    // Create tables if they don't exist
+    // Create users table with all required columns
     await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
@@ -609,6 +641,7 @@ const initializeDatabase = async () => {
       )
     `);
 
+    // Create loads table
     await pool.query(`
       CREATE TABLE IF NOT EXISTS loads (
         id SERIAL PRIMARY KEY,
@@ -627,6 +660,7 @@ const initializeDatabase = async () => {
       )
     `);
 
+    // Create messages table
     await pool.query(`
       CREATE TABLE IF NOT EXISTS messages (
         id SERIAL PRIMARY KEY,
@@ -638,6 +672,7 @@ const initializeDatabase = async () => {
       )
     `);
 
+    // Create acl table
     await pool.query(`
       CREATE TABLE IF NOT EXISTS acl (
         id SERIAL PRIMARY KEY,
@@ -647,6 +682,7 @@ const initializeDatabase = async () => {
       )
     `);
 
+    // Create banners table
     await pool.query(`
       CREATE TABLE IF NOT EXISTS banners (
         id SERIAL PRIMARY KEY,
@@ -654,6 +690,8 @@ const initializeDatabase = async () => {
         content TEXT DEFAULT ''
       )
     `);
+
+    console.log('✅ All tables created successfully');
 
     // Check if admin user exists
     const adminEmail = 'admin@makiwafreight.com';
@@ -743,4 +781,5 @@ app.listen(PORT, async () => {
   console.log('   GET /api/loads - Get all loads');
   console.log('   GET /api/admin/users - Get all users (admin)');
   console.log('   GET /api/banners/active - Get active banners');
+  console.log('   POST /api/admin/reset-db - Reset database (development)');
 });
