@@ -1,4 +1,4 @@
-// server.js - COMPLETE BACKEND WITH PROPER ADMIN SETUP
+// server.js - COMPLETE FIX WITH DATABASE SCHEMA RESET
 const express = require('express');
 const path = require('path');
 const cors = require('cors');
@@ -25,18 +25,27 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// Initialize database
+// Initialize database - COMPLETELY RESET TABLES
 const initializeDatabase = async () => {
   try {
-    console.log('Initializing database...');
+    console.log('🚀 Initializing database...');
     
-    // Create users table
+    // DROP AND RECREATE ALL TABLES TO ENSURE CORRECT SCHEMA
+    console.log('Dropping existing tables...');
+    await pool.query('DROP TABLE IF EXISTS messages CASCADE');
+    await pool.query('DROP TABLE IF EXISTS loads CASCADE');
+    await pool.query('DROP TABLE IF EXISTS acl CASCADE');
+    await pool.query('DROP TABLE IF EXISTS banners CASCADE');
+    await pool.query('DROP TABLE IF EXISTS users CASCADE');
+
+    // Create users table WITH PASSWORD COLUMN
+    console.log('Creating users table...');
     await pool.query(`
-      CREATE TABLE IF NOT EXISTS users (
+      CREATE TABLE users (
         id SERIAL PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
         email VARCHAR(255) UNIQUE NOT NULL,
-        password VARCHAR(255),
+        password VARCHAR(255) NOT NULL,
         phone VARCHAR(50),
         company VARCHAR(255),
         address TEXT,
@@ -49,8 +58,9 @@ const initializeDatabase = async () => {
     `);
 
     // Create loads table
+    console.log('Creating loads table...');
     await pool.query(`
-      CREATE TABLE IF NOT EXISTS loads (
+      CREATE TABLE loads (
         id SERIAL PRIMARY KEY,
         ref VARCHAR(20) NOT NULL,
         origin VARCHAR(255) NOT NULL,
@@ -71,8 +81,9 @@ const initializeDatabase = async () => {
     `);
 
     // Create messages table
+    console.log('Creating messages table...');
     await pool.query(`
-      CREATE TABLE IF NOT EXISTS messages (
+      CREATE TABLE messages (
         id SERIAL PRIMARY KEY,
         sender_membership VARCHAR(20) NOT NULL,
         recipient_membership VARCHAR(20) NOT NULL,
@@ -82,8 +93,9 @@ const initializeDatabase = async () => {
     `);
 
     // Create acl table
+    console.log('Creating acl table...');
     await pool.query(`
-      CREATE TABLE IF NOT EXISTS acl (
+      CREATE TABLE acl (
         id SERIAL PRIMARY KEY,
         user_email VARCHAR(255) UNIQUE,
         post BOOLEAN DEFAULT false,
@@ -92,8 +104,9 @@ const initializeDatabase = async () => {
     `);
 
     // Create banners table
+    console.log('Creating banners table...');
     await pool.query(`
-      CREATE TABLE IF NOT EXISTS banners (
+      CREATE TABLE banners (
         id SERIAL PRIMARY KEY,
         page VARCHAR(50) NOT NULL,
         banner TEXT,
@@ -105,77 +118,61 @@ const initializeDatabase = async () => {
     const adminEmail = 'cyprianmak@gmail.com';
     const adminPassword = 'Muchandida@1';
     
-    console.log('Checking admin user...');
-    const adminResult = await pool.query('SELECT * FROM users WHERE email = $1', [adminEmail]);
+    console.log('Creating admin user...');
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(adminPassword, salt);
+    const adminMembership = 'MFADMIN01';
     
-    if (adminResult.rows.length === 0) {
-      console.log('Creating admin user...');
-      const salt = await bcrypt.genSalt(10);
-      const hashedPassword = await bcrypt.hash(adminPassword, salt);
-      const adminMembership = 'MFADMIN01';
-      
-      await pool.query(
-        `INSERT INTO users (name, email, password, role, membership_number, created_at, updated_at) 
-         VALUES ($1, $2, $3, $4, $5, NOW(), NOW())`,
-        ['Admin', adminEmail, hashedPassword, 'admin', adminMembership]
-      );
+    await pool.query(
+      `INSERT INTO users (name, email, password, role, membership_number, created_at, updated_at) 
+       VALUES ($1, $2, $3, $4, $5, NOW(), NOW())`,
+      ['Admin', adminEmail, hashedPassword, 'admin', adminMembership]
+    );
 
-      await pool.query('INSERT INTO acl (user_email, post, market) VALUES ($1, true, true)', [adminEmail]);
-      console.log('✅ Admin user created successfully');
-    } else {
-      const admin = adminResult.rows[0];
-      console.log('Admin user exists, checking password...');
-      
-      // ALWAYS UPDATE THE ADMIN PASSWORD TO ENSURE IT'S CORRECT
-      const salt = await bcrypt.genSalt(10);
-      const hashedPassword = await bcrypt.hash(adminPassword, salt);
-      
-      await pool.query(
-        'UPDATE users SET password = $1, updated_at = NOW() WHERE email = $2',
-        [hashedPassword, adminEmail]
-      );
-      console.log('✅ Admin password updated successfully');
-    }
-
+    await pool.query('INSERT INTO acl (user_email, post, market) VALUES ($1, true, true)', [adminEmail]);
+    
     // Initialize banners
-    const bannerResult = await pool.query('SELECT * FROM banners');
-    if (bannerResult.rows.length === 0) {
-      await pool.query("INSERT INTO banners (page, banner) VALUES ('index', ''), ('dashboard', '')");
-    }
+    await pool.query("INSERT INTO banners (page, banner) VALUES ('index', ''), ('dashboard', '')");
 
-    console.log('✅ Database initialized successfully');
+    console.log('✅ Database initialized successfully with admin user!');
+    console.log('📧 Admin Email:', adminEmail);
+    console.log('🔑 Admin Password:', adminPassword);
+    console.log('🔢 Membership Number:', adminMembership);
+    
   } catch (err) {
     console.error('❌ Error initializing database:', err);
   }
 };
 
-// DEBUG ROUTES - FORCE FIX ADMIN
-app.get('/api/debug/fix-admin', async (req, res) => {
+// DEBUG ROUTES - FORCE RESET DATABASE
+app.get('/api/debug/reset-database', async (req, res) => {
   try {
-    const adminEmail = 'cyprianmak@gmail.com';
-    const adminPassword = 'Muchandida@1';
-    
-    // ALWAYS CREATE/UPDATE ADMIN WITH PROPER PASSWORD
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(adminPassword, salt);
-    
-    const adminResult = await pool.query('SELECT * FROM users WHERE email = $1', [adminEmail]);
+    await initializeDatabase();
+    res.json({ message: '✅ Database reset successfully! Admin user created.' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/debug/check-admin', async (req, res) => {
+  try {
+    const adminResult = await pool.query('SELECT * FROM users WHERE email = $1', ['cyprianmak@gmail.com']);
     
     if (adminResult.rows.length === 0) {
-      await pool.query(
-        `INSERT INTO users (name, email, password, role, membership_number, created_at, updated_at) 
-         VALUES ($1, $2, $3, $4, $5, NOW(), NOW())`,
-        ['Admin', adminEmail, hashedPassword, 'admin', 'MFADMIN01']
-      );
-      await pool.query('INSERT INTO acl (user_email, post, market) VALUES ($1, true, true)', [adminEmail]);
-      return res.json({ message: '✅ Admin user created successfully' });
-    } else {
-      await pool.query(
-        'UPDATE users SET password = $1, updated_at = NOW() WHERE email = $2',
-        [hashedPassword, adminEmail]
-      );
-      return res.json({ message: '✅ Admin password fixed successfully' });
+      return res.json({ message: '❌ Admin user does not exist' });
     }
+    
+    const admin = adminResult.rows[0];
+    res.json({ 
+      message: '✅ Admin user exists',
+      admin: {
+        email: admin.email,
+        role: admin.role,
+        membership_number: admin.membership_number,
+        has_password: !!admin.password,
+        password_length: admin.password ? admin.password.length : 0
+      }
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -183,7 +180,7 @@ app.get('/api/debug/fix-admin', async (req, res) => {
 
 app.get('/api/debug/all-users', async (req, res) => {
   try {
-    const users = await pool.query('SELECT id, name, email, role, membership_number, password IS NOT NULL as has_password FROM users');
+    const users = await pool.query('SELECT id, name, email, role, membership_number, LENGTH(password) as password_length FROM users');
     res.json(users.rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -192,12 +189,12 @@ app.get('/api/debug/all-users', async (req, res) => {
 
 // API Routes
 
-// Auth routes - SIMPLIFIED AND WORKING
+// Auth routes - SIMPLIFIED
 app.post('/api/auth/login', async (req, res) => {
   const { email, password } = req.body;
 
   try {
-    console.log('Login attempt for:', email);
+    console.log('🔐 Login attempt for:', email);
     
     const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
     if (result.rows.length === 0) {
@@ -206,16 +203,10 @@ app.post('/api/auth/login', async (req, res) => {
 
     const user = result.rows[0];
     
-    // Check if password exists
-    if (!user.password) {
-      console.log('No password set for user:', email);
-      return res.status(401).json({ error: 'Password not set for this user. Please contact admin.' });
-    }
-
     // Verify password
     const validPassword = await bcrypt.compare(password, user.password);
     if (!validPassword) {
-      console.log('Invalid password for user:', email);
+      console.log('❌ Invalid password for user:', email);
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
@@ -317,57 +308,6 @@ app.get('/api/users/me', async (req, res) => {
   }
 });
 
-app.put('/api/users/me', async (req, res) => {
-  const { name, phone, address, password } = req.body;
-
-  try {
-    const userId = 1;
-    
-    let updateFields = [];
-    let values = [];
-    let paramIndex = 1;
-
-    if (name) {
-      updateFields.push(`name = $${paramIndex++}`);
-      values.push(name);
-    }
-    if (phone) {
-      updateFields.push(`phone = $${paramIndex++}`);
-      values.push(phone);
-    }
-    if (address) {
-      updateFields.push(`address = $${paramIndex++}`);
-      values.push(address);
-    }
-    if (password) {
-      const salt = await bcrypt.genSalt(10);
-      const hashedPassword = await bcrypt.hash(password, salt);
-      updateFields.push(`password = $${paramIndex++}`);
-      values.push(hashedPassword);
-    }
-
-    if (updateFields.length === 0) {
-      return res.status(400).json({ error: 'No fields to update' });
-    }
-
-    updateFields.push(`updated_at = NOW()`);
-    values.push(userId);
-
-    const query = `UPDATE users SET ${updateFields.join(', ')} WHERE id = $${paramIndex} RETURNING *`;
-    const result = await pool.query(query, values);
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    const { password: _, ...userWithoutPassword } = result.rows[0];
-    res.json({ data: { user: userWithoutPassword } });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
 // Load routes
 app.post('/api/loads', async (req, res) => {
   const { origin, destination, date, cargo_type, weight, notes } = req.body;
@@ -409,55 +349,6 @@ app.get('/api/loads', async (req, res) => {
       ORDER BY created_at DESC`
     );
     res.json({ data: { loads: result.rows } });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
-app.get('/api/users/me/loads', async (req, res) => {
-  try {
-    const shipper_id = 1;
-    const result = await pool.query('SELECT * FROM loads WHERE shipper_id = $1 ORDER BY created_at DESC', [shipper_id]);
-    res.json({ data: { loads: result.rows } });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
-app.put('/api/loads/:id', async (req, res) => {
-  const { origin, destination, date, cargo_type, weight, notes } = req.body;
-  const id = req.params.id;
-
-  try {
-    const result = await pool.query(
-      `UPDATE loads SET origin = $1, destination = $2, date = $3, cargo_type = $4, weight = $5, notes = $6, updated_at = NOW() 
-       WHERE id = $7 RETURNING *`,
-      [origin, destination, date, cargo_type, weight, notes, id]
-    );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Load not found' });
-    }
-
-    res.json({ 
-      message: 'Load updated successfully',
-      data: { load: result.rows[0] } 
-    });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
-app.delete('/api/loads/:id', async (req, res) => {
-  try {
-    const result = await pool.query('DELETE FROM loads WHERE id = $1 RETURNING *', [req.params.id]);
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Load not found' });
-    }
-    res.json({ message: 'Load deleted successfully' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
@@ -518,107 +409,13 @@ app.get('/api/users', async (req, res) => {
   }
 });
 
-app.delete('/api/admin/users/:email', async (req, res) => {
-  try {
-    const userResult = await pool.query('SELECT id FROM users WHERE email = $1', [req.params.email]);
-    if (userResult.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    const userId = userResult.rows[0].id;
-
-    await pool.query('DELETE FROM messages WHERE sender_membership IN (SELECT membership_number FROM users WHERE id = $1) OR recipient_membership IN (SELECT membership_number FROM users WHERE id = $1)', [userId]);
-    await pool.query('DELETE FROM loads WHERE shipper_id = $1', [userId]);
-    await pool.query('DELETE FROM acl WHERE user_email = $1', [req.params.email]);
-    await pool.query('DELETE FROM users WHERE email = $1', [req.params.email]);
-
-    res.json({ message: 'User deleted successfully' });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
-app.post('/api/admin/reset-password', async (req, res) => {
-  const { email, new_password } = req.body;
-
-  try {
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(new_password, salt);
-
-    const result = await pool.query(
-      'UPDATE users SET password = $1, updated_at = NOW() WHERE email = $2 RETURNING *',
-      [hashedPassword, email]
-    );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    res.json({ message: 'Password reset successfully' });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
-// Banner routes
-app.get('/api/banners/active', async (req, res) => {
-  try {
-    const { page } = req.query;
-    const result = await pool.query('SELECT banner FROM banners WHERE page = $1', [page]);
-    
-    if (result.rows.length === 0) {
-      return res.json({ data: { banner: '' } });
-    }
-
-    res.json({ data: { banner: result.rows[0].banner } });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
-app.get('/api/admin/banners', async (req, res) => {
-  try {
-    const result = await pool.query('SELECT * FROM banners');
-    const banners = {};
-    result.rows.forEach(row => {
-      banners[row.page] = row.banner;
-    });
-    res.json({ data: banners });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
-app.put('/api/admin/banners', async (req, res) => {
-  try {
-    const banners = req.body;
-    
-    for (const [page, banner] of Object.entries(banners)) {
-      const existing = await pool.query('SELECT * FROM banners WHERE page = $1', [page]);
-      
-      if (existing.rows.length > 0) {
-        await pool.query('UPDATE banners SET banner = $1, updated_at = NOW() WHERE page = $2', [banner, page]);
-      } else {
-        await pool.query('INSERT INTO banners (page, banner, updated_at) VALUES ($1, $2, NOW())', [page, banner]);
-      }
-    }
-
-    res.json({ message: 'Banners updated successfully' });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
 // Start server
 app.listen(PORT, async () => {
   console.log(`🚀 MakiwaFreight server running on port ${PORT}`);
   console.log(`🌐 Visit: https://makiwafreightapp.onrender.com`);
-  console.log(`🔧 Initializing database...`);
+  console.log(`🔧 Initializing database with fresh schema...`);
   await initializeDatabase();
   console.log(`✅ Server is ready!`);
+  console.log(`📧 Admin login: cyprianmak@gmail.com`);
+  console.log(`🔑 Admin password: Muchandida@1`);
 });
