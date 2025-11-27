@@ -1355,3 +1355,17 @@ if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     print(f"🚀 Starting MakiwaFreight server on port {port}")
     app.run(debug=True, host='0.0.0.0', port=port)
+
+# Production configuration
+if __name__ == '__main__':
+    initialize_data()
+    port = int(os.environ.get('PORT', 5000))
+    print(f"🚀 Starting MakiwaFreight server on port {port}")
+    
+    # Use Gunicorn in production, development server locally
+    if os.environ.get('RENDER'):
+        # Production - Gunicorn will handle this
+        app.run(host='0.0.0.0', port=port)
+    else:
+        # Development
+        app.run(debug=True, host='0.0.0.0', port=port)
