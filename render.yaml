@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: makiwa-freight
+    env: node
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DB_USER
+        value: your_db_user
+      - key: DB_HOST
+        value: your_db_host
+      - key: DB_DATABASE
+        value: your_db_name
+      - key: DB_PASSWORD
+        value: your_db_password
+      - key: DB_PORT
+        value: 5432
