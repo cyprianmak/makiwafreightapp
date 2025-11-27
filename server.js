@@ -8,15 +8,26 @@ const { Pool } = require('pg');
 const app = express();
 const PORT = process.env.PORT || 10000;
 
-// Database connection
+// Database connection for Render PostgreSQL
 const pool = new Pool({
-  user: process.env.DB_USER || 'postgres',
-  host: process.env.DB_HOST || 'localhost',
-  database: process.env.DB_DATABASE || 'makiwafreight',
-  password: process.env.DB_PASSWORD || 'password',
-  port: process.env.DB_PORT || 5432,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+  connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false
+  }
 });
+
+// Test database connection
+const testConnection = async () => {
+  try {
+    const client = await pool.connect();
+    console.log('✅ Database connected successfully');
+    client.release();
+    return true;
+  } catch (err) {
+    console.error('❌ Database connection failed:', err.message);
+    return false;
+  }
+};
 
 // Middleware
 app.use(cors());
@@ -34,6 +45,16 @@ const generateLoadReference = () => {
 };
 
 // API Routes
+
+// Health check endpoint
+app.get('/api/health', async (req, res) => {
+  const dbStatus = await testConnection();
+  res.json({ 
+    status: 'OK', 
+    database: dbStatus ? 'Connected' : 'Disconnected',
+    timestamp: new Date().toISOString() 
+  });
+});
 
 // User registration
 app.post('/api/users/register', async (req, res) => {
@@ -658,12 +679,12 @@ const initializeDatabase = async () => {
         [adminUser.rows[0].id]
       );
 
-      console.log('Admin user created successfully');
-      console.log('Email: admin@makiwafreight.com');
-      console.log('Password: Admin123!');
-      console.log('Membership Number:', adminMembership);
+      console.log('✅ Admin user created successfully');
+      console.log('📧 Email: admin@makiwafreight.com');
+      console.log('🔑 Password: Admin123!');
+      console.log('🎫 Membership Number:', adminMembership);
     } else {
-      console.log('Admin user already exists');
+      console.log('✅ Admin user already exists');
     }
 
     // Check if banners exist
@@ -672,22 +693,18 @@ const initializeDatabase = async () => {
       await pool.query(
         "INSERT INTO banners (page, content) VALUES ('index', 'Welcome to MakiwaFreight - Your Trusted Logistics Partner'), ('dashboard', 'Manage your loads and connect with partners efficiently')"
       );
+      console.log('✅ Default banners created');
     }
 
-    console.log('Database initialized successfully');
+    console.log('✅ Database initialized successfully');
   } catch (err) {
-    console.error('Error initializing database:', err);
+    console.error('❌ Error initializing database:', err.message);
   }
 };
 
 // Serve the main application
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
-});
-
-// Health check endpoint
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
 // Error handling middleware
@@ -707,11 +724,18 @@ app.listen(PORT, async () => {
   console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🔗 Health check: http://localhost:${PORT}/api/health`);
   
-  await initializeDatabase();
+  // Test database connection first
+  const dbConnected = await testConnection();
+  
+  if (dbConnected) {
+    await initializeDatabase();
+  } else {
+    console.log('❌ Server started but database is not connected');
+  }
   
   console.log('\n📍 Available Admin Credentials:');
-  console.log('   Email: admin@makiwafreight.com');
-  console.log('   Password: Admin123!');
+  console.log('   📧 Email: admin@makiwafreight.com');
+  console.log('   🔑 Password: Admin123!');
   console.log('\n📍 Available Endpoints:');
   console.log('   POST /api/users/register - User registration');
   console.log('   POST /api/users/login - User login');
