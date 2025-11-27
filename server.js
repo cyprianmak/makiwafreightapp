@@ -1,4 +1,4 @@
-// server.js - COMPLETE BACKEND FOR MAKIWAFREIGHT
+// server.js - COMPLETE BACKEND FOR MAKIWAFREIGHT - FIXED VERSION
 const express = require('express');
 const path = require('path');
 const cors = require('cors');
@@ -25,32 +25,219 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
+// Initialize database
+const initializeDatabase = async () => {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        password VARCHAR(255),
+        phone VARCHAR(50),
+        company VARCHAR(255),
+        address TEXT,
+        role VARCHAR(50) NOT NULL,
+        vehicle_info TEXT,
+        membership_number VARCHAR(20) UNIQUE,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS loads (
+        id SERIAL PRIMARY KEY,
+        ref VARCHAR(20) NOT NULL,
+        origin VARCHAR(255) NOT NULL,
+        destination VARCHAR(255) NOT NULL,
+        date DATE NOT NULL,
+        cargo_type VARCHAR(255) NOT NULL,
+        weight DECIMAL(10,2) NOT NULL,
+        notes TEXT,
+        shipper_id INTEGER REFERENCES users(id),
+        shipper_name VARCHAR(255),
+        shipper_email VARCHAR(255),
+        shipper_membership VARCHAR(20),
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW(),
+        expires_at TIMESTAMP NOT NULL,
+        status VARCHAR(50) DEFAULT 'active'
+      )
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS messages (
+        id SERIAL PRIMARY KEY,
+        sender_membership VARCHAR(20) NOT NULL,
+        recipient_membership VARCHAR(20) NOT NULL,
+        body TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS acl (
+        id SERIAL PRIMARY KEY,
+        user_email VARCHAR(255) UNIQUE,
+        post BOOLEAN DEFAULT false,
+        market BOOLEAN DEFAULT false
+      )
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS banners (
+        id SERIAL PRIMARY KEY,
+        page VARCHAR(50) NOT NULL,
+        banner TEXT,
+        updated_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
+    // Create admin user
+    const adminEmail = 'cyprianmak@gmail.com';
+    const adminResult = await pool.query('SELECT * FROM users WHERE email = $1', [adminEmail]);
+    
+    if (adminResult.rows.length === 0) {
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash('Muchandida@1', salt);
+      const adminMembership = 'MFADMIN01';
+      
+      await pool.query(
+        `INSERT INTO users (name, email, password, role, membership_number, created_at, updated_at) 
+         VALUES ($1, $2, $3, $4, $5, NOW(), NOW())`,
+        ['Admin', adminEmail, hashedPassword, 'admin', adminMembership]
+      );
+
+      await pool.query('INSERT INTO acl (user_email, post, market) VALUES ($1, true, true)', [adminEmail]);
+      console.log('Admin user created successfully');
+    } else {
+      // Fix admin password if needed
+      const admin = adminResult.rows[0];
+      if (!admin.password || admin.password === 'undefined') {
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash('Muchandida@1', salt);
+        
+        await pool.query(
+          'UPDATE users SET password = $1, updated_at = NOW() WHERE email = $2',
+          [hashedPassword, adminEmail]
+        );
+        console.log('Admin password fixed');
+      }
+    }
+
+    // Initialize banners
+    const bannerResult = await pool.query('SELECT * FROM banners');
+    if (bannerResult.rows.length === 0) {
+      await pool.query("INSERT INTO banners (page, banner) VALUES ('index', ''), ('dashboard', '')");
+    }
+
+    console.log('Database initialized successfully');
+  } catch (err) {
+    console.error('Error initializing database:', err);
+  }
+};
+
+// DEBUG ROUTES - Add these first to fix issues
+app.get('/api/debug/fix-admin', async (req, res) => {
+  try {
+    // Check if admin exists
+    const adminResult = await pool.query('SELECT * FROM users WHERE email = $1', ['cyprianmak@gmail.com']);
+    
+    if (adminResult.rows.length === 0) {
+      // Create admin user
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash('Muchandida@1', salt);
+      
+      await pool.query(
+        `INSERT INTO users (name, email, password, role, membership_number, created_at, updated_at) 
+         VALUES ($1, $2, $3, $4, $5, NOW(), NOW())`,
+        ['Admin', 'cyprianmak@gmail.com', hashedPassword, 'admin', 'MFADMIN01']
+      );
+      
+      await pool.query('INSERT INTO acl (user_email, post, market) VALUES ($1, true, true)', ['cyprianmak@gmail.com']);
+      
+      return res.json({ message: 'Admin user created successfully' });
+    } else {
+      const admin = adminResult.rows[0];
+      
+      // Check if password is missing or invalid
+      if (!admin.password || admin.password === 'undefined') {
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash('Muchandida@1', salt);
+        
+        await pool.query(
+          'UPDATE users SET password = $1, updated_at = NOW() WHERE email = $2',
+          [hashedPassword, 'cyprianmak@gmail.com']
+        );
+        
+        return res.json({ message: 'Admin password fixed successfully' });
+      }
+      
+      return res.json({ 
+        message: 'Admin user exists', 
+        admin: { 
+          email: admin.email, 
+          role: admin.role,
+          has_password: !!admin.password
+        } 
+      });
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/debug/all-users', async (req, res) => {
+  try {
+    const users = await pool.query('SELECT id, name, email, role, membership_number, password IS NOT NULL as has_password FROM users');
+    res.json(users.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // API Routes
 
-// Auth routes
+// Auth routes - FIXED VERSION
 app.post('/api/auth/login', async (req, res) => {
   const { email, password } = req.body;
 
   try {
+    console.log('Login attempt for:', email);
+    
     const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
     if (result.rows.length === 0) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
     const user = result.rows[0];
+    
+    // Check if password exists
+    if (!user.password) {
+      return res.status(401).json({ error: 'Password not set for this user. Please contact admin.' });
+    }
+
+    // Verify password
     const validPassword = await bcrypt.compare(password, user.password);
     if (!validPassword) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    // Get ACLs
-    const aclResult = await pool.query('SELECT * FROM acl WHERE user_email = $1', [email]);
-    const acl = aclResult.rows[0] || {};
+    // Get ACLs - with error handling
+    let acl = {};
+    try {
+      const aclResult = await pool.query('SELECT * FROM acl WHERE user_email = $1', [email]);
+      acl = aclResult.rows[0] || {};
+    } catch (aclError) {
+      console.log('ACL not found, using defaults');
+    }
 
     // Remove password from response
     const { password: _, ...userWithoutPassword } = user;
     
     res.json({ 
+      message: 'Login successful',
       data: { 
         user: userWithoutPassword, 
         token: 'mock-jwt-token-' + user.id,
@@ -58,8 +245,8 @@ app.post('/api/auth/login', async (req, res) => {
       } 
     });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
+    console.error('Login error:', err);
+    res.status(500).json({ error: 'Server error: ' + err.message });
   }
 });
 
@@ -78,7 +265,9 @@ app.post('/api/auth/register', async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, salt);
 
     // Generate membership number
-    const membershipNumber = 'MF' + Math.random().toString(36).substr(2, 6).toUpperCase();
+    const prefix = role === 'shipper' ? 'MFS' : 'MFT';
+    const randomNum = Math.floor(1000 + Math.random() * 9000);
+    const membershipNumber = `${prefix}${randomNum}`;
 
     // Insert user
     const result = await pool.query(
@@ -90,16 +279,21 @@ app.post('/api/auth/register', async (req, res) => {
     const newUser = result.rows[0];
 
     // Set default ACLs
-    await pool.query('INSERT INTO acl (user_email, post, market) VALUES ($1, $2, $3)', [
-      email, 
-      role === 'shipper' ? true : false, 
-      role === 'transporter' ? true : false
-    ]);
+    try {
+      await pool.query('INSERT INTO acl (user_email, post, market) VALUES ($1, $2, $3)', [
+        email, 
+        role === 'shipper' ? true : false, 
+        role === 'transporter' ? true : false
+      ]);
+    } catch (aclError) {
+      console.log('ACL creation failed, but user was created');
+    }
 
     // Remove password from response
     const { password: _, ...userWithoutPassword } = newUser;
 
     res.status(201).json({ 
+      message: 'Registration successful',
       data: { 
         user: userWithoutPassword, 
         token: 'mock-jwt-token-' + newUser.id 
@@ -107,8 +301,8 @@ app.post('/api/auth/register', async (req, res) => {
       membership_number: membershipNumber
     });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
+    console.error('Registration error:', err);
+    res.status(500).json({ error: 'Server error: ' + err.message });
   }
 });
 
@@ -120,7 +314,7 @@ app.get('/api/users/me', async (req, res) => {
     if (user.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
     }
-    res.json({ data: user.rows[0] });
+    res.json({ data: { user: user.rows[0] } });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
@@ -172,7 +366,7 @@ app.put('/api/users/me', async (req, res) => {
     }
 
     const { password: _, ...userWithoutPassword } = result.rows[0];
-    res.json({ data: userWithoutPassword });
+    res.json({ data: { user: userWithoutPassword } });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
@@ -185,6 +379,11 @@ app.post('/api/loads', async (req, res) => {
 
   try {
     const shipper_id = 1; // Mock user ID
+    
+    // Get user details for the load
+    const userResult = await pool.query('SELECT name, email, membership_number FROM users WHERE id = $1', [shipper_id]);
+    const user = userResult.rows[0];
+    
     const ref = 'LD' + Date.now().toString().slice(-6);
     
     // Calculate expiry date (7 days from now)
@@ -192,12 +391,15 @@ app.post('/api/loads', async (req, res) => {
     expires_at.setDate(expires_at.getDate() + 7);
 
     const result = await pool.query(
-      `INSERT INTO loads (ref, origin, destination, date, cargo_type, weight, notes, shipper_id, created_at, updated_at, expires_at, status) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW(), $9, 'active') RETURNING *`,
-      [ref, origin, destination, date, cargo_type, weight, notes, shipper_id, expires_at]
+      `INSERT INTO loads (ref, origin, destination, date, cargo_type, weight, notes, shipper_id, shipper_name, shipper_email, shipper_membership, created_at, updated_at, expires_at, status) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW(), $12, 'active') RETURNING *`,
+      [ref, origin, destination, date, cargo_type, weight, notes, shipper_id, user.name, user.email, user.membership_number, expires_at]
     );
 
-    res.status(201).json({ data: result.rows[0] });
+    res.status(201).json({ 
+      message: 'Load posted successfully',
+      data: { load: result.rows[0] } 
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
@@ -206,7 +408,13 @@ app.post('/api/loads', async (req, res) => {
 
 app.get('/api/loads', async (req, res) => {
   try {
-    const result = await pool.query("SELECT l.*, u.membership_number as shipper_membership FROM loads l LEFT JOIN users u ON l.shipper_id = u.id WHERE expires_at > NOW() AND status = 'active' ORDER BY created_at DESC");
+    const result = await pool.query(`
+      SELECT l.*, u.membership_number as shipper_membership 
+      FROM loads l 
+      LEFT JOIN users u ON l.shipper_id = u.id 
+      WHERE expires_at > NOW() AND status = 'active' 
+      ORDER BY created_at DESC`
+    );
     res.json({ data: { loads: result.rows } });
   } catch (err) {
     console.error(err);
@@ -240,7 +448,10 @@ app.put('/api/loads/:id', async (req, res) => {
       return res.status(404).json({ error: 'Load not found' });
     }
 
-    res.json({ data: result.rows[0] });
+    res.json({ 
+      message: 'Load updated successfully',
+      data: { load: result.rows[0] } 
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
@@ -262,25 +473,26 @@ app.delete('/api/loads/:id', async (req, res) => {
 
 // Message routes
 app.post('/api/messages', async (req, res) => {
-  const { sender_membership, recipient_membership, body } = req.body;
+  const { recipient_membership, body } = req.body;
 
   try {
-    const senderResult = await pool.query('SELECT id FROM users WHERE membership_number = $1', [sender_membership]);
-    const receiverResult = await pool.query('SELECT id FROM users WHERE membership_number = $1', [recipient_membership]);
+    const sender_membership = 'MFADMIN01'; // Mock sender for now
     
-    if (senderResult.rows.length === 0 || receiverResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Sender or recipient not found' });
+    // Verify recipient exists
+    const recipientResult = await pool.query('SELECT * FROM users WHERE membership_number = $1', [recipient_membership]);
+    if (recipientResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Recipient not found' });
     }
 
-    const sender_id = senderResult.rows[0].id;
-    const receiver_id = receiverResult.rows[0].id;
-
     const result = await pool.query(
-      'INSERT INTO messages (sender_id, receiver_id, body, created_at) VALUES ($1, $2, $3, NOW()) RETURNING *',
-      [sender_id, receiver_id, body]
+      'INSERT INTO messages (sender_membership, recipient_membership, body, created_at) VALUES ($1, $2, $3, NOW()) RETURNING *',
+      [sender_membership, recipient_membership, body]
     );
 
-    res.status(201).json({ data: result.rows[0] });
+    res.status(201).json({ 
+      message: 'Message sent successfully',
+      data: { message: result.rows[0] } 
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
@@ -289,17 +501,12 @@ app.post('/api/messages', async (req, res) => {
 
 app.get('/api/messages', async (req, res) => {
   try {
-    const userId = 1; // Mock user ID
+    const userMembership = 'MFADMIN01'; // Mock user membership
     const result = await pool.query(
-      `SELECT m.*, 
-              u1.membership_number as sender_membership,
-              u2.membership_number as recipient_membership
-       FROM messages m 
-       JOIN users u1 ON m.sender_id = u1.id 
-       JOIN users u2 ON m.receiver_id = u2.id 
-       WHERE m.sender_id = $1 OR m.receiver_id = $1 
-       ORDER BY m.created_at DESC`,
-      [userId]
+      `SELECT * FROM messages 
+       WHERE sender_membership = $1 OR recipient_membership = $1 
+       ORDER BY created_at DESC`,
+      [userMembership]
     );
     res.json({ data: { messages: result.rows } });
   } catch (err) {
@@ -328,7 +535,7 @@ app.delete('/api/admin/users/:email', async (req, res) => {
 
     const userId = userResult.rows[0].id;
 
-    await pool.query('DELETE FROM messages WHERE sender_id = $1 OR receiver_id = $1', [userId]);
+    await pool.query('DELETE FROM messages WHERE sender_membership IN (SELECT membership_number FROM users WHERE id = $1) OR recipient_membership IN (SELECT membership_number FROM users WHERE id = $1)', [userId]);
     await pool.query('DELETE FROM loads WHERE shipper_id = $1', [userId]);
     await pool.query('DELETE FROM acl WHERE user_email = $1', [req.params.email]);
     await pool.query('DELETE FROM users WHERE email = $1', [req.params.email]);
@@ -363,160 +570,61 @@ app.post('/api/admin/reset-password', async (req, res) => {
   }
 });
 
-// Initialize database
-const initializeDatabase = async () => {
+// Banner routes
+app.get('/api/banners/active', async (req, res) => {
   try {
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS users (
-        id SERIAL PRIMARY KEY,
-        name VARCHAR(255) NOT NULL,
-        email VARCHAR(255) UNIQUE NOT NULL,
-        password VARCHAR(255) NOT NULL,
-        phone VARCHAR(50),
-        company VARCHAR(255),
-        address TEXT,
-        role VARCHAR(50) NOT NULL,
-        vehicle_info TEXT,
-        membership_number VARCHAR(20) UNIQUE,
-        created_at TIMESTAMP DEFAULT NOW(),
-        updated_at TIMESTAMP DEFAULT NOW()
-      )
-    `);
-
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS loads (
-        id SERIAL PRIMARY KEY,
-        ref VARCHAR(10) NOT NULL,
-        origin VARCHAR(255) NOT NULL,
-        destination VARCHAR(255) NOT NULL,
-        date DATE NOT NULL,
-        cargo_type VARCHAR(255) NOT NULL,
-        weight DECIMAL(10,2) NOT NULL,
-        notes TEXT,
-        shipper_id INTEGER REFERENCES users(id),
-        created_at TIMESTAMP DEFAULT NOW(),
-        updated_at TIMESTAMP DEFAULT NOW(),
-        expires_at TIMESTAMP NOT NULL,
-        status VARCHAR(50) DEFAULT 'active'
-      )
-    `);
-
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS messages (
-        id SERIAL PRIMARY KEY,
-        sender_id INTEGER REFERENCES users(id),
-        receiver_id INTEGER REFERENCES users(id),
-        body TEXT NOT NULL,
-        created_at TIMESTAMP DEFAULT NOW()
-      )
-    `);
-
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS acl (
-        id SERIAL PRIMARY KEY,
-        user_email VARCHAR(255) UNIQUE REFERENCES users(email),
-        post BOOLEAN DEFAULT false,
-        market BOOLEAN DEFAULT false
-      )
-    `);
-
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS banners (
-        id SERIAL PRIMARY KEY,
-        index TEXT DEFAULT '',
-        dashboard TEXT DEFAULT ''
-      )
-    `);
-
-    // Create admin user
-    const adminEmail = 'cyprianmak@gmail.com';
-    const adminResult = await pool.query('SELECT * FROM users WHERE email = $1', [adminEmail]);
+    const { page } = req.query;
+    const result = await pool.query('SELECT banner FROM banners WHERE page = $1', [page]);
     
-    if (adminResult.rows.length === 0) {
-      const salt = await bcrypt.genSalt(10);
-      const hashedPassword = await bcrypt.hash('Muchandida@1', salt);
-      const adminMembership = 'MFADMIN01';
-      
-      await pool.query(
-        `INSERT INTO users (name, email, password, role, membership_number, created_at, updated_at) 
-         VALUES ($1, $2, $3, $4, $5, NOW(), NOW())`,
-        ['Admin', adminEmail, hashedPassword, 'admin', adminMembership]
-      );
-
-      await pool.query('INSERT INTO acl (user_email, post, market) VALUES ($1, true, true)', [adminEmail]);
+    if (result.rows.length === 0) {
+      return res.json({ data: { banner: '' } });
     }
 
-    const bannerResult = await pool.query('SELECT * FROM banners');
-    if (bannerResult.rows.length === 0) {
-      await pool.query("INSERT INTO banners (index, dashboard) VALUES ('', '')");
-    }
-
-    console.log('Database initialized successfully');
+    res.json({ data: { banner: result.rows[0].banner } });
   } catch (err) {
-    console.error('Error initializing database:', err);
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
   }
-};
+});
+
+app.get('/api/admin/banners', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM banners');
+    const banners = {};
+    result.rows.forEach(row => {
+      banners[row.page] = row.banner;
+    });
+    res.json({ data: banners });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+app.put('/api/admin/banners', async (req, res) => {
+  try {
+    const banners = req.body;
+    
+    for (const [page, banner] of Object.entries(banners)) {
+      const existing = await pool.query('SELECT * FROM banners WHERE page = $1', [page]);
+      
+      if (existing.rows.length > 0) {
+        await pool.query('UPDATE banners SET banner = $1, updated_at = NOW() WHERE page = $2', [banner, page]);
+      } else {
+        await pool.query('INSERT INTO banners (page, banner, updated_at) VALUES ($1, $2, NOW())', [page, banner]);
+      }
+    }
+
+    res.json({ message: 'Banners updated successfully' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
 
 // Start server
 app.listen(PORT, async () => {
   console.log(`MakiwaFreight server running on port ${PORT}`);
+  console.log(`Visit: https://makiwafreightapp.onrender.com`);
   await initializeDatabase();
-});
-
-// Add this route to check and fix admin user
-app.get('/api/debug/fix-admin', async (req, res) => {
-  try {
-    // Check if admin exists
-    const adminResult = await pool.query('SELECT * FROM users WHERE email = $1', ['cyprianmak@gmail.com']);
-    
-    if (adminResult.rows.length === 0) {
-      // Create admin user
-      const salt = await bcrypt.genSalt(10);
-      const hashedPassword = await bcrypt.hash('Muchandida@1', salt);
-      
-      await pool.query(
-        `INSERT INTO users (name, email, password, role, membership_number, created_at, updated_at) 
-         VALUES ($1, $2, $3, $4, $5, NOW(), NOW())`,
-        ['Admin', 'cyprianmak@gmail.com', hashedPassword, 'admin', 'MFADMIN01']
-      );
-      
-      return res.json({ message: 'Admin user created successfully' });
-    } else {
-      const admin = adminResult.rows[0];
-      
-      // Check if password is missing or invalid
-      if (!admin.password || admin.password === 'undefined') {
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash('Muchandida@1', salt);
-        
-        await pool.query(
-          'UPDATE users SET password = $1, updated_at = NOW() WHERE email = $2',
-          [hashedPassword, 'cyprianmak@gmail.com']
-        );
-        
-        return res.json({ message: 'Admin password fixed successfully' });
-      }
-      
-      return res.json({ 
-        message: 'Admin user exists', 
-        admin: { 
-          email: admin.email, 
-          role: admin.role,
-          has_password: !!admin.password
-        } 
-      });
-    }
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Add this to see all users in database
-app.get('/api/debug/all-users', async (req, res) => {
-  try {
-    const users = await pool.query('SELECT id, name, email, role, membership_number, password IS NOT NULL as has_password FROM users');
-    res.json(users.rows);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
 });
