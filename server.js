@@ -1,4 +1,4 @@
-// server.js - BACKEND ONLY (Node.js)
+// server.js - COMPLETE BACKEND WITH PROPER ADMIN SETUP
 const express = require('express');
 const path = require('path');
 const cors = require('cors');
@@ -28,6 +28,9 @@ app.get('/', (req, res) => {
 // Initialize database
 const initializeDatabase = async () => {
   try {
+    console.log('Initializing database...');
+    
+    // Create users table
     await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
@@ -45,6 +48,7 @@ const initializeDatabase = async () => {
       )
     `);
 
+    // Create loads table
     await pool.query(`
       CREATE TABLE IF NOT EXISTS loads (
         id SERIAL PRIMARY KEY,
@@ -66,6 +70,7 @@ const initializeDatabase = async () => {
       )
     `);
 
+    // Create messages table
     await pool.query(`
       CREATE TABLE IF NOT EXISTS messages (
         id SERIAL PRIMARY KEY,
@@ -76,6 +81,7 @@ const initializeDatabase = async () => {
       )
     `);
 
+    // Create acl table
     await pool.query(`
       CREATE TABLE IF NOT EXISTS acl (
         id SERIAL PRIMARY KEY,
@@ -85,6 +91,7 @@ const initializeDatabase = async () => {
       )
     `);
 
+    // Create banners table
     await pool.query(`
       CREATE TABLE IF NOT EXISTS banners (
         id SERIAL PRIMARY KEY,
@@ -94,13 +101,17 @@ const initializeDatabase = async () => {
       )
     `);
 
-    // Create admin user
+    // CREATE ADMIN USER WITH PROPER PASSWORD
     const adminEmail = 'cyprianmak@gmail.com';
+    const adminPassword = 'Muchandida@1';
+    
+    console.log('Checking admin user...');
     const adminResult = await pool.query('SELECT * FROM users WHERE email = $1', [adminEmail]);
     
     if (adminResult.rows.length === 0) {
+      console.log('Creating admin user...');
       const salt = await bcrypt.genSalt(10);
-      const hashedPassword = await bcrypt.hash('Muchandida@1', salt);
+      const hashedPassword = await bcrypt.hash(adminPassword, salt);
       const adminMembership = 'MFADMIN01';
       
       await pool.query(
@@ -110,20 +121,20 @@ const initializeDatabase = async () => {
       );
 
       await pool.query('INSERT INTO acl (user_email, post, market) VALUES ($1, true, true)', [adminEmail]);
-      console.log('Admin user created successfully');
+      console.log('✅ Admin user created successfully');
     } else {
-      // Fix admin password if needed
       const admin = adminResult.rows[0];
-      if (!admin.password || admin.password === 'undefined') {
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash('Muchandida@1', salt);
-        
-        await pool.query(
-          'UPDATE users SET password = $1, updated_at = NOW() WHERE email = $2',
-          [hashedPassword, adminEmail]
-        );
-        console.log('Admin password fixed');
-      }
+      console.log('Admin user exists, checking password...');
+      
+      // ALWAYS UPDATE THE ADMIN PASSWORD TO ENSURE IT'S CORRECT
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(adminPassword, salt);
+      
+      await pool.query(
+        'UPDATE users SET password = $1, updated_at = NOW() WHERE email = $2',
+        [hashedPassword, adminEmail]
+      );
+      console.log('✅ Admin password updated successfully');
     }
 
     // Initialize banners
@@ -132,53 +143,38 @@ const initializeDatabase = async () => {
       await pool.query("INSERT INTO banners (page, banner) VALUES ('index', ''), ('dashboard', '')");
     }
 
-    console.log('Database initialized successfully');
+    console.log('✅ Database initialized successfully');
   } catch (err) {
-    console.error('Error initializing database:', err);
+    console.error('❌ Error initializing database:', err);
   }
 };
 
-// DEBUG ROUTES
+// DEBUG ROUTES - FORCE FIX ADMIN
 app.get('/api/debug/fix-admin', async (req, res) => {
   try {
-    const adminResult = await pool.query('SELECT * FROM users WHERE email = $1', ['cyprianmak@gmail.com']);
+    const adminEmail = 'cyprianmak@gmail.com';
+    const adminPassword = 'Muchandida@1';
+    
+    // ALWAYS CREATE/UPDATE ADMIN WITH PROPER PASSWORD
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(adminPassword, salt);
+    
+    const adminResult = await pool.query('SELECT * FROM users WHERE email = $1', [adminEmail]);
     
     if (adminResult.rows.length === 0) {
-      const salt = await bcrypt.genSalt(10);
-      const hashedPassword = await bcrypt.hash('Muchandida@1', salt);
-      
       await pool.query(
         `INSERT INTO users (name, email, password, role, membership_number, created_at, updated_at) 
          VALUES ($1, $2, $3, $4, $5, NOW(), NOW())`,
-        ['Admin', 'cyprianmak@gmail.com', hashedPassword, 'admin', 'MFADMIN01']
+        ['Admin', adminEmail, hashedPassword, 'admin', 'MFADMIN01']
       );
-      
-      await pool.query('INSERT INTO acl (user_email, post, market) VALUES ($1, true, true)', ['cyprianmak@gmail.com']);
-      
-      return res.json({ message: 'Admin user created successfully' });
+      await pool.query('INSERT INTO acl (user_email, post, market) VALUES ($1, true, true)', [adminEmail]);
+      return res.json({ message: '✅ Admin user created successfully' });
     } else {
-      const admin = adminResult.rows[0];
-      
-      if (!admin.password || admin.password === 'undefined') {
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash('Muchandida@1', salt);
-        
-        await pool.query(
-          'UPDATE users SET password = $1, updated_at = NOW() WHERE email = $2',
-          [hashedPassword, 'cyprianmak@gmail.com']
-        );
-        
-        return res.json({ message: 'Admin password fixed successfully' });
-      }
-      
-      return res.json({ 
-        message: 'Admin user exists', 
-        admin: { 
-          email: admin.email, 
-          role: admin.role,
-          has_password: !!admin.password
-        } 
-      });
+      await pool.query(
+        'UPDATE users SET password = $1, updated_at = NOW() WHERE email = $2',
+        [hashedPassword, adminEmail]
+      );
+      return res.json({ message: '✅ Admin password fixed successfully' });
     }
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -196,7 +192,7 @@ app.get('/api/debug/all-users', async (req, res) => {
 
 // API Routes
 
-// Auth routes
+// Auth routes - SIMPLIFIED AND WORKING
 app.post('/api/auth/login', async (req, res) => {
   const { email, password } = req.body;
 
@@ -210,15 +206,22 @@ app.post('/api/auth/login', async (req, res) => {
 
     const user = result.rows[0];
     
+    // Check if password exists
     if (!user.password) {
+      console.log('No password set for user:', email);
       return res.status(401).json({ error: 'Password not set for this user. Please contact admin.' });
     }
 
+    // Verify password
     const validPassword = await bcrypt.compare(password, user.password);
     if (!validPassword) {
+      console.log('Invalid password for user:', email);
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
+    console.log('✅ Login successful for:', email);
+
+    // Get ACLs
     let acl = {};
     try {
       const aclResult = await pool.query('SELECT * FROM acl WHERE user_email = $1', [email]);
@@ -227,6 +230,7 @@ app.post('/api/auth/login', async (req, res) => {
       console.log('ACL not found, using defaults');
     }
 
+    // Remove password from response
     const { password: _, ...userWithoutPassword } = user;
     
     res.json({ 
@@ -247,18 +251,22 @@ app.post('/api/auth/register', async (req, res) => {
   const { name, email, password, phone, company, address, role, vehicle_info } = req.body;
 
   try {
+    // Check if user exists
     const userCheck = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
     if (userCheck.rows.length > 0) {
       return res.status(400).json({ error: 'Email already in use' });
     }
 
+    // Hash password
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
+    // Generate membership number
     const prefix = role === 'shipper' ? 'MFS' : 'MFT';
     const randomNum = Math.floor(1000 + Math.random() * 9000);
     const membershipNumber = `${prefix}${randomNum}`;
 
+    // Insert user
     const result = await pool.query(
       `INSERT INTO users (name, email, password, phone, company, address, role, vehicle_info, membership_number, created_at, updated_at) 
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW()) RETURNING *`,
@@ -267,6 +275,7 @@ app.post('/api/auth/register', async (req, res) => {
 
     const newUser = result.rows[0];
 
+    // Set default ACLs
     try {
       await pool.query('INSERT INTO acl (user_email, post, market) VALUES ($1, $2, $3)', [
         email, 
@@ -277,6 +286,7 @@ app.post('/api/auth/register', async (req, res) => {
       console.log('ACL creation failed, but user was created');
     }
 
+    // Remove password from response
     const { password: _, ...userWithoutPassword } = newUser;
 
     res.status(201).json({ 
@@ -606,7 +616,9 @@ app.put('/api/admin/banners', async (req, res) => {
 
 // Start server
 app.listen(PORT, async () => {
-  console.log(`MakiwaFreight server running on port ${PORT}`);
-  console.log(`Visit: https://makiwafreightapp.onrender.com`);
+  console.log(`🚀 MakiwaFreight server running on port ${PORT}`);
+  console.log(`🌐 Visit: https://makiwafreightapp.onrender.com`);
+  console.log(`🔧 Initializing database...`);
   await initializeDatabase();
+  console.log(`✅ Server is ready!`);
 });
