@@ -1317,3 +1317,12 @@ if __name__ == '__main__':
         app.run(host='0.0.0.0', port=port)
     else:
         app.run(debug=True, host='0.0.0.0', port=port)
+
+@app.route('/test')
+def test_page():
+    return "<h1>Flask is working! ✅</h1><p>If you see this, Flask is serving HTML correctly.</p>"
+
+@app.route('/')
+def index():
+    logger.info("✅ Index route called - serving index.html")
+    return render_template('index.html')
