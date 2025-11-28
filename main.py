@@ -312,7 +312,7 @@ def initialize_data():
                     name="Admin",
                     email=admin_email,
                     role="admin",
-                    membership_number="MF000001"
+                    membership_number="MF152285"
                 )
                 admin.set_password("Muchandida@1")
                 db.session.add(admin)
