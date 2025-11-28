@@ -333,9 +333,9 @@
     };
 
     try {
-      const response = await apiRequest('/users/register', {
+      const response = await apiRequest('/auth/register', {
         method: 'POST',
-        body: JSON.stringify(sanitizedData)
+        body: JSON.stringify(data)
       });
 
       // Generate membership number for display
