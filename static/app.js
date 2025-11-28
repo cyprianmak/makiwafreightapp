@@ -340,7 +340,7 @@
 
     showNotification('Load posted successfully', 'success');
     return load;
-  };
+  }
   
   const getLoads = async (filters = {}) => {
     const response = await apiRequest('/loads');
