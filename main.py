@@ -284,17 +284,25 @@ def update_banners(banners):
         logger.error(f"Error updating banners: {e}")
         return banners
 
-# Initialize database
 def initialize_data():
     with app.app_context():
         try:
             logger.info("Initializing database...")
             
-            # Create all tables
-            db.create_all()
-            logger.info("✅ Database tables created")
+            # Drop all existing tables to ensure clean schema
+            db.drop_all()
+            logger.info("✅ Dropped existing tables")
             
-            # Check if admin user exists
+            # Create all tables with correct schema
+            db.create_all()
+            logger.info("✅ Database tables created with correct schema")
+            
+            # Test database connection
+            db.session.execute(text("SELECT 1"))
+            db_type = "PostgreSQL" if 'postgresql' in app.config['SQLALCHEMY_DATABASE_URI'] else "SQLite"
+            logger.info(f"✅ Connected to {db_type} database")
+            
+            # Create admin user
             admin_email = 'cyprianmak@gmail.com'
             admin = User.query.filter_by(email=admin_email).first()
             
