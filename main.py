@@ -19,11 +19,11 @@ app = Flask(__name__, template_folder='templates', static_folder='static')
 
 # Configure database - FIXED VERSION
 def get_database_url():
-    # REQUIRE PostgreSQL - no SQLite fallback
+    """REQUIRE PostgreSQL - no SQLite fallback"""
     database_url = os.environ.get('DATABASE_URL')
-    
     if not database_url:
-        raise ValueError("❌ DATABASE_URL environment variable is required but not set!")
+        logger.error("❌ DATABASE_URL environment variable is required but not set!")
+        raise ValueError("DATABASE_URL environment variable is required but not set!")
     
     # Fix old postgres:// URLs for SQLAlchemy
     if database_url.startswith("postgres://"):
