@@ -19,21 +19,18 @@ app = Flask(__name__, template_folder='templates', static_folder='static')
 
 # Configure database - FIXED VERSION
 def get_database_url():
-    # Always check DATABASE_URL first (Render provides this)
+    # REQUIRE PostgreSQL - no SQLite fallback
     database_url = os.environ.get('DATABASE_URL')
     
-    if database_url:
-        # Fix old postgres:// URLs for SQLAlchemy
-        if database_url.startswith("postgres://"):
-            database_url = database_url.replace("postgres://", "postgresql://", 1)
-        logger.info("✅ Using PostgreSQL from DATABASE_URL")
-        return database_url
-    else:
-        # Fallback to SQLite for local development
-        basedir = os.path.abspath(os.path.dirname(__file__))
-        db_path = os.path.join(basedir, 'makiwafreight.db')
-        logger.info(f"⚙️ Using SQLite at: {db_path}")
-        return f'sqlite:///{db_path}'
+    if not database_url:
+        raise ValueError("❌ DATABASE_URL environment variable is required but not set!")
+    
+    # Fix old postgres:// URLs for SQLAlchemy
+    if database_url.startswith("postgres://"):
+        database_url = database_url.replace("postgres://", "postgresql://", 1)
+    
+    logger.info("✅ Using PostgreSQL from DATABASE_URL")
+    return database_url
 
 app.config['SQLALCHEMY_DATABASE_URI'] = get_database_url()
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
