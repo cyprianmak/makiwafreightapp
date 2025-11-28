@@ -168,6 +168,11 @@
     resetSessionTimer();
   };
   
+  // Show rate limit warning
+  const showRateLimitWarning = () => {
+    showNotification('Too many requests. Please slow down.', 'warning');
+  };
+  
   // API helper functions
   const apiRequest = async (endpoint, options = {}) => {
     const headers = {
@@ -239,13 +244,14 @@
     } else {
         throw new Error(response.error || response.message);
     }
-};
+  };
   
   const logout = () => {
     clearTimeout(sessionTimeout);
     clearTimeout(sessionWarningTimeout);
     
     sessionStorage.removeItem('currentUser');
+    sessionStorage.removeItem('authToken');
     showNotification('Logged out successfully', 'info');
     location.hash = '#login';
     render();
@@ -272,6 +278,7 @@
     };
 
     sessionStorage.setItem('currentUser', JSON.stringify(userData));
+    sessionStorage.setItem('authToken', userData.token);
     showNotification(`Registration successful! Welcome ${data.name}`, 'success');
     setupSessionTimeout();
     
@@ -280,13 +287,13 @@
       const shipperMembershipEl = el('shipperMembershipNumber');
       if (shipperMembershipEl) {
         shipperMembershipEl.textContent = `Your Membership Number: ${userData.membership_number}`;
-        shipperMembershipEl.classList.remove('display-none');
+        shipperMembershipEl.classList.remove('hidden');
       }
     } else if (data.role === 'transporter') {
       const transporterMembershipEl = el('transporterMembershipNumber');
       if (transporterMembershipEl) {
         transporterMembershipEl.textContent = `Your Membership Number: ${userData.membership_number}`;
-        transporterMembershipEl.classList.remove('display-none');
+        transporterMembershipEl.classList.remove('hidden');
       }
     }
 
@@ -307,18 +314,6 @@
   
   // Load API functions
   const postLoad = async (payload) => {
-    const response = await apiRequest('/loads', {
-        method: 'POST',
-        body: JSON.stringify(payload)
-    });
-    
-    if (response.success) {
-        return response.data.load;
-    } else {
-        throw new Error(response.error || response.message);
-    }
-  };
-    
     const user = getCurrentUserSync();
     if (!user) throw new Error('User not logged in');
     
@@ -340,7 +335,7 @@
 
     showNotification('Load posted successfully', 'success');
     return load;
-  }
+  };
   
   const getLoads = async (filters = {}) => {
     const response = await apiRequest('/loads');
@@ -361,7 +356,6 @@
         throw new Error(response.error || response.message);
     }
   };
-
 
   const deleteLoad = async (loadId) => {
     showNotification('Load deleted successfully', 'success');
@@ -384,7 +378,7 @@
     }
   };
 
-const getMessages = async () => {
+  const getMessages = async () => {
     const response = await apiRequest('/messages');
     
     if (response.success) {
@@ -526,7 +520,7 @@ const getMessages = async () => {
         console.error('Error rendering shipper dashboard:', error);
         showNotification('Failed to load your loads', 'error');
     }
-};
+  };
 
   const renderTransporterDashboard = async () => {
     const user = getCurrentUserSync();
@@ -601,7 +595,7 @@ const getMessages = async () => {
         console.error('Error rendering market:', error);
         showNotification('Failed to load market data', 'error');
     }
-};
+  };
 
   const renderMessages = async () => {
     try {
