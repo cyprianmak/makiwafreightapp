@@ -1298,6 +1298,20 @@ def debug_db_info():
         'tables_created': True
     })
 
+@app.route('/api/database-info')
+def debug_database_info():
+    db_url = app.config['SQLALCHEMY_DATABASE_URI']
+    has_postgresql = 'postgresql' in db_url
+    has_sqlite = 'sqlite' in db_url
+    env_db_url = os.environ.get('DATABASE_URL')
+    return jsonify({
+        "current_database_url": db_url,
+        "environment_database_url": env_db_url,
+        "is_using_postgresql": has_postgresql,
+        "is_using_sqlite": has_sqlite,
+        "database_type": "PostgreSQL" if has_postgresql else "SQLite"
+    })
+
 # Initialize the application
 with app.app_context():
     initialize_data()
