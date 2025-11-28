@@ -224,31 +224,22 @@
   
   // Authentication API functions
   const login = async (email, password) => {
-    if (!email || !password) return null;
-    email = email.trim().toLowerCase();
+    const response = await apiRequest('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ email, password })
+    });
     
-    // For demo purposes - simulate API call
-    try {
-      // Simulate API response
-      const userData = {
-        id: Date.now(),
-        name: email.split('@')[0],
-        email: email,
-        role: email.includes('admin') ? 'admin' : email.includes('transporter') ? 'transporter' : 'shipper',
-        token: 'demo-token-' + Date.now(),
-        membership_number: 'MF' + Date.now().toString().slice(-6)
-      };
-      
-      sessionStorage.setItem('currentUser', JSON.stringify(userData));
-      showNotification('Login successful', 'success');
-      setupSessionTimeout();
-      return userData;
-    } catch (error) {
-      console.error('Login error:', error);
-      showNotification('Login failed: ' + error.message, 'error');
-      return null;
+    if (response.success) {
+        const userData = response.data;
+        sessionStorage.setItem('currentUser', JSON.stringify(userData.user));
+        sessionStorage.setItem('authToken', userData.token);
+        showNotification('Login successful', 'success');
+        setupSessionTimeout();
+        return userData.user;
+    } else {
+        throw new Error(response.error || response.message);
     }
-  };
+};
   
   const logout = () => {
     clearTimeout(sessionTimeout);
@@ -316,9 +307,17 @@
   
   // Load API functions
   const postLoad = async (payload) => {
-    if (!payload.origin || !payload.destination || !payload.date || !payload.cargo_type || !payload.weight) {
-      throw new Error('All required fields must be filled');
+    const response = await apiRequest('/loads', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+    });
+    
+    if (response.success) {
+        return response.data.load;
+    } else {
+        throw new Error(response.error || response.message);
     }
+  };
     
     const user = getCurrentUserSync();
     if (!user) throw new Error('User not logged in');
@@ -344,23 +343,55 @@
   };
   
   const getLoads = async (filters = {}) => {
-    // For demo - return empty array
-    return [];
+    const response = await apiRequest('/loads');
+    
+    if (response.success) {
+        return response.data.loads;
+    } else {
+        throw new Error(response.error || response.message);
+    }
   };
   
+  const getMyLoads = async () => {
+    const response = await apiRequest('/my-loads');
+    
+    if (response.success) {
+        return response.data.loads;
+    } else {
+        throw new Error(response.error || response.message);
+    }
+  };
+
+
   const deleteLoad = async (loadId) => {
     showNotification('Load deleted successfully', 'success');
   };
   
   // Message API functions
   const sendMessage = async (toMembership, body) => {
-    showNotification('Message sent successfully', 'success');
-    return { id: Date.now(), body, created_at: new Date().toISOString() };
+    const response = await apiRequest('/messages', {
+        method: 'POST',
+        body: JSON.stringify({
+            recipient_membership: toMembership,
+            body: body
+        })
+    });
+    
+    if (response.success) {
+        return response.data;
+    } else {
+        throw new Error(response.error || response.message);
+    }
   };
-  
-  const getMessages = async () => {
-    // For demo - return empty array
-    return [];
+
+const getMessages = async () => {
+    const response = await apiRequest('/messages');
+    
+    if (response.success) {
+        return response.data.messages;
+    } else {
+        throw new Error(response.error || response.message);
+    }
   };
 
   // Check if user can access page
@@ -451,27 +482,51 @@
     if (!user || user.role !== 'shipper') return;
     
     try {
-      const tbody = el('tableMyLoadsShipper')?.querySelector('tbody');
-      if (!tbody) return;
-      
-      // Clear table
-      while (tbody.firstChild) {
-        tbody.removeChild(tbody.firstChild);
-      }
-      
-      // Add empty state
-      const row = document.createElement('tr');
-      const cell = document.createElement('td');
-      cell.colSpan = 9;
-      cell.className = 'muted';
-      cell.textContent = 'No loads posted yet.';
-      row.appendChild(cell);
-      tbody.appendChild(row);
-      
+        const tbody = el('tableMyLoadsShipper')?.querySelector('tbody');
+        if (!tbody) return;
+        
+        // Clear table
+        tbody.innerHTML = '';
+        
+        const loads = await getMyLoads();
+        
+        if (loads.length === 0) {
+            const row = document.createElement('tr');
+            const cell = document.createElement('td');
+            cell.colSpan = 9;
+            cell.className = 'muted';
+            cell.textContent = 'No loads posted yet.';
+            row.appendChild(cell);
+            tbody.appendChild(row);
+            return;
+        }
+        
+        loads.forEach(load => {
+            const row = document.createElement('tr');
+            const isExpired = new Date(load.expires_at) < new Date();
+            
+            row.innerHTML = `
+                <td>${sanitize(load.ref)}</td>
+                <td>${sanitize(load.origin)}</td>
+                <td>${sanitize(load.destination)}</td>
+                <td>${sanitize(load.date)}</td>
+                <td>${sanitize(load.cargo_type)}</td>
+                <td>${load.weight} tons</td>
+                <td><span class="status-badge ${isExpired ? 'status-expired' : 'status-available'}">${isExpired ? 'Expired' : 'Active'}</span></td>
+                <td>${new Date(load.expires_at).toLocaleDateString()}</td>
+                <td>
+                    <button class="btn small" onclick="editUserLoad('${load.id}')">Edit</button>
+                    <button class="btn small danger" onclick="deleteUserLoad('${load.id}')">Delete</button>
+                </td>
+            `;
+            tbody.appendChild(row);
+        });
+        
     } catch (error) {
-      console.error('Error rendering shipper dashboard:', error);
+        console.error('Error rendering shipper dashboard:', error);
+        showNotification('Failed to load your loads', 'error');
     }
-  };
+};
 
   const renderTransporterDashboard = async () => {
     const user = getCurrentUserSync();
@@ -502,27 +557,51 @@
 
   const renderMarket = async () => {
     try {
-      const tbody = el('tableMarketLoads')?.querySelector('tbody');
-      if (!tbody) return;
-      
-      // Clear table
-      while (tbody.firstChild) {
-        tbody.removeChild(tbody.firstChild);
-      }
-      
-      // Add empty state
-      const row = document.createElement('tr');
-      const cell = document.createElement('td');
-      cell.colSpan = 10;
-      cell.className = 'muted';
-      cell.textContent = 'No loads available.';
-      row.appendChild(cell);
-      tbody.appendChild(row);
-      
+        const tbody = el('tableMarketLoads')?.querySelector('tbody');
+        if (!tbody) return;
+        
+        // Clear table
+        tbody.innerHTML = '';
+        
+        const loads = await getLoads();
+        
+        if (loads.length === 0) {
+            const row = document.createElement('tr');
+            const cell = document.createElement('td');
+            cell.colSpan = 10;
+            cell.className = 'muted';
+            cell.textContent = 'No loads available in the market.';
+            row.appendChild(cell);
+            tbody.appendChild(row);
+            return;
+        }
+        
+        loads.forEach(load => {
+            const row = document.createElement('tr');
+            const isExpired = new Date(load.expires_at) < new Date();
+            
+            row.innerHTML = `
+                <td>${sanitize(load.ref)}</td>
+                <td>${sanitize(load.origin)}</td>
+                <td>${sanitize(load.destination)}</td>
+                <td>${sanitize(load.date)}</td>
+                <td>${sanitize(load.cargo_type)}</td>
+                <td>${load.weight} tons</td>
+                <td>${sanitize(load.shipper_company || load.shipper_name)}</td>
+                <td>${sanitize(load.shipper_membership)}</td>
+                <td><span class="status-badge ${isExpired ? 'status-expired' : 'status-available'}">${isExpired ? 'Expired' : 'Available'}</span></td>
+                <td>
+                    <button class="btn small" onclick="contactShipper('${load.shipper_membership}')">Contact</button>
+                </td>
+            `;
+            tbody.appendChild(row);
+        });
+        
     } catch (error) {
-      console.error('Error rendering market:', error);
+        console.error('Error rendering market:', error);
+        showNotification('Failed to load market data', 'error');
     }
-  };
+};
 
   const renderMessages = async () => {
     try {
