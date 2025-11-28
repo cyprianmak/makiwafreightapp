@@ -614,9 +614,13 @@ def update_current_user():
 def handle_loads():
     try:
         if request.method == 'GET':
-            loads = Load.query.filter(Load.expires_at >= datetime.now(timezone.utc)).all()
+            # Get all non-expired loads with shipper information
+            loads = Load.query.filter(
+                Load.expires_at >= datetime.now(timezone.utc)
+            ).join(User).add_entity(User).all()
+            
             result = []
-            for load in loads:
+            for load, shipper in loads:
                 result.append({
                     "id": load.id,
                     "ref": load.ref,
@@ -626,8 +630,9 @@ def handle_loads():
                     "cargo_type": load.cargo_type,
                     "weight": load.weight,
                     "notes": load.notes,
-                    "shipper_name": load.shipper.name if load.shipper else "Unknown",
-                    "shipper_membership": load.shipper.membership_number if load.shipper else "Unknown",
+                    "shipper_name": shipper.name,
+                    "shipper_membership": shipper.membership_number,
+                    "shipper_company": shipper.company,
                     "expires_at": load.expires_at.isoformat(),
                     "created_at": load.created_at.isoformat()
                 })
@@ -681,24 +686,78 @@ def handle_loads():
             db.session.add(new_load)
             db.session.commit()
             
+            # Return the complete load data including shipper info
+            load_data = {
+                "id": new_load.id,
+                "ref": new_load.ref,
+                "origin": new_load.origin,
+                "destination": new_load.destination,
+                "date": new_load.date,
+                "cargo_type": new_load.cargo_type,
+                "weight": new_load.weight,
+                "notes": new_load.notes,
+                "shipper_name": user.name,
+                "shipper_membership": user.membership_number,
+                "shipper_company": user.company,
+                "expires_at": new_load.expires_at.isoformat(),
+                "created_at": new_load.created_at.isoformat()
+            }
+            
             return jsonify({
                 "success": True,
                 "message": "Load created successfully",
                 "data": {
-                    "load": {
-                        "id": new_load.id,
-                        "ref": new_load.ref,
-                        "origin": new_load.origin,
-                        "destination": new_load.destination,
-                        "expires_at": new_load.expires_at.isoformat()
-                    }
+                    "load": load_data
                 }
             }), 201
     except Exception as e:
         db.session.rollback()
+        logger.error(f"Load operation error: {e}")
         return jsonify({
             "success": False,
             "message": "Operation failed",
+            "error": str(e)
+        }), 500
+
+# Add endpoint to get user's own loads
+@app.route('/api/my-loads', methods=['GET'])
+def get_my_loads():
+    try:
+        user = check_auth(request)
+        if not user:
+            return jsonify({
+                "success": False,
+                "message": "Authentication required",
+                "error": "Please login to view your loads"
+            }), 401
+        
+        loads = Load.query.filter_by(shipper_id=user.id).order_by(Load.created_at.desc()).all()
+        result = []
+        for load in loads:
+            result.append({
+                "id": load.id,
+                "ref": load.ref,
+                "origin": load.origin,
+                "destination": load.destination,
+                "date": load.date,
+                "cargo_type": load.cargo_type,
+                "weight": load.weight,
+                "notes": load.notes,
+                "expires_at": load.expires_at.isoformat(),
+                "created_at": load.created_at.isoformat(),
+                "is_expired": load.expires_at < datetime.now(timezone.utc)
+            })
+        
+        return jsonify({
+            "success": True,
+            "message": "Your loads retrieved",
+            "data": {"loads": result}
+        })
+    except Exception as e:
+        logger.error(f"Error getting user loads: {e}")
+        return jsonify({
+            "success": False,
+            "message": "Failed to retrieve your loads",
             "error": str(e)
         }), 500
 
