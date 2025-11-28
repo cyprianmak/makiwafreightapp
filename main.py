@@ -313,10 +313,10 @@ def initialize_data():
         try:
             print("Initializing database...")
             
-            # Drop all tables and recreate them to ensure consistency
+            # Drop and recreate all tables to ensure clean state
             db.drop_all()
-            db.create_all()
-            print("✅ Database tables recreated")
+            db.create_all()  # This creates all missing tables[citation:7]
+            print("✅ Database tables created")
             
             # Check if admin user exists
             admin_email = 'cyprianmak@gmail.com'
@@ -336,23 +336,13 @@ def initialize_data():
                 print("✅ Admin user created")
             else:
                 print("✅ Admin user already exists")
-            
-            # Check if access control data exists
-            ac = AccessControl.query.first()
-            if not ac:
-                print("Creating access control data...")
-                default_data = get_default_access_control_data()
-                ac = AccessControl(data=json.dumps(default_data))
-                db.session.add(ac)
-                db.session.commit()
-                print("✅ Access control data created")
-            else:
-                print("✅ Access control data already exists")
                 
             print("✅ Database initialization complete")
             
         except Exception as e:
-            print(f"❌ Error during database initialization: {e}")
+            print(f"❌ Database initialization error: {e}")
+            import traceback
+            print(f"❌ Detailed traceback: {traceback.format_exc()}")
             db.session.rollback()
 
 # Routes
@@ -1380,4 +1370,13 @@ def debug_db_config():
         "db_port": os.environ.get('DB_PORT'),
         "database_url": os.environ.get('DATABASE_URL'),
         "has_db_url": bool(os.environ.get('DATABASE_URL'))
+    })
+    
+@app.route('/api/debug/db-info')
+def debug_db_info():
+    return jsonify({
+        'database_url': os.environ.get('DATABASE_URL'),
+        'db_user': os.environ.get('DB_USER'),
+        'using_postgresql': 'postgresql' in os.environ.get('DATABASE_URL', ''),
+        'tables_created': False  # This will help confirm the issue
     })
