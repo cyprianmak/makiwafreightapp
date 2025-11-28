@@ -265,7 +265,7 @@
     if (!email || !password) return null;
     email = email.trim().toLowerCase();
     try {
-      const response = await apiRequest('/users/login', {
+      const response = await apiRequest('/auth/login', {
         method: 'POST',
         body: JSON.stringify({ email, password })
       });
