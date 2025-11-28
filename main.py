@@ -1,4 +1,4 @@
-# main.py - FIXED VERSION
+# main.py - COMPLETE PRODUCTION-READY VERSION
 from flask import Flask, render_template, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -17,32 +17,35 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__, template_folder='templates', static_folder='static')
 
-# Configure database properly for Render PostgreSQL
-database_url = os.environ.get('DATABASE_URL')
-if database_url:
-    # Fix old postgres:// URLs
-    if database_url.startswith("postgres://"):
-        database_url = database_url.replace("postgres://", "postgresql://", 1)
-    app.config['SQLALCHEMY_DATABASE_URI'] = database_url
-    logger.info(f"✅ Using PostgreSQL database")
-else:
-    # Fallback to SQLite for local development
-    basedir = os.path.abspath(os.path.dirname(__file__))
-    db_path = os.path.join(basedir, 'makiwafreight.db')
-    app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
-    logger.info(f"⚙️ Using SQLite at: {db_path}")
+# Configure database - FIXED VERSION
+def get_database_url():
+    # Always check DATABASE_URL first (Render provides this)
+    database_url = os.environ.get('DATABASE_URL')
+    
+    if database_url:
+        # Fix old postgres:// URLs for SQLAlchemy
+        if database_url.startswith("postgres://"):
+            database_url = database_url.replace("postgres://", "postgresql://", 1)
+        logger.info("✅ Using PostgreSQL from DATABASE_URL")
+        return database_url
+    else:
+        # Fallback to SQLite for local development
+        basedir = os.path.abspath(os.path.dirname(__file__))
+        db_path = os.path.join(basedir, 'makiwafreight.db')
+        logger.info(f"⚙️ Using SQLite at: {db_path}")
+        return f'sqlite:///{db_path}'
 
+app.config['SQLALCHEMY_DATABASE_URI'] = get_database_url()
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     'pool_recycle': 300,
     'pool_pre_ping': True
 }
 
-# Initialize db with error handling
-db = SQLAlchemy()
-db.init_app(app)
+# Initialize db
+db = SQLAlchemy(app)
 
-# Define database models (keep your existing models)
+# Database Models
 class User(db.Model):
     __tablename__ = 'users'
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
@@ -135,14 +138,10 @@ class Banner(db.Model):
     index = db.Column(db.String(200))
     dashboard = db.Column(db.String(200))
 
-# DB helper: generate membership number MF000001 style
+# Helper Functions
 def generate_membership_number():
-    """
-    Generates a unique membership number in the format MF000001.
-    It finds the highest existing number and increments it.
-    """
+    """Generates a unique membership number in the format MF000001."""
     try:
-        # Query for the highest numeric part of the membership number
         last_membership = db.session.query(User.membership_number).filter(
             User.membership_number.like('MF%')
         ).order_by(User.membership_number.desc()).first()
@@ -150,22 +149,17 @@ def generate_membership_number():
         if not last_membership:
             next_id = 1
         else:
-            # Extract numeric part and increment
             try:
-                # Remove 'MF' prefix and convert to int
                 last_num = int(last_membership[0][2:])
                 next_id = last_num + 1
             except (ValueError, IndexError):
-                # Fallback if format is unexpected
                 next_id = 1
         
         return f"MF{str(next_id).zfill(6)}"
     except Exception as e:
         logger.error(f"Error generating membership number: {e}")
-        # If anything goes wrong (e.g., table doesn't exist yet), start from 1
         return f"MF000001"
 
-# Helper functions
 def check_auth(request):
     token = request.headers.get('Authorization')
     if not token or not token.startswith('Bearer '):
@@ -200,7 +194,6 @@ def get_access_control():
     try:
         ac = AccessControl.query.first()
         if not ac:
-            # Initialize with default structure
             default_data = get_default_access_control_data()
             ac = AccessControl(data=json.dumps(default_data))
             db.session.add(ac)
@@ -210,7 +203,6 @@ def get_access_control():
         try:
             data = json.loads(ac.data)
         except:
-            # If data is corrupted, reset to default
             default_data = get_default_access_control_data()
             ac.data = json.dumps(default_data)
             db.session.commit()
@@ -219,12 +211,10 @@ def get_access_control():
         default_data = get_default_access_control_data()
         updated = False
         
-        # Ensure pages exists and has required structure
         if 'pages' not in data or not isinstance(data['pages'], dict):
             data['pages'] = default_data['pages']
             updated = True
         else:
-            # Ensure post_load and market exist
             if 'post_load' not in data['pages'] or not isinstance(data['pages'].get('post_load'), dict):
                 data['pages']['post_load'] = default_data['pages']['post_load']
                 updated = True
@@ -232,7 +222,6 @@ def get_access_control():
                 data['pages']['market'] = default_data['pages']['market']
                 updated = True
         
-        # Ensure banners exists and has required structure
         if 'banners' not in data or not isinstance(data['banners'], dict):
             data['banners'] = default_data['banners']
             updated = True
@@ -242,12 +231,10 @@ def get_access_control():
                     data['banners'][key] = default_data['banners'][key]
                     updated = True
         
-        # Ensure post_loads_enabled exists
         if 'post_loads_enabled' not in data:
             data['post_loads_enabled'] = default_data['post_loads_enabled']
             updated = True
         
-        # Ensure user_access exists
         if 'user_access' not in data:
             data['user_access'] = default_data['user_access']
             updated = True
@@ -369,14 +356,15 @@ def api_info():
 @app.route('/api/health')
 def health():
     try:
-        # Test database connection
         db.session.execute(text("SELECT 1"))
+        db_info = "PostgreSQL" if 'postgresql' in app.config['SQLALCHEMY_DATABASE_URI'] else "SQLite"
         return jsonify({
             "success": True,
             "message": "Service is healthy",
             "data": {
                 "status": "healthy",
-                "database": "connected"
+                "database": "connected",
+                "database_type": db_info
             }
         })
     except Exception as e:
@@ -386,7 +374,7 @@ def health():
             "error": str(e)
         }), 500
 
-# Auth endpoints (keep your existing endpoints, they look good)
+# Auth endpoints
 @app.route('/api/auth/register', methods=['POST'])
 def register():
     try:
@@ -401,9 +389,8 @@ def register():
         name = data.get('name')
         email = data.get('email')
         password = data.get('password')
-        role = data.get('role', 'shipper')  # Default to shipper
+        role = data.get('role', 'shipper')
         
-        # Validate required fields
         if not name or not email or not password:
             return jsonify({
                 "success": False,
@@ -411,7 +398,6 @@ def register():
                 "error": "name, email, and password are required"
             }), 400
         
-        # Check if user already exists
         if User.query.filter_by(email=email).first():
             return jsonify({
                 "success": False,
@@ -419,10 +405,8 @@ def register():
                 "error": "Email already registered"
             }), 400
         
-        # Generate unique membership number
         membership_number = generate_membership_number()
         
-        # Create new user
         new_user = User(
             name=name,
             email=email,
@@ -516,8 +500,806 @@ def login():
             "error": str(e)
         }), 500
 
-# Keep all your other routes as they are...
-# [Include all your existing routes here - they look correct]
+# User endpoints
+@app.route('/api/users/me', methods=['GET'])
+def get_current_user():
+    try:
+        user = check_auth(request)
+        if not user:
+            return jsonify({
+                "success": False,
+                "message": "Authentication required",
+                "error": "Please login to continue"
+            }), 401
+        
+        return jsonify({
+            "success": True,
+            "message": "User data retrieved",
+            "data": {
+                "user": {
+                    "id": user.id,
+                    "name": user.name,
+                    "email": user.email,
+                    "role": user.role,
+                    "company": user.company,
+                    "phone": user.phone,
+                    "address": user.address,
+                    "vehicle_info": user.vehicle_info,
+                    "membership_number": user.membership_number,
+                    "created_at": user.created_at.isoformat()
+                }
+            }
+        })
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": "Failed to retrieve user data",
+            "error": str(e)
+        }), 500
+
+@app.route('/api/users/me', methods=['PUT'])
+def update_current_user():
+    try:
+        user = check_auth(request)
+        if not user:
+            return jsonify({
+                "success": False,
+                "message": "Authentication required",
+                "error": "Please login to continue"
+            }), 401
+        
+        data = request.get_json()
+        if not data:
+            return jsonify({
+                "success": False,
+                "message": "Update failed",
+                "error": "No JSON data provided"
+            }), 400
+        
+        if 'name' in data:
+            user.name = data['name']
+        if 'company' in data:
+            user.company = data['company']
+        if 'phone' in data:
+            user.phone = data['phone']
+        if 'address' in data:
+            user.address = data['address']
+        if 'vehicle_info' in data:
+            user.vehicle_info = data['vehicle_info']
+        if 'password' in data and data['password']:
+            user.set_password(data['password'])
+        
+        db.session.commit()
+        
+        return jsonify({
+            "success": True,
+            "message": "Profile updated successfully",
+            "data": {
+                "user": {
+                    "id": user.id,
+                    "name": user.name,
+                    "email": user.email,
+                    "role": user.role,
+                    "company": user.company,
+                    "phone": user.phone,
+                    "address": user.address,
+                    "vehicle_info": user.vehicle_info,
+                    "membership_number": user.membership_number
+                }
+            }
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            "success": False,
+            "message": "Profile update failed",
+            "error": str(e)
+        }), 500
+
+# Load endpoints
+@app.route('/api/loads', methods=['GET', 'POST'])
+def handle_loads():
+    try:
+        if request.method == 'GET':
+            loads = Load.query.filter(Load.expires_at >= datetime.now(timezone.utc)).all()
+            result = []
+            for load in loads:
+                result.append({
+                    "id": load.id,
+                    "ref": load.ref,
+                    "origin": load.origin,
+                    "destination": load.destination,
+                    "date": load.date,
+                    "cargo_type": load.cargo_type,
+                    "weight": load.weight,
+                    "notes": load.notes,
+                    "shipper_name": load.shipper.name if load.shipper else "Unknown",
+                    "shipper_membership": load.shipper.membership_number if load.shipper else "Unknown",
+                    "expires_at": load.expires_at.isoformat(),
+                    "created_at": load.created_at.isoformat()
+                })
+            return jsonify({
+                "success": True,
+                "message": "Loads retrieved",
+                "data": {"loads": result}
+            })
+        
+        if request.method == 'POST':
+            user = check_auth(request)
+            if not user:
+                return jsonify({
+                    "success": False,
+                    "message": "Authentication required",
+                    "error": "Please login to post loads"
+                }), 401
+            
+            data = request.get_json()
+            if not data:
+                return jsonify({
+                    "success": False,
+                    "message": "Load creation failed",
+                    "error": "No JSON data provided"
+                }), 400
+            
+            required_fields = ['origin', 'destination', 'date', 'cargo_type', 'weight']
+            for field in required_fields:
+                if field not in data:
+                    return jsonify({
+                        "success": False,
+                        "message": "Load creation failed",
+                        "error": f"Missing field: {field}"
+                    }), 400
+            
+            expires_at = datetime.now(timezone.utc) + timedelta(days=7)
+            ref = 'LD' + str(int(datetime.now(timezone.utc).timestamp()))[-6:]
+            
+            new_load = Load(
+                ref=ref,
+                origin=data['origin'],
+                destination=data['destination'],
+                date=data['date'],
+                cargo_type=data['cargo_type'],
+                weight=float(data['weight']),
+                notes=data.get('notes', ''),
+                shipper_id=user.id,
+                expires_at=expires_at
+            )
+            
+            db.session.add(new_load)
+            db.session.commit()
+            
+            return jsonify({
+                "success": True,
+                "message": "Load created successfully",
+                "data": {
+                    "load": {
+                        "id": new_load.id,
+                        "ref": new_load.ref,
+                        "origin": new_load.origin,
+                        "destination": new_load.destination,
+                        "expires_at": new_load.expires_at.isoformat()
+                    }
+                }
+            }), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            "success": False,
+            "message": "Operation failed",
+            "error": str(e)
+        }), 500
+
+@app.route('/api/loads/<load_id>', methods=['PUT'])
+def update_load_endpoint(load_id):
+    try:
+        user = check_auth(request)
+        if not user:
+            return jsonify({
+                "success": False,
+                "message": "Authentication required",
+                "error": "Please login to continue"
+            }), 401
+        
+        load = db.session.get(Load, load_id)
+        if not load:
+            return jsonify({
+                "success": False,
+                "message": "Load not found",
+                "error": "Load does not exist"
+            }), 404
+        
+        if load.shipper_id != user.id:
+            return jsonify({
+                "success": False,
+                "message": "Access denied",
+                "error": "You can only update your own loads"
+            }), 403
+        
+        data = request.get_json()
+        if not data:
+            return jsonify({
+                "success": False,
+                "message": "Update failed",
+                "error": "No JSON data provided"
+            }), 400
+        
+        if 'origin' in data:
+            load.origin = data['origin']
+        if 'destination' in data:
+            load.destination = data['destination']
+        if 'date' in data:
+            load.date = data['date']
+        if 'cargo_type' in data:
+            load.cargo_type = data['cargo_type']
+        if 'weight' in data:
+            load.weight = float(data['weight'])
+        if 'notes' in data:
+            load.notes = data['notes']
+        
+        db.session.commit()
+        
+        return jsonify({
+            "success": True,
+            "message": "Load updated successfully",
+            "data": {
+                "load": {
+                    "id": load.id,
+                    "ref": load.ref,
+                    "origin": load.origin,
+                    "destination": load.destination,
+                    "expires_at": load.expires_at.isoformat()
+                }
+            }
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            "success": False,
+            "message": "Failed to update load",
+            "error": str(e)
+        }), 500
+
+@app.route('/api/loads/<load_id>', methods=['DELETE'])
+def delete_load_endpoint(load_id):
+    try:
+        user = check_auth(request)
+        if not user:
+            return jsonify({
+                "success": False,
+                "message": "Authentication required",
+                "error": "Please login to continue"
+            }), 401
+        
+        load = db.session.get(Load, load_id)
+        if not load:
+            return jsonify({
+                "success": False,
+                "message": "Load not found",
+                "error": "Load does not exist"
+            }), 404
+        
+        if load.shipper_id != user.id:
+            return jsonify({
+                "success": False,
+                "message": "Access denied",
+                "error": "You can only delete your own loads"
+            }), 403
+        
+        db.session.delete(load)
+        db.session.commit()
+        
+        return jsonify({
+            "success": True,
+            "message": "Load deleted successfully",
+            "data": {"load_id": load_id}
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            "success": False,
+            "message": "Failed to delete load",
+            "error": str(e)
+        }), 500
+
+# Message endpoints
+@app.route('/api/messages', methods=['GET', 'POST'])
+def handle_messages():
+    try:
+        user = check_auth(request)
+        if not user:
+            return jsonify({
+                "success": False,
+                "message": "Authentication required",
+                "error": "Please login to access messages"
+            }), 401
+        
+        if request.method == 'GET':
+            user_membership = user.membership_number or 'Admin'
+            messages = Message.query.filter(
+                (Message.sender_membership == user_membership) | 
+                (Message.recipient_membership == user_membership)
+            ).order_by(Message.created_at.desc()).all()
+            
+            result = []
+            for msg in messages:
+                result.append({
+                    "id": msg.id,
+                    "sender_membership": msg.sender_membership,
+                    "recipient_membership": msg.recipient_membership,
+                    "body": msg.body,
+                    "created_at": msg.created_at.isoformat()
+                })
+            return jsonify({
+                "success": True,
+                "message": "Messages retrieved",
+                "data": {"messages": result}
+            })
+        
+        if request.method == 'POST':
+            data = request.get_json()
+            if not data:
+                return jsonify({
+                    "success": False,
+                    "message": "Message not sent",
+                    "error": "No JSON data provided"
+                }), 400
+                
+            recipient_membership = data.get('recipient_membership')
+            body = data.get('body')
+            
+            if not recipient_membership or not body:
+                return jsonify({
+                    "success": False,
+                    "message": "Message not sent",
+                    "error": "Recipient membership number and message body required"
+                }), 400
+            
+            recipient = User.query.filter_by(membership_number=recipient_membership).first()
+            if not recipient and recipient_membership != 'Admin':
+                return jsonify({
+                    "success": False,
+                    "message": "Message not sent",
+                    "error": "Recipient not found"
+                }), 404
+            
+            sender_membership = user.membership_number or 'Admin'
+            
+            new_message = Message(
+                sender_membership=sender_membership,
+                recipient_membership=recipient_membership,
+                body=body
+            )
+            
+            db.session.add(new_message)
+            db.session.commit()
+            
+            return jsonify({
+                "success": True,
+                "message": "Message sent successfully",
+                "data": {"message_id": new_message.id}
+            }), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            "success": False,
+            "message": "Message operation failed",
+            "error": str(e)
+        }), 500
+
+# Admin endpoints
+@app.route('/api/admin/banners', methods=['GET'])
+def get_admin_banners():
+    try:
+        user = check_auth(request)
+        if not user or user.role != 'admin':
+            return jsonify({
+                "success": False,
+                "message": "Access denied",
+                "error": "Admin access required"
+            }), 403
+        
+        return jsonify({
+            "success": True,
+            "message": "Banners retrieved",
+            "data": get_banners()
+        })
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": "Failed to retrieve banners",
+            "error": str(e)
+        }), 500
+
+@app.route('/api/admin/banners', methods=['POST'])
+def update_admin_banners():
+    try:
+        user = check_auth(request)
+        if not user or user.role != 'admin':
+            return jsonify({
+                "success": False,
+                "message": "Access denied",
+                "error": "Admin access required"
+            }), 403
+        
+        data = request.get_json()
+        if not data:
+            return jsonify({
+                "success": False,
+                "message": "Update failed",
+                "error": "No JSON data provided"
+            }), 400
+        
+        updated_banners = update_banners(data)
+        return jsonify({
+            "success": True,
+            "message": "Banners updated successfully",
+            "data": updated_banners
+        })
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": "Banner update failed",
+            "error": str(e)
+        }), 500
+
+@app.route('/api/admin/access-control', methods=['GET'])
+def get_admin_access_control():
+    try:
+        user = check_auth(request)
+        if not user or user.role != 'admin':
+            return jsonify({
+                "success": False,
+                "message": "Access denied",
+                "error": "Admin access required"
+            }), 403
+        
+        return jsonify({
+            "success": True,
+            "message": "Access control data retrieved",
+            "data": get_access_control()
+        })
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": "Failed to retrieve access control data",
+            "error": str(e)
+        }), 500
+
+@app.route('/api/admin/access-control', methods=['PUT'])
+def update_admin_access_control():
+    try:
+        user = check_auth(request)
+        if not user or user.role != 'admin':
+            return jsonify({
+                "success": False,
+                "message": "Access denied",
+                "error": "Admin access required"
+            }), 403
+        
+        data = request.get_json()
+        updated_data = update_access_control(data)
+        
+        return jsonify({
+            "success": True,
+            "message": "Access control updated successfully",
+            "data": updated_data
+        })
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": "Failed to update access control",
+            "error": str(e)
+        }), 500
+
+@app.route('/api/admin/users/<string:user_id>/access', methods=['GET'])
+def get_user_access(user_id):
+    try:
+        user = check_auth(request)
+        if not user or user.role != 'admin':
+            return jsonify({
+                "success": False,
+                "message": "Access denied",
+                "error": "Admin access required"
+            }), 403
+        
+        target_user = User.query.filter_by(id=user_id).first()
+        if not target_user:
+            return jsonify({
+                "success": False,
+                "message": "User not found",
+                "error": "User does not exist"
+            }), 404
+        
+        user_access = UserAccessControl.query.filter_by(user_id=user_id).first()
+        
+        if not user_access:
+            return jsonify({
+                "success": True,
+                "message": "User access retrieved",
+                "data": {
+                    "user_id": user_id,
+                    "pages": {
+                        'market': {'enabled': False},
+                        'shipper-post': {'enabled': False}
+                    }
+                }
+            })
+        
+        return jsonify({
+            "success": True,
+            "message": "User access retrieved",
+            "data": {
+                "user_id": user_id,
+                "pages": json.loads(user_access.pages) if user_access.pages else {}
+            }
+        })
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": "Failed to retrieve user access",
+            "error": str(e)
+        }), 500
+
+@app.route('/api/admin/users/<string:user_id>/access', methods=['PUT'])
+def update_user_access(user_id):
+    try:
+        user = check_auth(request)
+        if not user or user.role != 'admin':
+            return jsonify({
+                "success": False,
+                "message": "Access denied",
+                "error": "Admin access required"
+            }), 403
+        
+        data = request.get_json()
+        if not data or 'pages' not in data:
+            return jsonify({
+                "success": False,
+                "message": "Pages data is required",
+                "error": "Invalid request format"
+            }), 400
+        
+        target_user = User.query.filter_by(id=user_id).first()
+        if not target_user:
+            return jsonify({
+                "success": False,
+                "message": "User not found",
+                "error": "User does not exist"
+            }), 404
+        
+        user_access = UserAccessControl.query.filter_by(user_id=user_id).first()
+        if not user_access:
+            user_access = UserAccessControl(
+                user_id=user_id,
+                pages=json.dumps(data['pages'])
+            )
+            db.session.add(user_access)
+        else:
+            user_access.pages = json.dumps(data['pages'])
+        
+        db.session.commit()
+        
+        return jsonify({
+            "success": True,
+            "message": "User access updated successfully",
+            "data": {
+                "user_id": user_id,
+                "pages": data['pages']
+            }
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            "success": False,
+            "message": "Failed to update user access",
+            "error": str(e)
+        }), 500
+
+@app.route('/api/users', methods=['GET'])
+def get_users():
+    try:
+        user = check_auth(request)
+        if not user or user.role != 'admin':
+            return jsonify({
+                "success": False,
+                "message": "Access denied",
+                "error": "Admin access required"
+            }), 403
+        
+        users = User.query.all()
+        result = []
+        for u in users:
+            result.append({
+                "id": u.id,
+                "name": u.name,
+                "email": u.email,
+                "role": u.role,
+                "company": u.company,
+                "phone": u.phone,
+                "membership_number": u.membership_number,
+                "created_at": u.created_at.isoformat()
+            })
+        
+        return jsonify({
+            "success": True,
+            "message": "Users retrieved",
+            "data": {"users": result}
+        })
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": "Failed to retrieve users",
+            "error": str(e)
+        }), 500
+
+@app.route('/api/admin/users/<email>', methods=['DELETE'])
+def delete_user_endpoint(email):
+    try:
+        user = check_auth(request)
+        if not user or user.role != 'admin':
+            return jsonify({
+                "success": False,
+                "message": "Access denied",
+                "error": "Admin access required"
+            }), 403
+        
+        user_to_delete = User.query.filter_by(email=email).first()
+        if not user_to_delete:
+            return jsonify({
+                "success": False,
+                "message": "User not found",
+                "error": "User does not exist"
+            }), 404
+        
+        Load.query.filter_by(shipper_id=user_to_delete.id).delete()
+        
+        user_membership = user_to_delete.membership_number or 'Admin'
+        Message.query.filter(
+            (Message.sender_membership == user_membership) | 
+            (Message.recipient_membership == user_membership)
+        ).delete()
+        
+        UserAccessControl.query.filter_by(user_id=user_to_delete.id).delete()
+        
+        db.session.delete(user_to_delete)
+        db.session.commit()
+        
+        return jsonify({
+            "success": True,
+            "message": "User deleted successfully",
+            "data": {"email": email}
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            "success": False,
+            "message": "Failed to delete user",
+            "error": str(e)
+        }), 500
+
+@app.route('/api/admin/reset-password', methods=['POST'])
+def reset_password():
+    try:
+        user = check_auth(request)
+        if not user or user.role != 'admin':
+            return jsonify({
+                "success": False,
+                "message": "Access denied",
+                "error": "Admin access required"
+            }), 403
+        
+        data = request.get_json()
+        email = data.get('email')
+        new_password = data.get('new_password')
+        
+        if not email or not new_password:
+            return jsonify({
+                "success": False,
+                "message": "Password reset failed",
+                "error": "Email and new password are required"
+            }), 400
+        
+        user_to_update = User.query.filter_by(email=email).first()
+        if not user_to_update:
+            return jsonify({
+                "success": False,
+                "message": "Password reset failed",
+                "error": "User not found"
+            }), 404
+        
+        user_to_update.set_password(new_password)
+        db.session.commit()
+        
+        return jsonify({
+            "success": True,
+            "message": "Password reset successfully",
+            "data": {"email": email}
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            "success": False,
+            "message": "Password reset failed",
+            "error": str(e)
+        }), 500
+
+@app.route("/api/debug/db")
+def debug_db():
+    try:
+        db.session.execute(text("SELECT 1"))
+        db.session.commit()
+        connection_status = "OK"
+    except Exception as e:
+        db.session.rollback()
+        connection_status = "ERROR"
+        connection_error = str(e)
+
+    try:
+        user_count = User.query.count()
+        load_count = Load.query.count()
+        message_count = Message.query.count()
+        access_control_count = AccessControl.query.count()
+        user_access_control_count = UserAccessControl.query.count()
+        banner_count = Banner.query.count()
+        
+        users = []
+        for user in User.query.all():
+            users.append({
+                "id": user.id,
+                "name": user.name,
+                "email": user.email,
+                "role": user.role,
+                "membership_number": user.membership_number,
+                "created_at": user.created_at.isoformat()
+            })
+        
+        database_type = "PostgreSQL" if 'postgresql' in app.config['SQLALCHEMY_DATABASE_URI'] else "SQLite"
+        
+        response = {
+            "database_type": database_type,
+            "database_uri": app.config['SQLALCHEMY_DATABASE_URI'],
+            "connection_status": connection_status,
+            "user_count": user_count,
+            "load_count": load_count,
+            "message_count": message_count,
+            "access_control_count": access_control_count,
+            "user_access_control_count": user_access_control_count,
+            "banner_count": banner_count,
+            "users": users,
+            "environment": os.environ.get('RENDER', 'local')
+        }
+        
+        if connection_status == "ERROR":
+            response["connection_error"] = connection_error
+        
+        return jsonify(response), 200
+        
+    except Exception as e:
+        return jsonify({
+            "database_type": db.engine.name if hasattr(db, 'engine') else "Unknown",
+            "connection_status": "ERROR",
+            "error": str(e)
+        }), 500
+
+@app.route('/api/debug/db-config')
+def debug_db_config():
+    return jsonify({
+        "db_user": os.environ.get('DB_USER'),
+        "db_host": os.environ.get('DB_HOST'), 
+        "db_database": os.environ.get('DB_DATABASE'),
+        "db_port": os.environ.get('DB_PORT'),
+        "database_url": os.environ.get('DATABASE_URL'),
+        "has_db_url": bool(os.environ.get('DATABASE_URL'))
+    })
+    
+@app.route('/api/debug/db-info')
+def debug_db_info():
+    return jsonify({
+        'database_url': os.environ.get('DATABASE_URL'),
+        'db_user': os.environ.get('DB_USER'),
+        'using_postgresql': 'postgresql' in os.environ.get('DATABASE_URL', ''),
+        'tables_created': True
+    })
 
 # Initialize the application
 with app.app_context():
@@ -528,10 +1310,10 @@ if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     logger.info(f"🚀 Starting MakiwaFreight server on port {port}")
     
-    # Use Gunicorn in production, development server locally
+    db_type = "PostgreSQL" if 'postgresql' in app.config['SQLALCHEMY_DATABASE_URI'] else "SQLite"
+    logger.info(f"📊 Database type: {db_type}")
+    
     if os.environ.get('RENDER'):
-        # Production
         app.run(host='0.0.0.0', port=port)
     else:
-        # Development
         app.run(debug=True, host='0.0.0.0', port=port)
