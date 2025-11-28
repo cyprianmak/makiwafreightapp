@@ -1369,3 +1369,15 @@ if __name__ == '__main__':
     else:
         # Development
         app.run(debug=True, host='0.0.0.0', port=port)
+
+
+@app.route('/api/debug/db-config')
+def debug_db_config():
+    return jsonify({
+        "db_user": os.environ.get('DB_USER'),
+        "db_host": os.environ.get('DB_HOST'), 
+        "db_database": os.environ.get('DB_DATABASE'),
+        "db_port": os.environ.get('DB_PORT'),
+        "database_url": os.environ.get('DATABASE_URL'),
+        "has_db_url": bool(os.environ.get('DATABASE_URL'))
+    })
