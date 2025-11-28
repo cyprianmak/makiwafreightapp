@@ -827,11 +827,15 @@ def handle_messages():
             }), 401
         
         if request.method == 'GET':
-            user_membership = user.membership_number or 'Admin'
-            messages = Message.query.filter(
-                (Message.sender_membership == user_membership) | 
-                (Message.recipient_membership == user_membership)
-            ).order_by(Message.created_at.desc()).all()
+            # For admin, show all messages. For others, show only their messages
+            if user.role == 'admin':
+                messages = Message.query.order_by(Message.created_at.desc()).all()
+            else:
+                user_membership = user.membership_number
+                messages = Message.query.filter(
+                    (Message.sender_membership == user_membership) | 
+                    (Message.recipient_membership == user_membership)
+                ).order_by(Message.created_at.desc()).all()
             
             result = []
             for msg in messages:
@@ -840,7 +844,8 @@ def handle_messages():
                     "sender_membership": msg.sender_membership,
                     "recipient_membership": msg.recipient_membership,
                     "body": msg.body,
-                    "created_at": msg.created_at.isoformat()
+                    "created_at": msg.created_at.isoformat(),
+                    "is_sent_by_me": msg.sender_membership == (user.membership_number or 'Admin')
                 })
             return jsonify({
                 "success": True,
@@ -867,15 +872,17 @@ def handle_messages():
                     "error": "Recipient membership number and message body required"
                 }), 400
             
-            recipient = User.query.filter_by(membership_number=recipient_membership).first()
-            if not recipient and recipient_membership != 'Admin':
-                return jsonify({
-                    "success": False,
-                    "message": "Message not sent",
-                    "error": "Recipient not found"
-                }), 404
+            # Check if recipient exists or is admin
+            if recipient_membership != 'Admin':
+                recipient = User.query.filter_by(membership_number=recipient_membership).first()
+                if not recipient:
+                    return jsonify({
+                        "success": False,
+                        "message": "Message not sent",
+                        "error": "Recipient not found"
+                    }), 404
             
-            sender_membership = user.membership_number or 'Admin'
+            sender_membership = user.membership_number if user.membership_number else 'Admin'
             
             new_message = Message(
                 sender_membership=sender_membership,
@@ -893,6 +900,7 @@ def handle_messages():
             }), 201
     except Exception as e:
         db.session.rollback()
+        logger.error(f"Message operation failed: {e}")
         return jsonify({
             "success": False,
             "message": "Message operation failed",
