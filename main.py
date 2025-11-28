@@ -338,6 +338,44 @@ def initialize_data():
             db.session.rollback()
 
 # Routes
+@app.route('/api/debug/check-user')
+def debug_check_user():
+    user = check_auth(request)
+    if user:
+        return jsonify({
+            "authenticated": True,
+            "user": {
+                "id": user.id,
+                "name": user.name,
+                "email": user.email,
+                "role": user.role,
+                "membership_number": user.membership_number
+            }
+        })
+    return jsonify({"authenticated": False})
+
+@app.route('/api/debug/check-messages')
+def debug_check_messages():
+    user = check_auth(request)
+    if not user:
+        return jsonify({"error": "Not authenticated"}), 401
+    
+    messages = Message.query.all()
+    result = []
+    for msg in messages:
+        result.append({
+            "id": msg.id,
+            "sender": msg.sender_membership,
+            "recipient": msg.recipient_membership,
+            "body": msg.body,
+            "created_at": msg.created_at.isoformat()
+        })
+    
+    return jsonify({
+        "total_messages": len(result),
+        "messages": result
+    })
+
 @app.route('/')
 def index():
     return render_template('index.html')
