@@ -1422,7 +1422,6 @@ def debug_check_admin():
         })
     return jsonify({"error": "User not found"}), 404
 
-
 @app.route('/api/debug/db-info')
 def debug_db_info():
     return jsonify({
