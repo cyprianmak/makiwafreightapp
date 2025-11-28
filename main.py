@@ -8,7 +8,7 @@ import os
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='', static_url_path='')
 
 # Configure database properly for Render PostgreSQL
 if os.environ.get('RENDER'):
