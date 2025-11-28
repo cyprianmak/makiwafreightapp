@@ -101,23 +101,26 @@
     notification.className = `notification ${type}`;
     notification.textContent = message;
     
-    document.getElementById('notificationContainer').appendChild(notification);
-    
-    requestAnimationFrame(() => {
-      notification.classList.add('show');
-    });
-    
-    const timeoutId = setTimeout(() => {
-      notification.classList.remove('show');
-      const removeTimeoutId = setTimeout(() => {
-        if (notification.parentNode) {
-          notification.remove();
-        }
-      }, 300);
-      notification.dataset.removeTimeoutId = removeTimeoutId;
-    }, 5000);
-    
-    notification.dataset.timeoutId = timeoutId;
+    const container = el('notificationContainer');
+    if (container) {
+      container.appendChild(notification);
+      
+      requestAnimationFrame(() => {
+        notification.classList.add('show');
+      });
+      
+      const timeoutId = setTimeout(() => {
+        notification.classList.remove('show');
+        const removeTimeoutId = setTimeout(() => {
+          if (notification.parentNode) {
+            notification.remove();
+          }
+        }, 300);
+        notification.dataset.removeTimeoutId = removeTimeoutId;
+      }, 5000);
+      
+      notification.dataset.timeoutId = timeoutId;
+    }
   }
   
   // Session timeout management
@@ -335,7 +338,7 @@
     try {
       const response = await apiRequest('/auth/register', {
         method: 'POST',
-        body: JSON.stringify(data)
+        body: JSON.stringify(sanitizedData)
       });
 
       // Generate membership number for display
@@ -641,7 +644,8 @@
     
     try {
       const loads = await getUserLoads();
-      const tbody = el('tableMyLoadsShipper').querySelector('tbody');
+      const tbody = el('tableMyLoadsShipper')?.querySelector('tbody');
+      if (!tbody) return;
       
       while (tbody.firstChild) {
         tbody.removeChild(tbody.firstChild);
@@ -694,7 +698,8 @@
     
     try {
       const loads = await getUserLoads();
-      const tbody = el('tableMyLoadsTransporter').querySelector('tbody');
+      const tbody = el('tableMyLoadsTransporter')?.querySelector('tbody');
+      if (!tbody) return;
       
       while (tbody.firstChild) {
         tbody.removeChild(tbody.firstChild);
@@ -744,7 +749,8 @@
   const renderMarket = async () => {
     try {
       const loads = await getLoads();
-      const tbody = el('tableMarketLoads').querySelector('tbody');
+      const tbody = el('tableMarketLoads')?.querySelector('tbody');
+      if (!tbody) return;
       
       while (tbody.firstChild) {
         tbody.removeChild(tbody.firstChild);
@@ -795,6 +801,7 @@
     try {
       const messages = await getMessages();
       const messageContainer = el('messageContainer');
+      if (!messageContainer) return;
       
       while (messageContainer.firstChild) {
         messageContainer.removeChild(messageContainer.firstChild);
@@ -835,6 +842,42 @@
     }
   };
 
+  const renderControl = async () => {
+    // Admin control panel rendering
+    const user = getCurrentUserSync();
+    if (!user || !isAdmin(user)) return;
+    
+    try {
+      // Get users for admin table
+      const users = await getUsers();
+      const usersTable = el('tableUsers')?.querySelector('tbody');
+      if (usersTable) {
+        while (usersTable.firstChild) {
+          usersTable.removeChild(usersTable.firstChild);
+        }
+        
+        if (users && users.length > 0) {
+          users.forEach(user => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+              <td>${sanitize(user.name)}</td>
+              <td>${sanitize(user.email)}</td>
+              <td>${user.membership_number || 'MF' + user.id.toString().padStart(6, '0')}</td>
+              <td>${sanitize(user.role)}</td>
+              <td>${new Date(user.created_at).toLocaleDateString()}</td>
+              <td>
+                <button class="btn danger" onclick="adminDeleteUser('${user.email}')">Delete</button>
+              </td>
+            `;
+            usersTable.appendChild(row);
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error rendering control panel:', error);
+    }
+  };
+
   const renderHeader = async () => {
     const user = getCurrentUserSync();
     const navLinks = el('navLinks');
@@ -844,8 +887,10 @@
     const roleChip = el('roleChip');
     
     if (user) {
-      while (navLinks.firstChild) {
-        navLinks.removeChild(navLinks.firstChild);
+      if (navLinks) {
+        while (navLinks.firstChild) {
+          navLinks.removeChild(navLinks.firstChild);
+        }
       }
       
       if (authUser) authUser.textContent = user.name;
@@ -889,11 +934,15 @@
         a.className = 'btn ghost';
         a.href = link.href;
         a.textContent = link.text;
-        navLinks.appendChild(a);
+        if (navLinks) {
+          navLinks.appendChild(a);
+        }
       });
     } else {
-      while (navLinks.firstChild) {
-        navLinks.removeChild(navLinks.firstChild);
+      if (navLinks) {
+        while (navLinks.firstChild) {
+          navLinks.removeChild(navLinks.firstChild);
+        }
       }
       
       if (authUser) authUser.textContent = '';
@@ -977,8 +1026,23 @@
     const membershipNumber = 'MF' + shipperId.toString().padStart(6, '0');
     location.hash = '#messages';
     setTimeout(() => {
-      el('msgTo').value = membershipNumber;
+      const msgTo = el('msgTo');
+      if (msgTo) {
+        msgTo.value = membershipNumber;
+      }
     }, 100);
+  };
+
+  window.adminDeleteUser = async (email) => {
+    if (confirm(`Are you sure you want to delete user ${email}?`)) {
+      try {
+        await deleteUser(email);
+        await render();
+      } catch (error) {
+        console.error('Error deleting user:', error);
+        showNotification('Failed to delete user', 'error');
+      }
+    }
   };
 
   // Event handlers
@@ -986,8 +1050,8 @@
     // Form submissions
     el('formLogin')?.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const email = el('loginEmail').value;
-      const password = el('loginPassword').value;
+      const email = el('loginEmail')?.value;
+      const password = el('loginPassword')?.value;
       if (!email || !password) {
         showNotification('Please fill in all fields', 'error');
         return;
@@ -1056,8 +1120,12 @@
     
     el('formSendMsg')?.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const to = el('msgTo').value;
-      const body = el('msgBody').value;
+      const to = el('msgTo')?.value;
+      const body = el('msgBody')?.value;
+      if (!to || !body) {
+        showNotification('Please fill in all fields', 'error');
+        return;
+      }
       setButtonLoading('formSendMsg', true);
       try {
         await sendMessage(to, body);
@@ -1071,6 +1139,63 @@
     });
     
     el('btnLogout')?.addEventListener('click', logout);
+    
+    // Profile update handlers
+    el('saveProfileShipper')?.addEventListener('click', async () => {
+      const name = el('profileShipperName')?.value;
+      const phone = el('profileShipperPhone')?.value;
+      const address = el('profileShipperAddress')?.value;
+      const password = el('profileShipperPassword')?.value;
+      
+      const profileData = {};
+      if (name) profileData.name = name;
+      if (phone) profileData.phone = phone;
+      if (address) profileData.address = address;
+      if (password) profileData.password = password;
+      
+      if (Object.keys(profileData).length === 0) {
+        showNotification('No changes to save', 'info');
+        return;
+      }
+      
+      setButtonLoading('saveProfileShipper', true);
+      try {
+        await updateUserProfile(profileData);
+        await render();
+      } catch (error) {
+        console.error('Profile update error:', error);
+      } finally {
+        setButtonLoading('saveProfileShipper', false);
+      }
+    });
+    
+    el('saveProfileTransporter')?.addEventListener('click', async () => {
+      const name = el('profileTransporterName')?.value;
+      const phone = el('profileTransporterPhone')?.value;
+      const address = el('profileTransporterAddress')?.value;
+      const password = el('profileTransporterPassword')?.value;
+      
+      const profileData = {};
+      if (name) profileData.name = name;
+      if (phone) profileData.phone = phone;
+      if (address) profileData.address = address;
+      if (password) profileData.password = password;
+      
+      if (Object.keys(profileData).length === 0) {
+        showNotification('No changes to save', 'info');
+        return;
+      }
+      
+      setButtonLoading('saveProfileTransporter', true);
+      try {
+        await updateUserProfile(profileData);
+        await render();
+      } catch (error) {
+        console.error('Profile update error:', error);
+      } finally {
+        setButtonLoading('saveProfileTransporter', false);
+      }
+    });
     
     // Initialize the app
     render();
