@@ -1326,3 +1326,30 @@ def test_page():
 def index():
     logger.info("✅ Index route called - serving index.html")
     return render_template('index.html')
+
+@app.route('/debug/templates')
+def debug_templates():
+    import os
+    template_path = os.path.join(app.root_path, app.template_folder)
+    static_path = os.path.join(app.root_path, app.static_folder)
+    
+    files_in_template_dir = []
+    files_in_static_dir = []
+    
+    if os.path.exists(template_path):
+        files_in_template_dir = os.listdir(template_path)
+    
+    if os.path.exists(static_path):
+        files_in_static_dir = os.listdir(static_path)
+    
+    return jsonify({
+        "template_folder": app.template_folder,
+        "static_folder": app.static_folder,
+        "root_path": app.root_path,
+        "full_template_path": template_path,
+        "full_static_path": static_path,
+        "files_in_template_dir": files_in_template_dir,
+        "files_in_static_dir": files_in_static_dir,
+        "index_html_exists": os.path.exists(os.path.join(template_path, 'index.html')),
+        "app_js_exists": os.path.exists(os.path.join(static_path, 'app.js'))
+    })
