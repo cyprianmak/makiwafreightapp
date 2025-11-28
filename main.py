@@ -1296,7 +1296,20 @@ def debug_db_config():
         "database_url": os.environ.get('DATABASE_URL'),
         "has_db_url": bool(os.environ.get('DATABASE_URL'))
     })
-    
+
+@app.route('/api/debug/check-admin')
+def debug_check_admin():
+    user = User.query.filter_by(email='cyprianmak@gmail.com').first()
+    if user:
+        return jsonify({
+            "email": user.email,
+            "role": user.role,
+            "is_admin": user.role == 'admin',
+            "id": user.id
+        })
+    return jsonify({"error": "User not found"}), 404
+
+
 @app.route('/api/debug/db-info')
 def debug_db_info():
     return jsonify({
