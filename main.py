@@ -302,25 +302,33 @@ def initialize_data():
             db_type = "PostgreSQL" if 'postgresql' in app.config['SQLALCHEMY_DATABASE_URI'] else "SQLite"
             logger.info(f"✅ Connected to {db_type} database")
             
-            # Create admin user
+            # Create admin user - FIXED VERSION
             admin_email = 'cyprianmak@gmail.com'
             admin = User.query.filter_by(email=admin_email).first()
             
             if not admin:
                 logger.info("Creating admin user...")
                 admin = User(
-                    name="Admin",
+                    name="Admin User",
                     email=admin_email,
                     role="admin",
-                    membership_number="MF152285"
+                    membership_number="MF152285",
+                    company="MakiwaFreight Admin",
+                    phone="+1234567890"
                 )
                 admin.set_password("Muchandida@1")
                 db.session.add(admin)
                 db.session.commit()
                 logger.info("✅ Admin user created")
             else:
-                logger.info("✅ Admin user already exists")
-                
+                # Ensure existing admin has correct role
+                if admin.role != 'admin':
+                    admin.role = 'admin'
+                    db.session.commit()
+                    logger.info("✅ Updated existing user to admin role")
+                else:
+                    logger.info("✅ Admin user already exists with correct role")
+                    
             logger.info("✅ Database initialization complete")
             
         except Exception as e:
