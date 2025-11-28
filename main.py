@@ -314,7 +314,7 @@ def initialize_data():
                     role="admin",
                     membership_number="MF152285",
                     company="MakiwaFreight Admin",
-                    phone="+1234567890"
+                    phone="0739874446"
                 )
                 admin.set_password("Muchandida@1")
                 db.session.add(admin)
