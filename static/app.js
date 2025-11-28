@@ -1,9 +1,9 @@
-// app.js - MakiwaFreight Production Frontend - 100% Complete
+// app.js - MakiwaFreight Production Frontend
 (function() {
   'use strict';
   
   // Configuration
-  const API_BASE = '';
+  const API_BASE = '/api';
   const LOAD_EXPIRY_DAYS = 7;
   const SESSION_TIMEOUT_MINUTES = 30;
   const SESSION_WARNING_MINUTES = 5;
@@ -18,6 +18,12 @@
     'market': { name: 'Market', roles: ['shipper', 'transporter'] },
     'messages': { name: 'Messages', roles: ['shipper', 'transporter'] },
     'control': { name: 'Admin Control', roles: ['admin'] }
+  };
+  
+  // Access control page mapping
+  const ACCESS_PAGES = {
+    'market': { name: 'Market Page', id: 'access-market' },
+    'shipper-post': { name: 'Post Load Page', id: 'access-post-load' }
   };
   
   // Session timeout variables
@@ -267,7 +273,7 @@
       if (response) {
         const userData = {
           ...response,
-          token: 'auth-token-' + Date.now()
+          token: 'auth-token-' + Date.now() // Simple token for demo
         };
         sessionStorage.setItem('currentUser', JSON.stringify(userData));
         showNotification('Login successful', 'success');
@@ -329,7 +335,7 @@
     try {
       const response = await apiRequest('/auth/register', {
         method: 'POST',
-        body: JSON.stringify(sanitizedData)
+        body: JSON.stringify(data)
       });
 
       // Generate membership number for display
@@ -525,11 +531,12 @@
     if (!user || !user.id) throw new Error('User not logged in');
     
     try {
+      // For demo, we'll use email instead of membership number
       const message = await apiRequest('/messages', {
         method: 'POST',
         body: JSON.stringify({ 
           sender_id: user.id,
-          receiver_membership: toMembership,
+          receiver_email: toMembership + '@example.com', // Demo conversion
           body: sanitize(body) 
         })
       });
@@ -771,9 +778,9 @@
           <td>${sanitize(load.cargo_type)}</td>
           <td>${load.weight}</td>
           <td>${getStatusBadge(status)}</td>
-          <td>${load.shipper_membership || 'MF' + (load.shipper_id || '').toString().padStart(6, '0')}</td>
+          <td>${load.shipper_id ? 'MF' + load.shipper_id.toString().padStart(6, '0') : 'Unknown'}</td>
           <td>
-            <button class="btn" onclick="contactShipper('${load.shipper_membership || load.shipper_id}')">Contact</button>
+            <button class="btn" onclick="contactShipper('${load.shipper_id}')">Contact</button>
           </td>
         `;
         
@@ -825,134 +832,6 @@
       });
     } catch (error) {
       console.error('Error rendering messages:', error);
-    }
-  };
-
-  const renderProfile = async () => {
-    const user = getCurrentUserSync();
-    if (!user) return;
-
-    if (user.role === 'shipper') {
-      setText('shipperProfileName', user.name || 'Shipper Name');
-      setText('shipperProfileEmail', user.email || 'email@example.com');
-      setText('shipperProfileCompany', user.company || 'Not provided');
-      setText('shipperProfilePhone', user.phone || 'Not provided');
-      setText('shipperProfileAddress', user.address || 'Not provided');
-      setText('shipperProfileRole', user.role || 'Shipper');
-      setText('shipperProfileMembership', user.membership_number || 'MF000000');
-      setText('shipperProfileCreated', new Date(user.created_at || Date.now()).toLocaleDateString());
-      
-      // Set form values
-      el('profileShipperName').value = user.name || '';
-      el('profileShipperPhone').value = user.phone || '';
-      el('profileShipperAddress').value = user.address || '';
-      
-      // Set avatar initial
-      const avatar = el('shipperProfileAvatar');
-      if (avatar && user.name) {
-        avatar.textContent = user.name.charAt(0).toUpperCase();
-      }
-    } else if (user.role === 'transporter') {
-      setText('transporterProfileName', user.name || 'Transporter Name');
-      setText('transporterProfileEmail', user.email || 'email@example.com');
-      setText('transporterProfileCompany', user.company || 'Not provided');
-      setText('transporterProfileVehicle', user.vehicle_info || 'Not provided');
-      setText('transporterProfilePhone', user.phone || 'Not provided');
-      setText('transporterProfileAddress', user.address || 'Not provided');
-      setText('transporterProfileRole', user.role || 'Transporter');
-      setText('transporterProfileMembership', user.membership_number || 'MF000000');
-      setText('transporterProfileCreated', new Date(user.created_at || Date.now()).toLocaleDateString());
-      
-      // Set form values
-      el('profileTransporterName').value = user.name || '';
-      el('profileTransporterPhone').value = user.phone || '';
-      el('profileTransporterAddress').value = user.address || '';
-      
-      // Set avatar initial
-      const avatar = el('transporterProfileAvatar');
-      if (avatar && user.name) {
-        avatar.textContent = user.name.charAt(0).toUpperCase();
-      }
-    }
-  };
-
-  const renderControl = async () => {
-    const user = getCurrentUserSync();
-    if (!user || user.role !== 'admin') return;
-
-    try {
-      // Load users for admin table
-      const users = await getUsers();
-      const usersTbody = el('tableUsers').querySelector('tbody');
-      const userSelect = el('selectUserForAccess');
-      const userPasswordSelect = el('selectUserForPassword');
-      const loadSelect = el('selectLoad');
-
-      // Clear existing options
-      while (usersTbody.firstChild) usersTbody.removeChild(usersTbody.firstChild);
-      while (userSelect.firstChild) userSelect.removeChild(userSelect.firstChild);
-      while (userPasswordSelect.firstChild) userPasswordSelect.removeChild(userPasswordSelect.firstChild);
-      while (loadSelect.firstChild) loadSelect.removeChild(loadSelect.firstChild);
-
-      // Add default options
-      const defaultOption = document.createElement('option');
-      defaultOption.value = '';
-      defaultOption.textContent = '-- Select User --';
-      userSelect.appendChild(defaultOption);
-      userPasswordSelect.appendChild(defaultOption.cloneNode(true));
-
-      const defaultLoadOption = document.createElement('option');
-      defaultLoadOption.value = '';
-      defaultLoadOption.textContent = '-- Select Load --';
-      loadSelect.appendChild(defaultLoadOption);
-
-      if (!users || users.length === 0) {
-        const row = document.createElement('tr');
-        const cell = document.createElement('td');
-        cell.colSpan = 6;
-        cell.className = 'muted';
-        cell.textContent = 'No users found.';
-        row.appendChild(cell);
-        usersTbody.appendChild(row);
-        return;
-      }
-
-      // Populate users table and selects
-      users.forEach(user => {
-        // Add to users table
-        const row = document.createElement('tr');
-        row.innerHTML = `
-          <td>${sanitize(user.name)}</td>
-          <td>${sanitize(user.email)}</td>
-          <td>${user.membership_number || 'N/A'}</td>
-          <td>${sanitize(user.role)}</td>
-          <td>${new Date(user.created_at).toLocaleDateString()}</td>
-          <td>
-            <button class="btn danger" onclick="adminDeleteUser('${user.email}')">Delete</button>
-          </td>
-        `;
-        usersTbody.appendChild(row);
-
-        // Add to user selects
-        const option = document.createElement('option');
-        option.value = user.id;
-        option.textContent = `${user.name} (${user.email})`;
-        userSelect.appendChild(option.cloneNode(true));
-        userPasswordSelect.appendChild(option.cloneNode(true));
-      });
-
-      // Load loads for load management
-      const loads = await getLoads();
-      loads.forEach(load => {
-        const option = document.createElement('option');
-        option.value = load.id;
-        option.textContent = `${load.ref} - ${load.origin} to ${load.destination}`;
-        loadSelect.appendChild(option);
-      });
-
-    } catch (error) {
-      console.error('Error rendering admin control:', error);
-      showNotification('Failed to load admin data', 'error');
     }
   };
 
@@ -1073,10 +952,6 @@
       case 'control':
         await renderControl();
         break;
-      case 'shipper-profile':
-      case 'transporter-profile':
-        await renderProfile();
-        break;
     }
   };
 
@@ -1099,23 +974,11 @@
   };
   
   window.contactShipper = (shipperId) => {
-    const membershipNumber = shipperId.toString().startsWith('MF') ? shipperId : 'MF' + shipperId.toString().padStart(6, '0');
+    const membershipNumber = 'MF' + shipperId.toString().padStart(6, '0');
     location.hash = '#messages';
     setTimeout(() => {
       el('msgTo').value = membershipNumber;
-      el('msgBody').focus();
     }, 100);
-  };
-
-  window.adminDeleteUser = async (email) => {
-    if (confirm(`Are you sure you want to delete user ${email}?`)) {
-      try {
-        await deleteUser(email);
-        await renderControl();
-      } catch (error) {
-        console.error('Error deleting user:', error);
-      }
-    }
   };
 
   // Event handlers
@@ -1207,179 +1070,7 @@
       }
     });
     
-    // Profile update handlers
-    el('saveProfileShipper')?.addEventListener('click', async () => {
-      const formData = new FormData(el('formProfileShipper'));
-      const data = Object.fromEntries(formData);
-      setButtonLoading('saveProfileShipper', true);
-      try {
-        await updateUserProfile(data);
-        await renderProfile();
-      } catch (error) {
-        console.error('Profile update error:', error);
-      } finally {
-        setButtonLoading('saveProfileShipper', false);
-      }
-    });
-    
-    el('saveProfileTransporter')?.addEventListener('click', async () => {
-      const formData = new FormData(el('formProfileTransporter'));
-      const data = Object.fromEntries(formData);
-      setButtonLoading('saveProfileTransporter', true);
-      try {
-        await updateUserProfile(data);
-        await renderProfile();
-      } catch (error) {
-        console.error('Profile update error:', error);
-      } finally {
-        setButtonLoading('saveProfileTransporter', false);
-      }
-    });
-    
-    // Admin functionality
-    el('btnResetPass')?.addEventListener('click', async () => {
-      const userId = el('selectUserForPassword').value;
-      const newPassword = el('resetPass').value;
-      
-      if (!userId || !newPassword) {
-        showNotification('Please select a user and enter a new password', 'error');
-        return;
-      }
-      
-      try {
-        // Get user email from select option text
-        const userEmail = el('selectUserForPassword').options[el('selectUserForPassword').selectedIndex].text.match(/\(([^)]+)\)/)[1];
-        await resetPassword(userEmail, newPassword);
-        el('resetPass').value = '';
-      } catch (error) {
-        console.error('Password reset error:', error);
-      }
-    });
-    
-    el('btnDeleteLoad')?.addEventListener('click', async () => {
-      const loadId = el('selectLoad').value;
-      if (!loadId) {
-        showNotification('Please select a load to delete', 'error');
-        return;
-      }
-      
-      if (confirm('Are you sure you want to delete this load?')) {
-        try {
-          await deleteLoad(loadId);
-          await renderControl();
-        } catch (error) {
-          console.error('Load deletion error:', error);
-        }
-      }
-    });
-    
-    el('btnLoadLoadDetails')?.addEventListener('click', async () => {
-      const loadId = el('selectLoad').value;
-      if (!loadId) {
-        showNotification('Please select a load', 'error');
-        return;
-      }
-      
-      try {
-        const loads = await getLoads();
-        const load = loads.find(l => l.id == loadId);
-        if (load) {
-          const loadDetails = el('loadDetails');
-          loadDetails.innerHTML = `
-            <h4>Load Details</h4>
-            <div class="load-detail-row">
-              <div class="load-detail-label">Reference:</div>
-              <div class="load-detail-value">${load.ref}</div>
-            </div>
-            <div class="load-detail-row">
-              <div class="load-detail-label">Origin:</div>
-              <div class="load-detail-value">${load.origin}</div>
-            </div>
-            <div class="load-detail-row">
-              <div class="load-detail-label">Destination:</div>
-              <div class="load-detail-value">${load.destination}</div>
-            </div>
-            <div class="load-detail-row">
-              <div class="load-detail-label">Pickup Date:</div>
-              <div class="load-detail-value">${new Date(load.date).toLocaleDateString()}</div>
-            </div>
-            <div class="load-detail-row">
-              <div class="load-detail-label">Cargo Type:</div>
-              <div class="load-detail-value">${load.cargo_type}</div>
-            </div>
-            <div class="load-detail-row">
-              <div class="load-detail-label">Weight:</div>
-              <div class="load-detail-value">${load.weight} tons</div>
-            </div>
-            <div class="load-detail-row">
-              <div class="load-detail-label">Status:</div>
-              <div class="load-detail-value">${getLoadStatus(load)}</div>
-            </div>
-          `;
-          loadDetails.classList.remove('hidden');
-        }
-      } catch (error) {
-        console.error('Load details error:', error);
-      }
-    });
-    
     el('btnLogout')?.addEventListener('click', logout);
-    
-    // Market filter
-    el('btnMarketFilterLoads')?.addEventListener('click', async () => {
-      const originFilter = el('marketFilterOrigin').value;
-      const destFilter = el('marketFilterDest').value;
-      
-      try {
-        const loads = await getLoads({
-          origin: originFilter,
-          destination: destFilter
-        });
-        
-        const tbody = el('tableMarketLoads').querySelector('tbody');
-        while (tbody.firstChild) {
-          tbody.removeChild(tbody.firstChild);
-        }
-        
-        loads.forEach(load => {
-          const row = document.createElement('tr');
-          const status = getLoadStatus(load);
-          
-          if (status === 'expired') {
-            row.classList.add('expired');
-          }
-          
-          row.innerHTML = `
-            <td>${sanitize(load.ref)}</td>
-            <td>${sanitize(load.origin)}</td>
-            <td>${sanitize(load.destination)}</td>
-            <td>${new Date(load.date).toLocaleDateString()}</td>
-            <td>${new Date(load.expires_at).toLocaleDateString()}</td>
-            <td>${sanitize(load.cargo_type)}</td>
-            <td>${load.weight}</td>
-            <td>${getStatusBadge(status)}</td>
-            <td>${load.shipper_membership || 'MF' + (load.shipper_id || '').toString().padStart(6, '0')}</td>
-            <td>
-              <button class="btn" onclick="contactShipper('${load.shipper_membership || load.shipper_id}')">Contact</button>
-            </td>
-          `;
-          
-          tbody.appendChild(row);
-        });
-        
-        if (loads.length === 0) {
-          const row = document.createElement('tr');
-          const cell = document.createElement('td');
-          cell.colSpan = 10;
-          cell.className = 'muted';
-          cell.textContent = 'No loads match your filters.';
-          row.appendChild(cell);
-          tbody.appendChild(row);
-        }
-      } catch (error) {
-        console.error('Filter error:', error);
-      }
-    });
     
     // Initialize the app
     render();
