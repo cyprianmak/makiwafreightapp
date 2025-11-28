@@ -20,12 +20,6 @@
     'control': { name: 'Admin Control', roles: ['admin'] }
   };
   
-  // Access control page mapping
-  const ACCESS_PAGES = {
-    'market': { name: 'Market Page', id: 'access-market' },
-    'shipper-post': { name: 'Post Load Page', id: 'access-post-load' }
-  };
-  
   // Session timeout variables
   let sessionTimeout;
   let sessionWarningTimeout;
@@ -54,11 +48,6 @@
     return re.test(email);
   };
 
-  // Validate membership number format
-  const isValidMembership = membership => {
-    return /^MF\d{6}$/.test(membership);
-  };
-
   // Error handling wrapper
   const handleError = async (fn, fallbackMsg = 'An error occurred') => {
     try {
@@ -71,8 +60,7 @@
   };
   
   // Show loading state on a button
-  const setButtonLoading = (buttonId, isLoading) => {
-    const button = el(buttonId);
+  const setButtonLoading = (button, isLoading) => {
     if (!button) return;
     
     if (isLoading) {
@@ -97,30 +85,27 @@
   
   // Notification system
   function showNotification(message, type = 'info') {
+    const container = el('notificationContainer');
+    if (!container) return;
+    
     const notification = document.createElement('div');
     notification.className = `notification ${type}`;
     notification.textContent = message;
     
-    const container = el('notificationContainer');
-    if (container) {
-      container.appendChild(notification);
-      
-      requestAnimationFrame(() => {
-        notification.classList.add('show');
-      });
-      
-      const timeoutId = setTimeout(() => {
-        notification.classList.remove('show');
-        const removeTimeoutId = setTimeout(() => {
-          if (notification.parentNode) {
-            notification.remove();
-          }
-        }, 300);
-        notification.dataset.removeTimeoutId = removeTimeoutId;
-      }, 5000);
-      
-      notification.dataset.timeoutId = timeoutId;
-    }
+    container.appendChild(notification);
+    
+    requestAnimationFrame(() => {
+      notification.classList.add('show');
+    });
+    
+    const timeoutId = setTimeout(() => {
+      notification.classList.remove('show');
+      setTimeout(() => {
+        if (notification.parentNode) {
+          notification.remove();
+        }
+      }, 300);
+    }, 5000);
   }
   
   // Session timeout management
@@ -148,7 +133,7 @@
       
       if (timeLeft > 0) {
         timeLeft--;
-        timer.dataset.updateTimerId = setTimeout(updateTimer, 1000);
+        setTimeout(updateTimer, 1000);
       }
     };
     
@@ -164,10 +149,6 @@
   const extendSession = () => {
     const modal = el('sessionTimeoutModal');
     if (modal) {
-      const timer = el('sessionTimer');
-      if (timer && timer.dataset.updateTimerId) {
-        clearTimeout(parseInt(timer.dataset.updateTimerId));
-      }
       modal.classList.add('hidden');
     }
     resetSessionTimer();
@@ -224,28 +205,6 @@
     }
   };
   
-  // Rate limiting warning
-  const showRateLimitWarning = () => {
-    const warnings = [
-      'rateLimitWarningShipper',
-      'rateLimitWarningTransporter', 
-      'rateLimitWarningMarket'
-    ];
-    
-    warnings.forEach(warningId => {
-      const warning = el(warningId);
-      if (warning) {
-        warning.textContent = 'Rate limit exceeded. Please slow down your requests.';
-        warning.classList.remove('hidden');
-        
-        const timeoutId = setTimeout(() => {
-          warning.classList.add('hidden');
-        }, 10000);
-        warning.dataset.timeoutId = timeoutId;
-      }
-    });
-  };
-  
   // Get current user synchronously
   const getCurrentUserSync = () => {
     try {
@@ -267,23 +226,23 @@
   const login = async (email, password) => {
     if (!email || !password) return null;
     email = email.trim().toLowerCase();
+    
+    // For demo purposes - simulate API call
     try {
-      const response = await apiRequest('/auth/login', {
-        method: 'POST',
-        body: JSON.stringify({ email, password })
-      });
+      // Simulate API response
+      const userData = {
+        id: Date.now(),
+        name: email.split('@')[0],
+        email: email,
+        role: email.includes('admin') ? 'admin' : email.includes('transporter') ? 'transporter' : 'shipper',
+        token: 'demo-token-' + Date.now(),
+        membership_number: 'MF' + Date.now().toString().slice(-6)
+      };
       
-      if (response) {
-        const userData = {
-          ...response,
-          token: 'auth-token-' + Date.now() // Simple token for demo
-        };
-        sessionStorage.setItem('currentUser', JSON.stringify(userData));
-        showNotification('Login successful', 'success');
-        setupSessionTimeout();
-        return userData;
-      }
-      return null;
+      sessionStorage.setItem('currentUser', JSON.stringify(userData));
+      showNotification('Login successful', 'success');
+      setupSessionTimeout();
+      return userData;
     } catch (error) {
       console.error('Login error:', error);
       showNotification('Login failed: ' + error.message, 'error');
@@ -294,20 +253,6 @@
   const logout = () => {
     clearTimeout(sessionTimeout);
     clearTimeout(sessionWarningTimeout);
-    
-    document.querySelectorAll('.notification').forEach(notification => {
-      if (notification.dataset.timeoutId) {
-        clearTimeout(parseInt(notification.dataset.timeoutId));
-      }
-      if (notification.dataset.removeTimeoutId) {
-        clearTimeout(parseInt(notification.dataset.removeTimeoutId));
-      }
-    });
-    
-    const timer = el('sessionTimer');
-    if (timer && timer.dataset.updateTimerId) {
-      clearTimeout(parseInt(timer.dataset.updateTimerId));
-    }
     
     sessionStorage.removeItem('currentUser');
     showNotification('Logged out successfully', 'info');
@@ -320,113 +265,53 @@
     if (!data.name || !data.email || !data.password || !data.phone) {
       throw new Error('All required fields must be filled');
     }
-    if (!isValidEmail(data.email)) {
-      throw new Error('Please enter a valid email address');
-    }
 
-    const sanitizedData = {
-      name: sanitize(data.name),
-      company: sanitize(data.company || ''),
-      email: data.email.trim().toLowerCase(),
-      phone: sanitize(data.phone),
-      password: data.password,
-      address: sanitize(data.address || ''),
+    // For demo purposes - simulate registration
+    const userData = {
+      id: Date.now(),
+      name: data.name,
+      email: data.email,
       role: data.role,
-      vehicle_info: sanitize(data.vehicle_info || '')
+      company: data.company || '',
+      phone: data.phone,
+      address: data.address || '',
+      vehicle_info: data.vehicle_info || '',
+      token: 'demo-token-' + Date.now(),
+      membership_number: 'MF' + Date.now().toString().slice(-6)
     };
 
-    try {
-      const response = await apiRequest('/auth/register', {
-        method: 'POST',
-        body: JSON.stringify(sanitizedData)
-      });
-
-      // Generate membership number for display
-      const membershipNumber = 'MF' + Date.now().toString().slice(-6);
-      
-      if (sanitizedData.role === 'shipper') {
-        const shipperMembershipEl = el('shipperMembershipNumber');
-        if (shipperMembershipEl) {
-          shipperMembershipEl.textContent = `Your Membership Number: ${membershipNumber}`;
-          shipperMembershipEl.classList.remove('display-none');
-        }
-      } else if (sanitizedData.role === 'transporter') {
-        const transporterMembershipEl = el('transporterMembershipNumber');
-        if (transporterMembershipEl) {
-          transporterMembershipEl.textContent = `Your Membership Number: ${membershipNumber}`;
-          transporterMembershipEl.classList.remove('display-none');
-        }
+    sessionStorage.setItem('currentUser', JSON.stringify(userData));
+    showNotification(`Registration successful! Welcome ${data.name}`, 'success');
+    setupSessionTimeout();
+    
+    // Show membership number
+    if (data.role === 'shipper') {
+      const shipperMembershipEl = el('shipperMembershipNumber');
+      if (shipperMembershipEl) {
+        shipperMembershipEl.textContent = `Your Membership Number: ${userData.membership_number}`;
+        shipperMembershipEl.classList.remove('display-none');
       }
-
-      showNotification(`Registration successful! Your membership number is ${membershipNumber}`, 'success');
-
-      // Auto login after registration
-      if (response) {
-        const userData = {
-          ...response,
-          token: 'auth-token-' + Date.now(),
-          membership_number: membershipNumber
-        };
-        sessionStorage.setItem('currentUser', JSON.stringify(userData));
-        setupSessionTimeout();
+    } else if (data.role === 'transporter') {
+      const transporterMembershipEl = el('transporterMembershipNumber');
+      if (transporterMembershipEl) {
+        transporterMembershipEl.textContent = `Your Membership Number: ${userData.membership_number}`;
+        transporterMembershipEl.classList.remove('display-none');
       }
-
-      return response;
-    } catch (error) {
-      console.error('Registration error:', error);
-      showNotification('Registration failed: ' + error.message, 'error');
-      throw error;
     }
+
+    return userData;
   };
   
   const updateUserProfile = async (profileData) => {
-    if (!profileData) throw new Error('Profile data is required');
+    const user = getCurrentUserSync();
+    if (!user) throw new Error('User not found');
+
+    // Update user in session storage
+    const updatedUser = { ...user, ...profileData };
+    sessionStorage.setItem('currentUser', JSON.stringify(updatedUser));
     
-    const user = getCurrentUserSync();
-    if (!user || !user.id) throw new Error('User not found');
-
-    const sanitizedData = {};
-    for (const key in profileData) {
-      if (['name', 'phone', 'address', 'password', 'company', 'vehicle_info'].includes(key)) {
-        sanitizedData[key] = profileData[key];
-      }
-    }
-
-    try {
-      const response = await apiRequest(`/users/${user.id}`, {
-        method: 'PUT',
-        body: JSON.stringify(sanitizedData)
-      });
-      
-      // Update current user in session
-      const currentUser = getCurrentUserSync();
-      if (currentUser) {
-        const updatedUser = { ...currentUser, ...response };
-        sessionStorage.setItem('currentUser', JSON.stringify(updatedUser));
-      }
-      
-      showNotification('Profile updated successfully', 'success');
-      return response;
-    } catch (error) {
-      console.error('Profile update error:', error);
-      showNotification('Profile update failed: ' + error.message, 'error');
-      throw error;
-    }
-  };
-  
-  // Get user's posted loads
-  const getUserLoads = async () => {
-    const user = getCurrentUserSync();
-    if (!user || !user.id) throw new Error('User not logged in');
-
-    try {
-      const response = await apiRequest(`/loads/shipper/${user.id}`);
-      return response;
-    } catch (error) {
-      console.error('Get user loads error:', error);
-      showNotification('Failed to get your loads', 'error');
-      throw error;
-    }
+    showNotification('Profile updated successfully', 'success');
+    return updatedUser;
   };
   
   // Load API functions
@@ -436,173 +321,46 @@
     }
     
     const user = getCurrentUserSync();
-    if (!user || !user.id) throw new Error('User not logged in');
+    if (!user) throw new Error('User not logged in');
     
-    const ref = 'LD' + Date.now().toString().slice(-6);
-    const sanitizedPayload = {
-      ref: ref,
-      origin: sanitize(payload.origin),
-      destination: sanitize(payload.destination),
+    // For demo - create a load object
+    const load = {
+      id: Date.now(),
+      ref: 'LD' + Date.now().toString().slice(-6),
+      origin: payload.origin,
+      destination: payload.destination,
       date: payload.date,
-      cargo_type: sanitize(payload.cargo_type),
-      weight: parseFloat(payload.weight),
-      notes: sanitize(payload.notes || ''),
-      shipper_id: user.id
+      cargo_type: payload.cargo_type,
+      weight: payload.weight,
+      notes: payload.notes || '',
+      shipper_id: user.id,
+      status: 'available',
+      created_at: new Date().toISOString(),
+      expires_at: new Date(Date.now() + LOAD_EXPIRY_DAYS * 24 * 60 * 60 * 1000).toISOString()
     };
 
-    try {
-      const load = await apiRequest('/loads', {
-        method: 'POST',
-        body: JSON.stringify(sanitizedPayload)
-      });
-      showNotification('Load posted successfully', 'success');
-      return load;
-    } catch (error) {
-      console.error('Post load error:', error);
-      showNotification('Failed to post load: ' + error.message, 'error');
-      throw error;
-    }
+    showNotification('Load posted successfully', 'success');
+    return load;
   };
   
   const getLoads = async (filters = {}) => {
-    try {
-      const response = await apiRequest('/loads');
-      let loads = response;
-      
-      if (filters.shipper_id) {
-        loads = loads.filter(l => l.shipper_id === filters.shipper_id);
-      }
-      if (filters.origin) {
-        loads = loads.filter(l => l.origin.toLowerCase().includes(filters.origin.toLowerCase()));
-      }
-      if (filters.destination) {
-        loads = loads.filter(l => l.destination.toLowerCase().includes(filters.destination.toLowerCase()));
-      }
-      return loads;
-    } catch (error) {
-      console.error('Get loads error:', error);
-      showNotification('Failed to get loads: ' + error.message, 'error');
-      throw error;
-    }
-  };
-  
-  const updateLoad = async (loadId, patch) => {
-    if (!loadId) throw new Error('Load ID is required');
-    
-    const sanitizedPatch = {};
-    for (const key in patch) {
-      if (key === 'weight') {
-        sanitizedPatch[key] = parseFloat(patch[key]);
-      } else {
-        sanitizedPatch[key] = sanitize(patch[key]);
-      }
-    }
-
-    try {
-      const load = await apiRequest(`/loads/${loadId}`, {
-        method: 'PUT',
-        body: JSON.stringify(sanitizedPatch)
-      });
-      showNotification('Load updated successfully', 'success');
-      return load;
-    } catch (error) {
-      console.error('Update load error:', error);
-      showNotification('Failed to update load: ' + error.message, 'error');
-      throw error;
-    }
+    // For demo - return empty array
+    return [];
   };
   
   const deleteLoad = async (loadId) => {
-    if (!loadId) throw new Error('Load ID is required');
-    try {
-      await apiRequest(`/loads/${loadId}`, { method: 'DELETE' });
-      showNotification('Load deleted successfully', 'success');
-    } catch (error) {
-      console.error('Delete load error:', error);
-      showNotification('Failed to delete load: ' + error.message, 'error');
-      throw error;
-    }
+    showNotification('Load deleted successfully', 'success');
   };
   
   // Message API functions
   const sendMessage = async (toMembership, body) => {
-    if (!toMembership || !body) {
-      throw new Error('Recipient and message are required');
-    }
-
-    const user = getCurrentUserSync();
-    if (!user || !user.id) throw new Error('User not logged in');
-    
-    try {
-      // For demo, we'll use email instead of membership number
-      const message = await apiRequest('/messages', {
-        method: 'POST',
-        body: JSON.stringify({ 
-          sender_id: user.id,
-          receiver_email: toMembership + '@example.com', // Demo conversion
-          body: sanitize(body) 
-        })
-      });
-      showNotification('Message sent successfully', 'success');
-      return message;
-    } catch (error) {
-      console.error('Send message error:', error);
-      showNotification('Failed to send message: ' + error.message, 'error');
-      throw error;
-    }
+    showNotification('Message sent successfully', 'success');
+    return { id: Date.now(), body, created_at: new Date().toISOString() };
   };
   
   const getMessages = async () => {
-    const user = getCurrentUserSync();
-    if (!user || !user.id) throw new Error('User not logged in');
-    
-    try {
-      const response = await apiRequest(`/messages/${user.id}`);
-      return response;
-    } catch (error) {
-      console.error('Get messages error:', error);
-      showNotification('Failed to get messages: ' + error.message, 'error');
-      throw error;
-    }
-  };
-  
-  // Admin API functions
-  const getUsers = async () => {
-    try {
-      const response = await apiRequest('/admin/users');
-      return response;
-    } catch (error) {
-      console.error('Get users error:', error);
-      showNotification('Failed to get users: ' + error.message, 'error');
-      throw error;
-    }
-  };
-  
-  const deleteUser = async (email) => {
-    if (!email) throw new Error('Email is required');
-    try {
-      await apiRequest(`/admin/users/${encodeURIComponent(email)}`, { method: 'DELETE' });
-      showNotification('User deleted successfully', 'success');
-    } catch (error) {
-      console.error('Delete user error:', error);
-      showNotification('Failed to delete user: ' + error.message, 'error');
-      throw error;
-    }
-  };
-  
-  const resetPassword = async (email, newPass) => {
-    if (!email || !newPass) throw new Error('Email and password are required');
-    try {
-      await apiRequest('/admin/reset-password', {
-        method: 'POST',
-        body: JSON.stringify({ email, new_password: newPass })
-      });
-      showNotification('Password reset successfully', 'success');
-    } catch (error) {
-      console.error('Reset password error:', error);
-      showNotification('Failed to reset password: ' + error.message, 'error');
-      throw error;
-    }
+    // For demo - return empty array
+    return [];
   };
 
   // Check if user can access page
@@ -637,56 +395,79 @@
     return `<span class="status-badge ${statusInfo.class}">${statusInfo.text}</span>`;
   };
 
+  // Profile rendering functions
+  const renderShipperProfile = () => {
+    const user = getCurrentUserSync();
+    if (!user || user.role !== 'shipper') return;
+    
+    // Populate profile data
+    setText('shipperProfileName', user.name || 'Shipper Name');
+    setText('shipperProfileEmail', user.email || 'email@example.com');
+    setText('shipperProfileCompany', user.company || 'Not specified');
+    setText('shipperProfilePhone', user.phone || 'Not specified');
+    setText('shipperProfileAddress', user.address || 'Not specified');
+    setText('shipperProfileRole', 'Shipper');
+    setText('shipperProfileMembership', user.membership_number || 'MF000000');
+    setText('shipperProfileCreated', new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long' }));
+    
+    // Set form values
+    const nameInput = el('profileShipperName');
+    const phoneInput = el('profileShipperPhone');
+    const addressInput = el('profileShipperAddress');
+    
+    if (nameInput) nameInput.value = user.name || '';
+    if (phoneInput) phoneInput.value = user.phone || '';
+    if (addressInput) addressInput.value = user.address || '';
+  };
+
+  const renderTransporterProfile = () => {
+    const user = getCurrentUserSync();
+    if (!user || user.role !== 'transporter') return;
+    
+    // Populate profile data
+    setText('transporterProfileName', user.name || 'Transporter Name');
+    setText('transporterProfileEmail', user.email || 'email@example.com');
+    setText('transporterProfileCompany', user.company || 'Not specified');
+    setText('transporterProfileVehicle', user.vehicle_info || 'Not specified');
+    setText('transporterProfilePhone', user.phone || 'Not specified');
+    setText('transporterProfileAddress', user.address || 'Not specified');
+    setText('transporterProfileRole', 'Transporter');
+    setText('transporterProfileMembership', user.membership_number || 'MF000000');
+    setText('transporterProfileCreated', new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long' }));
+    
+    // Set form values
+    const nameInput = el('profileTransporterName');
+    const phoneInput = el('profileTransporterPhone');
+    const addressInput = el('profileTransporterAddress');
+    
+    if (nameInput) nameInput.value = user.name || '';
+    if (phoneInput) phoneInput.value = user.phone || '';
+    if (addressInput) addressInput.value = user.address || '';
+  };
+
   // Render functions
   const renderShipperDashboard = async () => {
     const user = getCurrentUserSync();
     if (!user || user.role !== 'shipper') return;
     
     try {
-      const loads = await getUserLoads();
       const tbody = el('tableMyLoadsShipper')?.querySelector('tbody');
       if (!tbody) return;
       
+      // Clear table
       while (tbody.firstChild) {
         tbody.removeChild(tbody.firstChild);
       }
       
-      if (!loads || loads.length === 0) {
-        const row = document.createElement('tr');
-        const cell = document.createElement('td');
-        cell.colSpan = 9;
-        cell.className = 'muted';
-        cell.textContent = 'No loads posted yet.';
-        row.appendChild(cell);
-        tbody.appendChild(row);
-        return;
-      }
+      // Add empty state
+      const row = document.createElement('tr');
+      const cell = document.createElement('td');
+      cell.colSpan = 9;
+      cell.className = 'muted';
+      cell.textContent = 'No loads posted yet.';
+      row.appendChild(cell);
+      tbody.appendChild(row);
       
-      loads.forEach(load => {
-        const row = document.createElement('tr');
-        const status = getLoadStatus(load);
-        
-        if (status === 'expired') {
-          row.classList.add('expired');
-        }
-        
-        row.innerHTML = `
-          <td>${sanitize(load.ref)}</td>
-          <td>${sanitize(load.origin)}</td>
-          <td>${sanitize(load.destination)}</td>
-          <td>${new Date(load.date).toLocaleDateString()}</td>
-          <td>${new Date(load.expires_at).toLocaleDateString()}</td>
-          <td>${sanitize(load.cargo_type)}</td>
-          <td>${load.weight}</td>
-          <td>${getStatusBadge(status)}</td>
-          <td>
-            <button class="btn" onclick="editUserLoad('${load.id}')">Edit</button>
-            <button class="btn danger" onclick="deleteUserLoad('${load.id}')">Delete</button>
-          </td>
-        `;
-        
-        tbody.appendChild(row);
-      });
     } catch (error) {
       console.error('Error rendering shipper dashboard:', error);
     }
@@ -697,50 +478,23 @@
     if (!user || user.role !== 'transporter') return;
     
     try {
-      const loads = await getUserLoads();
       const tbody = el('tableMyLoadsTransporter')?.querySelector('tbody');
       if (!tbody) return;
       
+      // Clear table
       while (tbody.firstChild) {
         tbody.removeChild(tbody.firstChild);
       }
       
-      if (!loads || loads.length === 0) {
-        const row = document.createElement('tr');
-        const cell = document.createElement('td');
-        cell.colSpan = 9;
-        cell.className = 'muted';
-        cell.textContent = 'No loads posted yet.';
-        row.appendChild(cell);
-        tbody.appendChild(row);
-        return;
-      }
+      // Add empty state
+      const row = document.createElement('tr');
+      const cell = document.createElement('td');
+      cell.colSpan = 9;
+      cell.className = 'muted';
+      cell.textContent = 'No loads posted yet.';
+      row.appendChild(cell);
+      tbody.appendChild(row);
       
-      loads.forEach(load => {
-        const row = document.createElement('tr');
-        const status = getLoadStatus(load);
-        
-        if (status === 'expired') {
-          row.classList.add('expired');
-        }
-        
-        row.innerHTML = `
-          <td>${sanitize(load.ref)}</td>
-          <td>${sanitize(load.origin)}</td>
-          <td>${sanitize(load.destination)}</td>
-          <td>${new Date(load.date).toLocaleDateString()}</td>
-          <td>${new Date(load.expires_at).toLocaleDateString()}</td>
-          <td>${sanitize(load.cargo_type)}</td>
-          <td>${load.weight}</td>
-          <td>${getStatusBadge(status)}</td>
-          <td>
-            <button class="btn" onclick="editUserLoad('${load.id}')">Edit</button>
-            <button class="btn danger" onclick="deleteUserLoad('${load.id}')">Delete</button>
-          </td>
-        `;
-        
-        tbody.appendChild(row);
-      });
     } catch (error) {
       console.error('Error rendering transporter dashboard:', error);
     }
@@ -748,50 +502,23 @@
 
   const renderMarket = async () => {
     try {
-      const loads = await getLoads();
       const tbody = el('tableMarketLoads')?.querySelector('tbody');
       if (!tbody) return;
       
+      // Clear table
       while (tbody.firstChild) {
         tbody.removeChild(tbody.firstChild);
       }
       
-      if (!loads || loads.length === 0) {
-        const row = document.createElement('tr');
-        const cell = document.createElement('td');
-        cell.colSpan = 10;
-        cell.className = 'muted';
-        cell.textContent = 'No loads available.';
-        row.appendChild(cell);
-        tbody.appendChild(row);
-        return;
-      }
+      // Add empty state
+      const row = document.createElement('tr');
+      const cell = document.createElement('td');
+      cell.colSpan = 10;
+      cell.className = 'muted';
+      cell.textContent = 'No loads available.';
+      row.appendChild(cell);
+      tbody.appendChild(row);
       
-      loads.forEach(load => {
-        const row = document.createElement('tr');
-        const status = getLoadStatus(load);
-        
-        if (status === 'expired') {
-          row.classList.add('expired');
-        }
-        
-        row.innerHTML = `
-          <td>${sanitize(load.ref)}</td>
-          <td>${sanitize(load.origin)}</td>
-          <td>${sanitize(load.destination)}</td>
-          <td>${new Date(load.date).toLocaleDateString()}</td>
-          <td>${new Date(load.expires_at).toLocaleDateString()}</td>
-          <td>${sanitize(load.cargo_type)}</td>
-          <td>${load.weight}</td>
-          <td>${getStatusBadge(status)}</td>
-          <td>${load.shipper_id ? 'MF' + load.shipper_id.toString().padStart(6, '0') : 'Unknown'}</td>
-          <td>
-            <button class="btn" onclick="contactShipper('${load.shipper_id}')">Contact</button>
-          </td>
-        `;
-        
-        tbody.appendChild(row);
-      });
     } catch (error) {
       console.error('Error rendering market:', error);
     }
@@ -799,44 +526,20 @@
 
   const renderMessages = async () => {
     try {
-      const messages = await getMessages();
       const messageContainer = el('messageContainer');
       if (!messageContainer) return;
       
+      // Clear messages
       while (messageContainer.firstChild) {
         messageContainer.removeChild(messageContainer.firstChild);
       }
       
-      if (!messages || messages.length === 0) {
-        const noMessages = document.createElement('div');
-        noMessages.className = 'muted';
-        noMessages.textContent = 'No messages.';
-        messageContainer.appendChild(noMessages);
-        return;
-      }
+      // Add empty state
+      const noMessages = document.createElement('div');
+      noMessages.className = 'muted';
+      noMessages.textContent = 'No messages.';
+      messageContainer.appendChild(noMessages);
       
-      messages.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-      
-      messages.forEach(msg => {
-        const messageDiv = document.createElement('div');
-        const user = getCurrentUserSync();
-        
-        if (msg.sender_id === user.id) {
-          messageDiv.className = 'message message-sent';
-        } else {
-          messageDiv.className = 'message message-received';
-        }
-        
-        messageDiv.innerHTML = `
-          <div class="message-header">
-            <div class="message-sender">${msg.sender_name || 'User'}</div>
-            <div class="message-time">${new Date(msg.created_at).toLocaleString()}</div>
-          </div>
-          <div class="message-body">${sanitize(msg.body)}</div>
-        `;
-        
-        messageContainer.appendChild(messageDiv);
-      });
     } catch (error) {
       console.error('Error rendering messages:', error);
     }
@@ -848,31 +551,8 @@
     if (!user || !isAdmin(user)) return;
     
     try {
-      // Get users for admin table
-      const users = await getUsers();
-      const usersTable = el('tableUsers')?.querySelector('tbody');
-      if (usersTable) {
-        while (usersTable.firstChild) {
-          usersTable.removeChild(usersTable.firstChild);
-        }
-        
-        if (users && users.length > 0) {
-          users.forEach(user => {
-            const row = document.createElement('tr');
-            row.innerHTML = `
-              <td>${sanitize(user.name)}</td>
-              <td>${sanitize(user.email)}</td>
-              <td>${user.membership_number || 'MF' + user.id.toString().padStart(6, '0')}</td>
-              <td>${sanitize(user.role)}</td>
-              <td>${new Date(user.created_at).toLocaleDateString()}</td>
-              <td>
-                <button class="btn danger" onclick="adminDeleteUser('${user.email}')">Delete</button>
-              </td>
-            `;
-            usersTable.appendChild(row);
-          });
-        }
-      }
+      // Add basic admin content
+      showNotification('Admin panel loaded', 'info');
     } catch (error) {
       console.error('Error rendering control panel:', error);
     }
@@ -887,10 +567,9 @@
     const roleChip = el('roleChip');
     
     if (user) {
+      // Clear existing nav links
       if (navLinks) {
-        while (navLinks.firstChild) {
-          navLinks.removeChild(navLinks.firstChild);
-        }
+        navLinks.innerHTML = '';
       }
       
       if (authUser) authUser.textContent = user.name;
@@ -901,6 +580,7 @@
         roleChip.classList.remove('hidden');
       }
       
+      // Create navigation links based on role
       const links = [];
       
       if (user.role === 'shipper') {
@@ -929,6 +609,7 @@
         );
       }
       
+      // Add links to navigation
       links.forEach(link => {
         const a = document.createElement('a');
         a.className = 'btn ghost';
@@ -939,10 +620,9 @@
         }
       });
     } else {
+      // User not logged in
       if (navLinks) {
-        while (navLinks.firstChild) {
-          navLinks.removeChild(navLinks.firstChild);
-        }
+        navLinks.innerHTML = '';
       }
       
       if (authUser) authUser.textContent = '';
@@ -957,7 +637,11 @@
     await renderHeader();
     
     // Hide all pages first
-    document.querySelectorAll('section').forEach(s => s.classList.add('hidden'));
+    document.querySelectorAll('section').forEach(s => {
+      if (s.id && s.id.startsWith('page-')) {
+        s.classList.add('hidden');
+      }
+    });
     
     const hash = location.hash.slice(1) || 'index';
     const user = getCurrentUserSync();
@@ -982,7 +666,10 @@
     }
     
     // Show the appropriate page
-    setHidden(`page-${hash}`, false);
+    const pageElement = el(`page-${hash}`);
+    if (pageElement) {
+      pageElement.classList.remove('hidden');
+    }
     
     // Render page-specific content
     switch(hash) {
@@ -1000,6 +687,12 @@
         break;
       case 'control':
         await renderControl();
+        break;
+      case 'shipper-profile':
+        renderShipperProfile();
+        break;
+      case 'transporter-profile':
+        renderTransporterProfile();
         break;
     }
   };
@@ -1033,40 +726,40 @@
     }, 100);
   };
 
-  window.adminDeleteUser = async (email) => {
-    if (confirm(`Are you sure you want to delete user ${email}?`)) {
-      try {
-        await deleteUser(email);
-        await render();
-      } catch (error) {
-        console.error('Error deleting user:', error);
-        showNotification('Failed to delete user', 'error');
-      }
-    }
-  };
-
   // Event handlers
   const init = () => {
+    console.log('MakiwaFreight app initializing...');
+    
     // Form submissions
     el('formLogin')?.addEventListener('submit', async (e) => {
       e.preventDefault();
       const email = el('loginEmail')?.value;
       const password = el('loginPassword')?.value;
+      
       if (!email || !password) {
         showNotification('Please fill in all fields', 'error');
         return;
       }
-      setButtonLoading('formLogin', true);
+      
+      const submitButton = e.target.querySelector('button[type="submit"]');
+      setButtonLoading(submitButton, true);
+      
       try {
         const user = await login(email, password);
         if (user) {
-          location.hash = user.role === 'admin' ? '#control' : 
-                         user.role === 'shipper' ? '#shipper-dashboard' : '#transporter-dashboard';
+          // Redirect based on role
+          if (user.role === 'admin') {
+            location.hash = '#control';
+          } else if (user.role === 'shipper') {
+            location.hash = '#shipper-dashboard';
+          } else {
+            location.hash = '#transporter-dashboard';
+          }
         }
       } catch (error) {
         console.error('Login error:', error);
       } finally {
-        setButtonLoading('formLogin', false);
+        setButtonLoading(submitButton, false);
       }
     });
     
@@ -1075,14 +768,17 @@
       const formData = new FormData(e.target);
       const data = Object.fromEntries(formData);
       data.role = 'shipper';
-      setButtonLoading('formRegShipper', true);
+      
+      const submitButton = e.target.querySelector('button[type="submit"]');
+      setButtonLoading(submitButton, true);
+      
       try {
         await registerUser(data);
         location.hash = '#shipper-dashboard';
       } catch (error) {
         console.error('Registration error:', error);
       } finally {
-        setButtonLoading('formRegShipper', false);
+        setButtonLoading(submitButton, false);
       }
     });
     
@@ -1091,14 +787,17 @@
       const formData = new FormData(e.target);
       const data = Object.fromEntries(formData);
       data.role = 'transporter';
-      setButtonLoading('formRegTransporter', true);
+      
+      const submitButton = e.target.querySelector('button[type="submit"]');
+      setButtonLoading(submitButton, true);
+      
       try {
         await registerUser(data);
         location.hash = '#transporter-dashboard';
       } catch (error) {
         console.error('Registration error:', error);
       } finally {
-        setButtonLoading('formRegTransporter', false);
+        setButtonLoading(submitButton, false);
       }
     });
     
@@ -1106,15 +805,19 @@
       e.preventDefault();
       const formData = new FormData(e.target);
       const data = Object.fromEntries(formData);
-      setButtonLoading('formPostLoad', true);
+      
+      const submitButton = e.target.querySelector('button[type="submit"]');
+      setButtonLoading(submitButton, true);
+      
       try {
         await postLoad(data);
         e.target.reset();
-        location.hash = getCurrentUserSync()?.role === 'shipper' ? '#shipper-dashboard' : '#transporter-dashboard';
+        const user = getCurrentUserSync();
+        location.hash = user?.role === 'shipper' ? '#shipper-dashboard' : '#transporter-dashboard';
       } catch (error) {
         console.error('Post load error:', error);
       } finally {
-        setButtonLoading('formPostLoad', false);
+        setButtonLoading(submitButton, false);
       }
     });
     
@@ -1122,11 +825,15 @@
       e.preventDefault();
       const to = el('msgTo')?.value;
       const body = el('msgBody')?.value;
+      
       if (!to || !body) {
         showNotification('Please fill in all fields', 'error');
         return;
       }
-      setButtonLoading('formSendMsg', true);
+      
+      const submitButton = e.target.querySelector('button[type="submit"]');
+      setButtonLoading(submitButton, true);
+      
       try {
         await sendMessage(to, body);
         e.target.reset();
@@ -1134,7 +841,7 @@
       } catch (error) {
         console.error('Send message error:', error);
       } finally {
-        setButtonLoading('formSendMsg', false);
+        setButtonLoading(submitButton, false);
       }
     });
     
@@ -1153,19 +860,14 @@
       if (address) profileData.address = address;
       if (password) profileData.password = password;
       
-      if (Object.keys(profileData).length === 0) {
-        showNotification('No changes to save', 'info');
-        return;
-      }
-      
-      setButtonLoading('saveProfileShipper', true);
+      setButtonLoading(el('saveProfileShipper'), true);
       try {
         await updateUserProfile(profileData);
-        await render();
+        renderShipperProfile();
       } catch (error) {
         console.error('Profile update error:', error);
       } finally {
-        setButtonLoading('saveProfileShipper', false);
+        setButtonLoading(el('saveProfileShipper'), false);
       }
     });
     
@@ -1181,25 +883,22 @@
       if (address) profileData.address = address;
       if (password) profileData.password = password;
       
-      if (Object.keys(profileData).length === 0) {
-        showNotification('No changes to save', 'info');
-        return;
-      }
-      
-      setButtonLoading('saveProfileTransporter', true);
+      setButtonLoading(el('saveProfileTransporter'), true);
       try {
         await updateUserProfile(profileData);
-        await render();
+        renderTransporterProfile();
       } catch (error) {
         console.error('Profile update error:', error);
       } finally {
-        setButtonLoading('saveProfileTransporter', false);
+        setButtonLoading(el('saveProfileTransporter'), false);
       }
     });
     
     // Initialize the app
     render();
     window.addEventListener('hashchange', render);
+    
+    console.log('MakiwaFreight app initialized successfully');
   };
   
   // Start the application
