@@ -34,12 +34,9 @@
   // Sanitize input to prevent XSS
   const sanitize = str => {
     if (!str) return '';
-    return str.toString()
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;');
+    const div = document.createElement('div');
+    div.textContent = str.toString();
+    return div.innerHTML;
   };
   
   // Validate email format
@@ -94,11 +91,13 @@
     
     container.appendChild(notification);
     
-    requestAnimationFrame(() => {
+    // Trigger animation
+    setTimeout(() => {
       notification.classList.add('show');
-    });
+    }, 10);
     
-    const timeoutId = setTimeout(() => {
+    // Auto remove after 5 seconds
+    setTimeout(() => {
       notification.classList.remove('show');
       setTimeout(() => {
         if (notification.parentNode) {
@@ -196,12 +195,13 @@
         throw new Error('Rate limit exceeded. Please try again later.');
       }
       
+      const data = await response.json().catch(() => ({}));
+      
       if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
-        throw new Error(error.error || `API error: ${response.status}`);
+        throw new Error(data.error || data.message || `API error: ${response.status}`);
       }
       
-      return await response.json();
+      return data;
     } catch (error) {
       if (error instanceof TypeError && error.message.includes('fetch')) {
         throw new Error('Network error. Please check your connection and try again.');
@@ -259,82 +259,72 @@
   
   // User API functions
   const registerUser = async (data) => {
-    if (!data.name || !data.email || !data.password || !data.phone) {
-      throw new Error('All required fields must be filled');
-    }
-
-    // For demo purposes - simulate registration
-    const userData = {
-      id: Date.now(),
-      name: data.name,
-      email: data.email,
-      role: data.role,
-      company: data.company || '',
-      phone: data.phone,
-      address: data.address || '',
-      vehicle_info: data.vehicle_info || '',
-      token: 'demo-token-' + Date.now(),
-      membership_number: 'MF' + Date.now().toString().slice(-6)
-    };
-
-    sessionStorage.setItem('currentUser', JSON.stringify(userData));
-    sessionStorage.setItem('authToken', userData.token);
-    showNotification(`Registration successful! Welcome ${data.name}`, 'success');
-    setupSessionTimeout();
+    const response = await apiRequest('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
     
-    // Show membership number
-    if (data.role === 'shipper') {
-      const shipperMembershipEl = el('shipperMembershipNumber');
-      if (shipperMembershipEl) {
-        shipperMembershipEl.textContent = `Your Membership Number: ${userData.membership_number}`;
-        shipperMembershipEl.classList.remove('hidden');
+    if (response.success) {
+      const userData = response.data.user;
+      userData.token = response.data.token;
+      sessionStorage.setItem('currentUser', JSON.stringify(userData));
+      sessionStorage.setItem('authToken', userData.token);
+      showNotification(`Registration successful! Welcome ${data.name}`, 'success');
+      setupSessionTimeout();
+      
+      // Show membership number
+      if (data.role === 'shipper') {
+        const shipperMembershipEl = el('shipperMembershipNumber');
+        if (shipperMembershipEl) {
+          shipperMembershipEl.textContent = `Your Membership Number: ${userData.membership_number}`;
+          shipperMembershipEl.classList.remove('hidden');
+        }
+      } else if (data.role === 'transporter') {
+        const transporterMembershipEl = el('transporterMembershipNumber');
+        if (transporterMembershipEl) {
+          transporterMembershipEl.textContent = `Your Membership Number: ${userData.membership_number}`;
+          transporterMembershipEl.classList.remove('hidden');
+        }
       }
-    } else if (data.role === 'transporter') {
-      const transporterMembershipEl = el('transporterMembershipNumber');
-      if (transporterMembershipEl) {
-        transporterMembershipEl.textContent = `Your Membership Number: ${userData.membership_number}`;
-        transporterMembershipEl.classList.remove('hidden');
-      }
-    }
 
-    return userData;
+      return userData;
+    } else {
+      throw new Error(response.error || response.message);
+    }
   };
   
   const updateUserProfile = async (profileData) => {
-    const user = getCurrentUserSync();
-    if (!user) throw new Error('User not found');
-
-    // Update user in session storage
-    const updatedUser = { ...user, ...profileData };
-    sessionStorage.setItem('currentUser', JSON.stringify(updatedUser));
+    const response = await apiRequest('/users/me', {
+      method: 'PUT',
+      body: JSON.stringify(profileData)
+    });
     
-    showNotification('Profile updated successfully', 'success');
-    return updatedUser;
+    if (response.success) {
+      const updatedUser = response.data.user;
+      const currentUser = getCurrentUserSync();
+      const mergedUser = { ...currentUser, ...updatedUser };
+      sessionStorage.setItem('currentUser', JSON.stringify(mergedUser));
+      
+      showNotification('Profile updated successfully', 'success');
+      return mergedUser;
+    } else {
+      throw new Error(response.error || response.message);
+    }
   };
   
   // Load API functions
   const postLoad = async (payload) => {
-    const user = getCurrentUserSync();
-    if (!user) throw new Error('User not logged in');
+    const response = await apiRequest('/loads', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
     
-    // For demo - create a load object
-    const load = {
-      id: Date.now(),
-      ref: 'LD' + Date.now().toString().slice(-6),
-      origin: payload.origin,
-      destination: payload.destination,
-      date: payload.date,
-      cargo_type: payload.cargo_type,
-      weight: payload.weight,
-      notes: payload.notes || '',
-      shipper_id: user.id,
-      status: 'available',
-      created_at: new Date().toISOString(),
-      expires_at: new Date(Date.now() + LOAD_EXPIRY_DAYS * 24 * 60 * 60 * 1000).toISOString()
-    };
-
-    showNotification('Load posted successfully', 'success');
-    return load;
+    if (response.success) {
+      showNotification('Load posted successfully', 'success');
+      return response.data.load;
+    } else {
+      throw new Error(response.error || response.message);
+    }
   };
   
   const getLoads = async (filters = {}) => {
@@ -358,7 +348,16 @@
   };
 
   const deleteLoad = async (loadId) => {
-    showNotification('Load deleted successfully', 'success');
+    const response = await apiRequest(`/loads/${loadId}`, {
+      method: 'DELETE'
+    });
+    
+    if (response.success) {
+      showNotification('Load deleted successfully', 'success');
+      return response.data;
+    } else {
+      throw new Error(response.error || response.message);
+    }
   };
   
   // Message API functions
@@ -372,6 +371,7 @@
     });
     
     if (response.success) {
+        showNotification('Message sent successfully', 'success');
         return response.data;
     } else {
         throw new Error(response.error || response.message);
@@ -421,53 +421,71 @@
   };
 
   // Profile rendering functions
-  const renderShipperProfile = () => {
+  const renderShipperProfile = async () => {
     const user = getCurrentUserSync();
     if (!user || user.role !== 'shipper') return;
     
-    // Populate profile data
-    setText('shipperProfileName', user.name || 'Shipper Name');
-    setText('shipperProfileEmail', user.email || 'email@example.com');
-    setText('shipperProfileCompany', user.company || 'Not specified');
-    setText('shipperProfilePhone', user.phone || 'Not specified');
-    setText('shipperProfileAddress', user.address || 'Not specified');
-    setText('shipperProfileRole', 'Shipper');
-    setText('shipperProfileMembership', user.membership_number || 'MF000000');
-    setText('shipperProfileCreated', new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long' }));
-    
-    // Set form values
-    const nameInput = el('profileShipperName');
-    const phoneInput = el('profileShipperPhone');
-    const addressInput = el('profileShipperAddress');
-    
-    if (nameInput) nameInput.value = user.name || '';
-    if (phoneInput) phoneInput.value = user.phone || '';
-    if (addressInput) addressInput.value = user.address || '';
+    try {
+      const response = await apiRequest('/users/me');
+      if (response.success) {
+        const userData = response.data.user;
+        
+        // Populate profile data
+        setText('shipperProfileName', userData.name || 'Shipper Name');
+        setText('shipperProfileEmail', userData.email || 'email@example.com');
+        setText('shipperProfileCompany', userData.company || 'Not specified');
+        setText('shipperProfilePhone', userData.phone || 'Not specified');
+        setText('shipperProfileAddress', userData.address || 'Not specified');
+        setText('shipperProfileRole', 'Shipper');
+        setText('shipperProfileMembership', userData.membership_number || 'MF000000');
+        setText('shipperProfileCreated', new Date(userData.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long' }));
+        
+        // Set form values
+        const nameInput = el('profileShipperName');
+        const phoneInput = el('profileShipperPhone');
+        const addressInput = el('profileShipperAddress');
+        
+        if (nameInput) nameInput.value = userData.name || '';
+        if (phoneInput) phoneInput.value = userData.phone || '';
+        if (addressInput) addressInput.value = userData.address || '';
+      }
+    } catch (error) {
+      console.error('Error loading shipper profile:', error);
+    }
   };
 
-  const renderTransporterProfile = () => {
+  const renderTransporterProfile = async () => {
     const user = getCurrentUserSync();
     if (!user || user.role !== 'transporter') return;
     
-    // Populate profile data
-    setText('transporterProfileName', user.name || 'Transporter Name');
-    setText('transporterProfileEmail', user.email || 'email@example.com');
-    setText('transporterProfileCompany', user.company || 'Not specified');
-    setText('transporterProfileVehicle', user.vehicle_info || 'Not specified');
-    setText('transporterProfilePhone', user.phone || 'Not specified');
-    setText('transporterProfileAddress', user.address || 'Not specified');
-    setText('transporterProfileRole', 'Transporter');
-    setText('transporterProfileMembership', user.membership_number || 'MF000000');
-    setText('transporterProfileCreated', new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long' }));
-    
-    // Set form values
-    const nameInput = el('profileTransporterName');
-    const phoneInput = el('profileTransporterPhone');
-    const addressInput = el('profileTransporterAddress');
-    
-    if (nameInput) nameInput.value = user.name || '';
-    if (phoneInput) phoneInput.value = user.phone || '';
-    if (addressInput) addressInput.value = user.address || '';
+    try {
+      const response = await apiRequest('/users/me');
+      if (response.success) {
+        const userData = response.data.user;
+        
+        // Populate profile data
+        setText('transporterProfileName', userData.name || 'Transporter Name');
+        setText('transporterProfileEmail', userData.email || 'email@example.com');
+        setText('transporterProfileCompany', userData.company || 'Not specified');
+        setText('transporterProfileVehicle', userData.vehicle_info || 'Not specified');
+        setText('transporterProfilePhone', userData.phone || 'Not specified');
+        setText('transporterProfileAddress', userData.address || 'Not specified');
+        setText('transporterProfileRole', 'Transporter');
+        setText('transporterProfileMembership', userData.membership_number || 'MF000000');
+        setText('transporterProfileCreated', new Date(userData.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long' }));
+        
+        // Set form values
+        const nameInput = el('profileTransporterName');
+        const phoneInput = el('profileTransporterPhone');
+        const addressInput = el('profileTransporterAddress');
+        
+        if (nameInput) nameInput.value = userData.name || '';
+        if (phoneInput) phoneInput.value = userData.phone || '';
+        if (addressInput) addressInput.value = userData.address || '';
+      }
+    } catch (error) {
+      console.error('Error loading transporter profile:', error);
+    }
   };
 
   // Render functions
@@ -504,10 +522,10 @@
                 <td>${sanitize(load.origin)}</td>
                 <td>${sanitize(load.destination)}</td>
                 <td>${sanitize(load.date)}</td>
+                <td>${new Date(load.expires_at).toLocaleDateString()}</td>
                 <td>${sanitize(load.cargo_type)}</td>
                 <td>${load.weight} tons</td>
                 <td><span class="status-badge ${isExpired ? 'status-expired' : 'status-available'}">${isExpired ? 'Expired' : 'Active'}</span></td>
-                <td>${new Date(load.expires_at).toLocaleDateString()}</td>
                 <td>
                     <button class="btn small" onclick="editUserLoad('${load.id}')">Edit</button>
                     <button class="btn small danger" onclick="deleteUserLoad('${load.id}')">Delete</button>
@@ -531,21 +549,45 @@
       if (!tbody) return;
       
       // Clear table
-      while (tbody.firstChild) {
-        tbody.removeChild(tbody.firstChild);
+      tbody.innerHTML = '';
+      
+      const loads = await getMyLoads();
+      
+      if (loads.length === 0) {
+          const row = document.createElement('tr');
+          const cell = document.createElement('td');
+          cell.colSpan = 9;
+          cell.className = 'muted';
+          cell.textContent = 'No loads posted yet.';
+          row.appendChild(cell);
+          tbody.appendChild(row);
+          return;
       }
       
-      // Add empty state
-      const row = document.createElement('tr');
-      const cell = document.createElement('td');
-      cell.colSpan = 9;
-      cell.className = 'muted';
-      cell.textContent = 'No loads posted yet.';
-      row.appendChild(cell);
-      tbody.appendChild(row);
+      loads.forEach(load => {
+          const row = document.createElement('tr');
+          const isExpired = new Date(load.expires_at) < new Date();
+          
+          row.innerHTML = `
+              <td>${sanitize(load.ref)}</td>
+              <td>${sanitize(load.origin)}</td>
+              <td>${sanitize(load.destination)}</td>
+              <td>${sanitize(load.date)}</td>
+              <td>${new Date(load.expires_at).toLocaleDateString()}</td>
+              <td>${sanitize(load.cargo_type)}</td>
+              <td>${load.weight} tons</td>
+              <td><span class="status-badge ${isExpired ? 'status-expired' : 'status-available'}">${isExpired ? 'Expired' : 'Active'}</span></td>
+              <td>
+                  <button class="btn small" onclick="editUserLoad('${load.id}')">Edit</button>
+                  <button class="btn small danger" onclick="deleteUserLoad('${load.id}')">Delete</button>
+              </td>
+          `;
+          tbody.appendChild(row);
+      });
       
     } catch (error) {
       console.error('Error rendering transporter dashboard:', error);
+      showNotification('Failed to load your loads', 'error');
     }
   };
 
@@ -579,11 +621,11 @@
                 <td>${sanitize(load.origin)}</td>
                 <td>${sanitize(load.destination)}</td>
                 <td>${sanitize(load.date)}</td>
+                <td>${new Date(load.expires_at).toLocaleDateString()}</td>
                 <td>${sanitize(load.cargo_type)}</td>
                 <td>${load.weight} tons</td>
-                <td>${sanitize(load.shipper_company || load.shipper_name)}</td>
-                <td>${sanitize(load.shipper_membership)}</td>
                 <td><span class="status-badge ${isExpired ? 'status-expired' : 'status-available'}">${isExpired ? 'Expired' : 'Available'}</span></td>
+                <td>${sanitize(load.shipper_name)} (${sanitize(load.shipper_membership)})</td>
                 <td>
                     <button class="btn small" onclick="contactShipper('${load.shipper_membership}')">Contact</button>
                 </td>
@@ -603,22 +645,43 @@
       if (!messageContainer) return;
       
       // Clear messages
-      while (messageContainer.firstChild) {
-        messageContainer.removeChild(messageContainer.firstChild);
+      messageContainer.innerHTML = '';
+      
+      const messages = await getMessages();
+      
+      if (messages.length === 0) {
+        const noMessages = document.createElement('div');
+        noMessages.className = 'muted';
+        noMessages.textContent = 'No messages yet.';
+        messageContainer.appendChild(noMessages);
+        return;
       }
       
-      // Add empty state
-      const noMessages = document.createElement('div');
-      noMessages.className = 'muted';
-      noMessages.textContent = 'No messages.';
-      messageContainer.appendChild(noMessages);
+      const user = getCurrentUserSync();
+      
+      messages.forEach(msg => {
+        const messageDiv = document.createElement('div');
+        const isSent = msg.sender_membership === user.membership_number;
+        
+        messageDiv.className = `message ${isSent ? 'message-sent' : 'message-received'}`;
+        messageDiv.innerHTML = `
+          <div class="message-header">
+            <span class="message-sender">${isSent ? 'You' : sanitize(msg.sender_membership)}</span>
+            <span class="message-time">${new Date(msg.created_at).toLocaleString()}</span>
+          </div>
+          <div class="message-body">${sanitize(msg.body)}</div>
+        `;
+        
+        messageContainer.appendChild(messageDiv);
+      });
       
     } catch (error) {
       console.error('Error rendering messages:', error);
+      showNotification('Failed to load messages', 'error');
     }
   };
 
-const renderControl = async () => {
+  const renderControl = async () => {
     const user = getCurrentUserSync();
     if (!user || !isAdmin(user)) {
         showNotification('Admin access required', 'error');
@@ -725,145 +788,147 @@ const renderControl = async () => {
             showNotification('Failed to load admin data', 'error');
         }
     }
-};
+  };
     
-      const renderHeader = async () => {
-        const user = getCurrentUserSync();
-        const navLinks = el('navLinks');
-        const authUser = el('authUser');
-        const btnLoginNav = el('btnLoginNav');
-        const btnLogout = el('btnLogout');
-        const roleChip = el('roleChip');
-        
-        if (user) {
-          // Clear existing nav links
-          if (navLinks) {
-            navLinks.innerHTML = '';
-          }
-          
-          if (authUser) authUser.textContent = user.name;
-          if (btnLoginNav) btnLoginNav.classList.add('hidden');
-          if (btnLogout) btnLogout.classList.remove('hidden');
-          if (roleChip) {
-            roleChip.textContent = user.role;
-            roleChip.classList.remove('hidden');
-          }
-          
-          // Create navigation links based on role
-          const links = [];
-          
-          if (user.role === 'shipper') {
-            links.push(
-              { href: '#shipper-dashboard', text: 'Dashboard' },
-              { href: '#shipper-post', text: 'Post Load' },
-              { href: '#market', text: 'Market' },
-              { href: '#messages', text: 'Messages' },
-              { href: '#shipper-profile', text: 'Profile' }
-            );
-          } else if (user.role === 'transporter') {
-            links.push(
-              { href: '#transporter-dashboard', text: 'Dashboard' },
-              { href: '#shipper-post', text: 'Post Load' },
-              { href: '#market', text: 'Market' },
-              { href: '#messages', text: 'Messages' },
-              { href: '#transporter-profile', text: 'Profile' }
-            );
-          } else if (user.role === 'admin') {
-            links.push(
-              { href: '#control', text: 'Admin' },
-              { href: '#shipper-dashboard', text: 'Shipper Dashboard' },
-              { href: '#transporter-dashboard', text: 'Transporter Dashboard' },
-              { href: '#market', text: 'Market' },
-              { href: '#messages', text: 'Messages' }
-            );
-          }
-          
-          // Add links to navigation
-          links.forEach(link => {
-            const a = document.createElement('a');
-            a.className = 'btn ghost';
-            a.href = link.href;
-            a.textContent = link.text;
-            if (navLinks) {
-              navLinks.appendChild(a);
-            }
-          });
-        } else {
-          // User not logged in
-          if (navLinks) {
-            navLinks.innerHTML = '';
-          }
-          
-          if (authUser) authUser.textContent = '';
-          if (btnLoginNav) btnLoginNav.classList.remove('hidden');
-          if (btnLogout) btnLogout.classList.add('hidden');
-          if (roleChip) roleChip.classList.add('hidden');
+  const renderHeader = async () => {
+    const user = getCurrentUserSync();
+    const navLinks = el('navLinks');
+    const authUser = el('authUser');
+    const btnLoginNav = el('btnLoginNav');
+    const btnLogout = el('btnLogout');
+    const roleChip = el('roleChip');
+    
+    if (user) {
+      // Clear existing nav links
+      if (navLinks) {
+        navLinks.innerHTML = '';
+      }
+      
+      if (authUser) authUser.textContent = user.name;
+      if (btnLoginNav) btnLoginNav.classList.add('hidden');
+      if (btnLogout) btnLogout.classList.remove('hidden');
+      if (roleChip) {
+        roleChip.textContent = user.role;
+        roleChip.classList.remove('hidden');
+      }
+      
+      // Create navigation links based on role
+      const links = [];
+      
+      if (user.role === 'shipper') {
+        links.push(
+          { href: '#shipper-dashboard', text: 'Dashboard' },
+          { href: '#shipper-post', text: 'Post Load' },
+          { href: '#market', text: 'Market' },
+          { href: '#messages', text: 'Messages' },
+          { href: '#shipper-profile', text: 'Profile' }
+        );
+      } else if (user.role === 'transporter') {
+        links.push(
+          { href: '#transporter-dashboard', text: 'Dashboard' },
+          { href: '#shipper-post', text: 'Post Load' },
+          { href: '#market', text: 'Market' },
+          { href: '#messages', text: 'Messages' },
+          { href: '#transporter-profile', text: 'Profile' }
+        );
+      } else if (user.role === 'admin') {
+        links.push(
+          { href: '#control', text: 'Admin' },
+          { href: '#shipper-dashboard', text: 'Shipper Dashboard' },
+          { href: '#transporter-dashboard', text: 'Transporter Dashboard' },
+          { href: '#market', text: 'Market' },
+          { href: '#messages', text: 'Messages' }
+        );
+      }
+      
+      // Add links to navigation
+      links.forEach(link => {
+        const a = document.createElement('a');
+        a.className = 'btn ghost';
+        a.href = link.href;
+        a.textContent = link.text;
+        if (navLinks) {
+          navLinks.appendChild(a);
         }
-      };
+      });
+    } else {
+      // User not logged in
+      if (navLinks) {
+        navLinks.innerHTML = '';
+      }
+      
+      if (authUser) authUser.textContent = '';
+      if (btnLoginNav) btnLoginNav.classList.remove('hidden');
+      if (btnLogout) btnLogout.classList.add('hidden');
+      if (roleChip) roleChip.classList.add('hidden');
+    }
+  };
 
   // Main render function
   const render = async () => {
-    await renderHeader();
-    
-    // Hide all pages first
-    document.querySelectorAll('section').forEach(s => {
-      if (s.id && s.id.startsWith('page-')) {
-        s.classList.add('hidden');
+    await handleError(async () => {
+      await renderHeader();
+      
+      // Hide all pages first
+      document.querySelectorAll('section').forEach(s => {
+        if (s.id && s.id.startsWith('page-')) {
+          s.classList.add('hidden');
+        }
+      });
+      
+      const hash = location.hash.slice(1) || 'index';
+      const user = getCurrentUserSync();
+      
+      // Check access
+      let canAccess = false;
+      if (hash === 'index' || hash === 'login' || hash === 'register-options' || 
+          hash === 'register-shipper' || hash === 'register-transporter') {
+        canAccess = true;
+      } else if (user) {
+        canAccess = canAccessPage(user, hash);
       }
-    });
-    
-    const hash = location.hash.slice(1) || 'index';
-    const user = getCurrentUserSync();
-    
-    // Check access
-    let canAccess = false;
-    if (hash === 'index' || hash === 'login' || hash === 'register-options' || 
-        hash === 'register-shipper' || hash === 'register-transporter') {
-      canAccess = true;
-    } else if (user) {
-      canAccess = canAccessPage(user, hash);
-    }
-    
-    if (!canAccess) {
-      if (user) {
-        location.hash = user.role === 'admin' ? '#control' : 
-                       user.role === 'shipper' ? '#shipper-dashboard' : '#transporter-dashboard';
-      } else {
-        location.hash = '#login';
+      
+      if (!canAccess) {
+        if (user) {
+          location.hash = user.role === 'admin' ? '#control' : 
+                         user.role === 'shipper' ? '#shipper-dashboard' : '#transporter-dashboard';
+        } else {
+          location.hash = '#login';
+        }
+        return;
       }
-      return;
-    }
-    
-    // Show the appropriate page
-    const pageElement = el(`page-${hash}`);
-    if (pageElement) {
-      pageElement.classList.remove('hidden');
-    }
-    
-    // Render page-specific content
-    switch(hash) {
-      case 'shipper-dashboard':
-        await renderShipperDashboard();
-        break;
-      case 'transporter-dashboard':
-        await renderTransporterDashboard();
-        break;
-      case 'market':
-        await renderMarket();
-        break;
-      case 'messages':
-        await renderMessages();
-        break;
-      case 'control':
-        await renderControl();
-        break;
-      case 'shipper-profile':
-        renderShipperProfile();
-        break;
-      case 'transporter-profile':
-        renderTransporterProfile();
-        break;
-    }
+      
+      // Show the appropriate page
+      const pageElement = el(`page-${hash}`);
+      if (pageElement) {
+        pageElement.classList.remove('hidden');
+      }
+      
+      // Render page-specific content
+      switch(hash) {
+        case 'shipper-dashboard':
+          await renderShipperDashboard();
+          break;
+        case 'transporter-dashboard':
+          await renderTransporterDashboard();
+          break;
+        case 'market':
+          await renderMarket();
+          break;
+        case 'messages':
+          await renderMessages();
+          break;
+        case 'control':
+          await renderControl();
+          break;
+        case 'shipper-profile':
+          await renderShipperProfile();
+          break;
+        case 'transporter-profile':
+          await renderTransporterProfile();
+          break;
+      }
+    }, 'Failed to render page');
   };
 
   // Global functions for onclick handlers
@@ -873,44 +938,37 @@ const renderControl = async () => {
   
   window.deleteUserLoad = async (loadId) => {
     if (confirm('Are you sure you want to delete this load?')) {
-      try {
+      await handleError(async () => {
         await deleteLoad(loadId);
-        showNotification('Load deleted successfully', 'success');
         await render();
-      } catch (error) {
-        console.error('Error deleting load:', error);
-        showNotification('Failed to delete load', 'error');
-      }
+      }, 'Failed to delete load');
     }
   };
 
-window.deleteUser = async (email) => {
+  window.deleteUser = async (email) => {
     if (confirm(`Are you sure you want to delete user ${email}? This will also delete all their loads and messages.`)) {
-        try {
-            const response = await apiRequest(`/admin/users/${encodeURIComponent(email)}`, {
-                method: 'DELETE'
-            });
-            
-            if (response.success) {
-                showNotification('User deleted successfully', 'success');
-                await renderControl(); // Refresh the admin panel
-            } else {
-                throw new Error(response.error);
-            }
-        } catch (error) {
-            console.error('Error deleting user:', error);
-            showNotification('Failed to delete user: ' + error.message, 'error');
+      await handleError(async () => {
+        const response = await apiRequest(`/admin/users/${encodeURIComponent(email)}`, {
+          method: 'DELETE'
+        });
+        
+        if (response.success) {
+          showNotification('User deleted successfully', 'success');
+          await renderControl();
+        } else {
+          throw new Error(response.error);
         }
+      }, 'Failed to delete user');
     }
-};
+  };
   
-  window.contactShipper = (shipperId) => {
-    const membershipNumber = 'MF' + shipperId.toString().padStart(6, '0');
+  window.contactShipper = (membershipNumber) => {
     location.hash = '#messages';
     setTimeout(() => {
       const msgTo = el('msgTo');
       if (msgTo) {
         msgTo.value = membershipNumber;
+        msgTo.focus();
       }
     }, 100);
   };
@@ -933,7 +991,7 @@ window.deleteUser = async (email) => {
       const submitButton = e.target.querySelector('button[type="submit"]');
       setButtonLoading(submitButton, true);
       
-      try {
+      await handleError(async () => {
         const user = await login(email, password);
         if (user) {
           // Redirect based on role
@@ -945,11 +1003,9 @@ window.deleteUser = async (email) => {
             location.hash = '#transporter-dashboard';
           }
         }
-      } catch (error) {
-        console.error('Login error:', error);
-      } finally {
-        setButtonLoading(submitButton, false);
-      }
+      }, 'Login failed');
+      
+      setButtonLoading(submitButton, false);
     });
     
     el('formRegShipper')?.addEventListener('submit', async (e) => {
@@ -961,14 +1017,12 @@ window.deleteUser = async (email) => {
       const submitButton = e.target.querySelector('button[type="submit"]');
       setButtonLoading(submitButton, true);
       
-      try {
+      await handleError(async () => {
         await registerUser(data);
         location.hash = '#shipper-dashboard';
-      } catch (error) {
-        console.error('Registration error:', error);
-      } finally {
-        setButtonLoading(submitButton, false);
-      }
+      }, 'Registration failed');
+      
+      setButtonLoading(submitButton, false);
     });
     
     el('formRegTransporter')?.addEventListener('submit', async (e) => {
@@ -980,14 +1034,12 @@ window.deleteUser = async (email) => {
       const submitButton = e.target.querySelector('button[type="submit"]');
       setButtonLoading(submitButton, true);
       
-      try {
+      await handleError(async () => {
         await registerUser(data);
         location.hash = '#transporter-dashboard';
-      } catch (error) {
-        console.error('Registration error:', error);
-      } finally {
-        setButtonLoading(submitButton, false);
-      }
+      }, 'Registration failed');
+      
+      setButtonLoading(submitButton, false);
     });
     
     el('formPostLoad')?.addEventListener('submit', async (e) => {
@@ -998,16 +1050,14 @@ window.deleteUser = async (email) => {
       const submitButton = e.target.querySelector('button[type="submit"]');
       setButtonLoading(submitButton, true);
       
-      try {
+      await handleError(async () => {
         await postLoad(data);
         e.target.reset();
         const user = getCurrentUserSync();
         location.hash = user?.role === 'shipper' ? '#shipper-dashboard' : '#transporter-dashboard';
-      } catch (error) {
-        console.error('Post load error:', error);
-      } finally {
-        setButtonLoading(submitButton, false);
-      }
+      }, 'Failed to post load');
+      
+      setButtonLoading(submitButton, false);
     });
     
     el('formSendMsg')?.addEventListener('submit', async (e) => {
@@ -1023,15 +1073,13 @@ window.deleteUser = async (email) => {
       const submitButton = e.target.querySelector('button[type="submit"]');
       setButtonLoading(submitButton, true);
       
-      try {
+      await handleError(async () => {
         await sendMessage(to, body);
         e.target.reset();
         await renderMessages();
-      } catch (error) {
-        console.error('Send message error:', error);
-      } finally {
-        setButtonLoading(submitButton, false);
-      }
+      }, 'Failed to send message');
+      
+      setButtonLoading(submitButton, false);
     });
     
     el('btnLogout')?.addEventListener('click', logout);
@@ -1050,14 +1098,11 @@ window.deleteUser = async (email) => {
       if (password) profileData.password = password;
       
       setButtonLoading(el('saveProfileShipper'), true);
-      try {
+      await handleError(async () => {
         await updateUserProfile(profileData);
-        renderShipperProfile();
-      } catch (error) {
-        console.error('Profile update error:', error);
-      } finally {
-        setButtonLoading(el('saveProfileShipper'), false);
-      }
+        await renderShipperProfile();
+      }, 'Failed to update profile');
+      setButtonLoading(el('saveProfileShipper'), false);
     });
     
     el('saveProfileTransporter')?.addEventListener('click', async () => {
@@ -1073,14 +1118,11 @@ window.deleteUser = async (email) => {
       if (password) profileData.password = password;
       
       setButtonLoading(el('saveProfileTransporter'), true);
-      try {
+      await handleError(async () => {
         await updateUserProfile(profileData);
-        renderTransporterProfile();
-      } catch (error) {
-        console.error('Profile update error:', error);
-      } finally {
-        setButtonLoading(el('saveProfileTransporter'), false);
-      }
+        await renderTransporterProfile();
+      }, 'Failed to update profile');
+      setButtonLoading(el('saveProfileTransporter'), false);
     });
     
     // Initialize the app
