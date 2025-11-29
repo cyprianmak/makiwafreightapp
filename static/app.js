@@ -1,4 +1,4 @@
-// app.js - MakiwaFreight Production Frontend
+// app.js - MakiwaFreight Production Frontend with Access Control
 (function() {
   'use strict';
   
@@ -24,6 +24,11 @@
   let sessionTimeout;
   let sessionWarningTimeout;
   let lastActivityTime = Date.now();
+  
+  // User access cache
+  let userAccessCache = null;
+  let userAccessLastFetched = null;
+  const USER_ACCESS_CACHE_TTL = 60000; // 1 minute
   
   // Utility functions
   const now = () => new Date().toISOString();
@@ -285,6 +290,101 @@
       return null;
     }
   };
+
+  // Get user access permissions
+  const getUserAccessPermissions = async (forceRefresh = false) => {
+    const user = getCurrentUserSync();
+    if (!user) return null;
+    
+    // Check cache first
+    const now = Date.now();
+    if (!forceRefresh && userAccessCache && userAccessLastFetched && 
+        (now - userAccessLastFetched) < USER_ACCESS_CACHE_TTL) {
+      return userAccessCache;
+    }
+    
+    try {
+      // Admins and super admins have full access
+      if (isAdmin(user)) {
+        userAccessCache = {
+          market: { enabled: true },
+          'post-load': { enabled: true },
+          messages: { enabled: true }
+        };
+        userAccessLastFetched = now;
+        return userAccessCache;
+      }
+      
+      // For regular users, fetch their access permissions
+      const response = await apiRequest(`/admin/users/${user.id}/access`);
+      if (response.success) {
+        userAccessCache = response.data.pages || {
+          market: { enabled: false },
+          'post-load': { enabled: false },
+          messages: { enabled: false }
+        };
+        userAccessLastFetched = now;
+        return userAccessCache;
+      }
+    } catch (error) {
+      console.error('Error fetching user access permissions:', error);
+      // Return default restricted access on error
+      return {
+        market: { enabled: false },
+        'post-load': { enabled: false },
+        messages: { enabled: false }
+      };
+    }
+  };
+
+  // Check if user has access to specific feature
+  const hasAccessTo = async (feature) => {
+    const user = getCurrentUserSync();
+    if (!user) return false;
+    
+    // Admins and super admins have full access
+    if (isAdmin(user)) return true;
+    
+    const permissions = await getUserAccessPermissions();
+    if (!permissions) return false;
+    
+    return permissions[feature]?.enabled === true;
+  };
+
+  // Check page access with both role-based and permission-based checks
+  const canAccessPage = async (user, pageId) => {
+    if (!user) return false;
+    
+    // Admins and super admins can access all pages
+    if (isAdmin(user)) return true;
+    
+    // Check role-based access first
+    const page = PAGES[pageId];
+    if (!page || !page.roles.includes(user.role)) {
+      return false;
+    }
+    
+    // For specific pages, check additional permissions
+    if (pageId === 'market') {
+      return await hasAccessTo('market');
+    }
+    
+    if (pageId === 'shipper-post') {
+      return await hasAccessTo('post-load');
+    }
+    
+    if (pageId === 'messages') {
+      return await hasAccessTo('messages');
+    }
+    
+    // Dashboard and profile pages are always accessible once logged in
+    if (pageId === 'shipper-dashboard' || pageId === 'transporter-dashboard' || 
+        pageId === 'shipper-profile' || pageId === 'transporter-profile') {
+      return true;
+    }
+    
+    return false;
+  };
   
   // Authentication API functions
   const login = async (email, password) => {
@@ -310,6 +410,11 @@
         
         sessionStorage.setItem('currentUser', JSON.stringify(userWithToken));
         sessionStorage.setItem('authToken', userData.token);
+        
+        // Clear access cache on login
+        userAccessCache = null;
+        userAccessLastFetched = null;
+        
         showNotification('Login successful', 'success');
         setupSessionTimeout();
         return userWithToken;
@@ -324,6 +429,11 @@
     
     sessionStorage.removeItem('currentUser');
     sessionStorage.removeItem('authToken');
+    
+    // Clear access cache
+    userAccessCache = null;
+    userAccessLastFetched = null;
+    
     showNotification('Logged out successfully', 'info');
     location.hash = '#login';
     render();
@@ -352,6 +462,10 @@
       
       sessionStorage.setItem('currentUser', JSON.stringify(userData));
       sessionStorage.setItem('authToken', userData.token);
+      
+      // Clear access cache
+      userAccessCache = null;
+      userAccessLastFetched = null;
       
       if (userData.email === SUPER_ADMIN_EMAIL) {
         showNotification(`Super Admin Registration successful! Welcome ${data.name}`, 'success');
@@ -409,6 +523,13 @@
   
   // Load API functions
   const postLoad = async (payload) => {
+    // Check access before posting
+    const hasAccess = await hasAccessTo('post-load');
+    if (!hasAccess) {
+      showNotification('You do not have permission to post loads. Please contact administrator.', 'error');
+      throw new Error('Access denied');
+    }
+    
     const response = await apiRequest('/loads', {
       method: 'POST',
       body: JSON.stringify(payload)
@@ -423,6 +544,13 @@
   };
   
   const getLoads = async (filters = {}) => {
+    // Check access before fetching loads
+    const hasAccess = await hasAccessTo('market');
+    if (!hasAccess) {
+      showNotification('You do not have permission to access the market.', 'error');
+      throw new Error('Access denied');
+    }
+    
     const response = await apiRequest('/loads');
     
     if (response.success) {
@@ -457,6 +585,13 @@
   
   // Message API functions
   const sendMessage = async (toMembership, body) => {
+    // Check access before sending message
+    const hasAccess = await hasAccessTo('messages');
+    if (!hasAccess) {
+      showNotification('You do not have permission to send messages. Please contact administrator.', 'error');
+      throw new Error('Access denied');
+    }
+    
     const response = await apiRequest('/messages', {
         method: 'POST',
         body: JSON.stringify({
@@ -474,6 +609,13 @@
   };
 
   const getMessages = async () => {
+    // Check access before fetching messages
+    const hasAccess = await hasAccessTo('messages');
+    if (!hasAccess) {
+      showNotification('You do not have permission to access messages.', 'error');
+      throw new Error('Access denied');
+    }
+    
     const response = await apiRequest('/messages');
     
     if (response.success) {
@@ -481,18 +623,6 @@
     } else {
         throw new Error(response.error || response.message);
     }
-  };
-
-  // Check if user can access page - Super Admin can access everything
-  const canAccessPage = (user, pageId) => {
-    if (!user) return false;
-    if (isAdmin(user)) return true;  // Both admin and super admin can access all pages
-    
-    const page = PAGES[pageId];
-    if (page && page.roles.includes(user.role)) {
-      return true;
-    }
-    return false;
   };
 
   // Get load status
@@ -583,6 +713,35 @@
     }
   };
 
+  // Update UI based on access permissions
+  const updateUIBasedOnAccess = async () => {
+    const user = getCurrentUserSync();
+    if (!user || isAdmin(user)) return;
+    
+    const permissions = await getUserAccessPermissions();
+    
+    // Update dashboard content visibility
+    const hasAnyAccess = permissions.market.enabled || permissions['post-load'].enabled || permissions.messages.enabled;
+    
+    if (user.role === 'shipper') {
+      setHidden('shipperDashboardContent', !hasAnyAccess);
+      setHidden('shipperAccessRestricted', hasAnyAccess);
+    } else if (user.role === 'transporter') {
+      setHidden('transporterDashboardContent', !hasAnyAccess);
+      setHidden('transporterAccessRestricted', hasAnyAccess);
+    }
+    
+    // Update form visibility based on specific permissions
+    setHidden('formPostLoad', !permissions['post-load'].enabled);
+    setHidden('postLoadAccessRestricted', permissions['post-load'].enabled);
+    
+    setHidden('marketContent', !permissions.market.enabled);
+    setHidden('marketAccessRestricted', permissions.market.enabled);
+    
+    setHidden('messagesContent', !permissions.messages.enabled);
+    setHidden('messagesAccessRestricted', permissions.messages.enabled);
+  };
+
   // Render functions
   const renderShipperDashboard = async () => {
     const user = getCurrentUserSync();
@@ -628,6 +787,9 @@
             `;
             tbody.appendChild(row);
         });
+        
+        // Update UI based on access permissions
+        await updateUIBasedOnAccess();
         
     } catch (error) {
         console.error('Error rendering shipper dashboard:', error);
@@ -680,6 +842,9 @@
           tbody.appendChild(row);
       });
       
+      // Update UI based on access permissions
+      await updateUIBasedOnAccess();
+      
     } catch (error) {
       console.error('Error rendering transporter dashboard:', error);
       showNotification('Failed to load your loads', 'error');
@@ -730,7 +895,9 @@
         
     } catch (error) {
         console.error('Error rendering market:', error);
-        showNotification('Failed to load market data', 'error');
+        if (!error.message.includes('Access denied')) {
+            showNotification('Failed to load market data', 'error');
+        }
     }
   };
 
@@ -772,7 +939,9 @@
       
     } catch (error) {
       console.error('Error rendering messages:', error);
-      showNotification('Failed to load messages', 'error');
+      if (!error.message.includes('Access denied')) {
+        showNotification('Failed to load messages', 'error');
+      }
     }
   };
 
@@ -802,17 +971,27 @@
         if (usersTbody) {
             usersTbody.innerHTML = '';
             if (users.length === 0) {
-                usersTbody.innerHTML = '<tr><td colspan="6" class="muted">No users found.</td></tr>';
+                usersTbody.innerHTML = '<tr><td colspan="7" class="muted">No users found.</td></tr>';
             } else {
                 users.forEach(user => {
                     const row = document.createElement('tr');
                     const isCurrentSuperAdmin = user.email === SUPER_ADMIN_EMAIL;
+                    
+                    // Determine access status
+                    let accessStatus = 'Full Access';
+                    let accessClass = 'status-available';
+                    if (!isCurrentSuperAdmin && user.role !== 'admin') {
+                        accessStatus = 'Restricted';
+                        accessClass = 'status-expired';
+                    }
+                    
                     row.innerHTML = `
                         <td>${sanitize(user.name)} ${isCurrentSuperAdmin ? '👑' : ''}</td>
                         <td>${sanitize(user.email)}</td>
                         <td>${sanitize(user.membership_number)}</td>
                         <td><span class="chip ${isCurrentSuperAdmin ? 'chip-warning' : ''}">${isCurrentSuperAdmin ? 'SUPER ADMIN' : sanitize(user.role)}</span></td>
                         <td>${new Date(user.created_at).toLocaleDateString()}</td>
+                        <td><span class="status-badge ${accessClass}">${accessStatus}</span></td>
                         <td>
                             ${!isCurrentSuperAdmin ? `<button class="btn small danger" onclick="deleteUser('${user.email}')">Delete</button>` : '<span class="muted">Protected</span>'}
                         </td>
@@ -895,6 +1074,57 @@
         }
     }
   };
+
+  // Load user access for admin control
+  const loadUserAccess = async (userId) => {
+    try {
+      const response = await apiRequest(`/admin/users/${userId}/access`);
+      if (response.success) {
+        const accessData = response.data.pages || {
+          market: { enabled: false },
+          'post-load': { enabled: false },
+          messages: { enabled: false }
+        };
+        
+        // Update toggle switches
+        el('access-market').checked = accessData.market?.enabled || false;
+        el('access-post-load').checked = accessData['post-load']?.enabled || false;
+        el('access-messages').checked = accessData.messages?.enabled || false;
+        
+        showNotification('User access loaded successfully', 'success');
+      }
+    } catch (error) {
+      console.error('Error loading user access:', error);
+      showNotification('Failed to load user access', 'error');
+    }
+  };
+
+  // Save user access from admin control
+  const saveUserAccess = async (userId) => {
+    try {
+      const accessData = {
+        market: { enabled: el('access-market').checked },
+        'post-load': { enabled: el('access-post-load').checked },
+        messages: { enabled: el('access-messages').checked }
+      };
+      
+      const response = await apiRequest(`/admin/users/${userId}/access`, {
+        method: 'PUT',
+        body: JSON.stringify({ pages: accessData })
+      });
+      
+      if (response.success) {
+        showNotification('User access updated successfully', 'success');
+        
+        // Invalidate cache for this user
+        userAccessCache = null;
+        userAccessLastFetched = null;
+      }
+    } catch (error) {
+      console.error('Error saving user access:', error);
+      showNotification('Failed to update user access', 'error');
+    }
+  };
     
   const renderHeader = async () => {
     const user = getCurrentUserSync();
@@ -921,17 +1151,44 @@
         }
       }
       
-      // Create navigation links based on role
+      // Create navigation links based on role and permissions
       const links = [];
       
       if (user.role === 'shipper' || isAdmin(user)) {
         links.push(
-          { href: '#shipper-dashboard', text: 'Dashboard' },
-          { href: '#shipper-post', text: 'Post Load' },
-          { href: '#market', text: 'Market' },
-          { href: '#messages', text: 'Messages' },
-          { href: '#shipper-profile', text: 'Profile' }
+          { href: '#shipper-dashboard', text: 'Dashboard' }
         );
+        
+        // Only show these links if user has access
+        (async () => {
+          if (await hasAccessTo('post-load')) {
+            links.push({ href: '#shipper-post', text: 'Post Load' });
+          }
+          if (await hasAccessTo('market')) {
+            links.push({ href: '#market', text: 'Market' });
+          }
+          if (await hasAccessTo('messages')) {
+            links.push({ href: '#messages', text: 'Messages' });
+          }
+          
+          links.push({ href: '#shipper-profile', text: 'Profile' });
+          
+          // Remove duplicates and add to navigation
+          const uniqueLinks = links.filter((link, index, self) => 
+            index === self.findIndex(l => l.href === link.href)
+          );
+          
+          // Add links to navigation
+          uniqueLinks.forEach(link => {
+            const a = document.createElement('a');
+            a.className = 'btn ghost';
+            a.href = link.href;
+            a.textContent = link.text;
+            if (navLinks) {
+              navLinks.appendChild(a);
+            }
+          });
+        })();
       }
       
       if (user.role === 'transporter' || isAdmin(user)) {
@@ -939,30 +1196,48 @@
           { href: '#transporter-dashboard', text: 'Transporter Dashboard' }
         );
         
-        if (!links.find(link => link.href === '#shipper-profile')) {
-          links.push({ href: '#transporter-profile', text: 'Profile' });
-        }
+        (async () => {
+          if (await hasAccessTo('post-load')) {
+            links.push({ href: '#shipper-post', text: 'Post Load' });
+          }
+          if (await hasAccessTo('market')) {
+            links.push({ href: '#market', text: 'Market' });
+          }
+          if (await hasAccessTo('messages')) {
+            links.push({ href: '#messages', text: 'Messages' });
+          }
+          
+          if (!links.find(link => link.href === '#shipper-profile')) {
+            links.push({ href: '#transporter-profile', text: 'Profile' });
+          }
+          
+          // Remove duplicates and add to navigation
+          const uniqueLinks = links.filter((link, index, self) => 
+            index === self.findIndex(l => l.href === link.href)
+          );
+          
+          // Add links to navigation
+          uniqueLinks.forEach(link => {
+            const a = document.createElement('a');
+            a.className = 'btn ghost';
+            a.href = link.href;
+            a.textContent = link.text;
+            if (navLinks) {
+              navLinks.appendChild(a);
+            }
+          });
+        })();
       }
       
       if (isAdmin(user)) {
-        links.unshift({ href: '#control', text: 'Admin Control' });
-      }
-      
-      // Remove duplicates
-      const uniqueLinks = links.filter((link, index, self) => 
-        index === self.findIndex(l => l.href === link.href)
-      );
-      
-      // Add links to navigation
-      uniqueLinks.forEach(link => {
-        const a = document.createElement('a');
-        a.className = 'btn ghost';
-        a.href = link.href;
-        a.textContent = link.text;
+        const adminLink = document.createElement('a');
+        adminLink.className = 'btn ghost';
+        adminLink.href = '#control';
+        adminLink.textContent = 'Admin Control';
         if (navLinks) {
-          navLinks.appendChild(a);
+          navLinks.appendChild(adminLink);
         }
-      });
+      }
     } else {
       // User not logged in
       if (navLinks) {
@@ -997,11 +1272,16 @@
           hash === 'register-shipper' || hash === 'register-transporter') {
         canAccess = true;
       } else if (user) {
-        canAccess = canAccessPage(user, hash);
+        canAccess = await canAccessPage(user, hash);
       }
       
       if (!canAccess) {
         if (user) {
+          // Show access denied message
+          if (hash === 'market' || hash === 'shipper-post' || hash === 'messages') {
+            showNotification('Access denied. Please contact administrator for access.', 'error');
+          }
+          
           location.hash = isAdmin(user) ? '#control' : 
                          user.role === 'shipper' ? '#shipper-dashboard' : '#transporter-dashboard';
         } else {
@@ -1088,6 +1368,25 @@
         msgTo.focus();
       }
     }, 100);
+  };
+
+  // Admin access control functions
+  window.loadUserAccess = async () => {
+    const userId = el('selectUserForAccess').value;
+    if (!userId) {
+      showNotification('Please select a user first', 'error');
+      return;
+    }
+    await loadUserAccess(userId);
+  };
+
+  window.saveUserAccess = async () => {
+    const userId = el('selectUserForAccess').value;
+    if (!userId) {
+      showNotification('Please select a user first', 'error');
+      return;
+    }
+    await saveUserAccess(userId);
   };
 
   // Event handlers
@@ -1255,6 +1554,10 @@
       }, 'Failed to update profile');
       setButtonLoading(el('saveProfileTransporter'), false);
     });
+    
+    // Admin access control handlers
+    el('btnLoadUserAccess')?.addEventListener('click', window.loadUserAccess);
+    el('btnSaveUserAccess')?.addEventListener('click', window.saveUserAccess);
     
     // Initialize the app
     render();
