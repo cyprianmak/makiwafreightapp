@@ -656,6 +656,30 @@
       }
     }
 
+    // Add this to the renderControl function after the users table code
+    const loadsTbody = el('tableLoads')?.querySelector('tbody');
+    if (loadsTbody) {
+      loadsTbody.innerHTML = '';
+      if (loads.length === 0) {
+        loadsTbody.innerHTML = '<tr><td colspan="8" class="muted">No loads found.</td></tr>';
+      } else {
+        loads.forEach(load => {
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td>${sanitize(load.ref)}</td>
+            <td>${sanitize(load.origin)}</td>
+            <td>${sanitize(load.destination)}</td>
+            <td>${sanitize(load.date)}</td>
+            <td>${sanitize(load.cargo_type)}</td>
+            <td>${load.weight} tons</td>
+            <td>${sanitize(load.shipper_name)} (${sanitize(load.shipper_membership)})</td>
+            <td>${load.is_expired ? 'Expired' : 'Active'}</td>
+          `;
+          loadsTbody.appendChild(row);
+        });
+      }
+    }
+
     // Populate user dropdowns for access control and password reset
     const selectUserForAccess = el('selectUserForAccess');
         const selectUserForPassword = el('selectUserForPassword');
