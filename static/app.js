@@ -839,6 +839,26 @@
       }
     }
   };
+
+window.deleteUser = async (email) => {
+  if (confirm(`Are you sure you want to delete user ${email}? This will also delete all their loads and messages.`)) {
+    try {
+      const response = await apiRequest(`/admin/users/${encodeURIComponent(email)}`, {
+        method: 'DELETE'
+      });
+      
+      if (response.success) {
+        showNotification('User deleted successfully', 'success');
+        await renderControl(); // Refresh the admin panel
+      } else {
+        throw new Error(response.error);
+      }
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      showNotification('Failed to delete user: ' + error.message, 'error');
+    }
+  }
+};
   
   window.contactShipper = (shipperId) => {
     const membershipNumber = 'MF' + shipperId.toString().padStart(6, '0');
