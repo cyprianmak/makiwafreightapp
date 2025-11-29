@@ -25,9 +25,8 @@
   let sessionWarningTimeout;
   let lastActivityTime = Date.now();
   
-  // User access cache - store per user to handle multiple users
-  let userAccessCache = new Map();
-  const USER_ACCESS_CACHE_TTL = 30000; // 30 seconds
+  // Global flag to force refresh permissions
+  let forceRefreshPermissions = false;
   
   // Utility functions
   const now = () => new Date().toISOString();
@@ -216,12 +215,9 @@
       console.error('Error reading session storage:', e);
     }
     
-    console.log('🔐 DEBUG - User:', user?.email, 'Token exists:', !!token);
-    
     // FIX: Use whatever token we found
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
-      console.log('🔐 Sending token:', token.substring(0, 20) + '...');
     } else {
       console.warn('❌ No token found for API request');
     }
@@ -231,8 +227,6 @@
         ...options,
         headers
       });
-      
-      console.log(`📊 Response: ${response.status} for ${endpoint}`);
       
       if (response.status === 401) {
         // Clear all session data
@@ -290,8 +284,8 @@
     }
   };
 
-  // Get user access permissions with proper caching
-  const getUserAccessPermissions = async (forceRefresh = false) => {
+  // Get user access permissions - SIMPLIFIED VERSION
+  const getUserAccessPermissions = async () => {
     const user = getCurrentUserSync();
     if (!user) return null;
     
@@ -304,26 +298,10 @@
       };
     }
     
-    const userId = user.id;
-    const cacheKey = userId;
-    const now = Date.now();
-    
-    // Check cache first
-    if (!forceRefresh && userAccessCache.has(cacheKey)) {
-      const cached = userAccessCache.get(cacheKey);
-      if (now - cached.timestamp < USER_ACCESS_CACHE_TTL) {
-        console.log('📦 Using cached access permissions for user:', user.email);
-        return cached.permissions;
-      } else {
-        // Cache expired
-        userAccessCache.delete(cacheKey);
-      }
-    }
-    
     try {
-      // For regular users, fetch their access permissions
+      // For regular users, ALWAYS fetch fresh access permissions
       console.log('🔄 Fetching fresh access permissions for user:', user.email);
-      const response = await apiRequest(`/admin/users/${userId}/access`);
+      const response = await apiRequest(`/admin/users/${user.id}/access`);
       
       if (response.success) {
         const permissions = response.data.pages || {
@@ -332,13 +310,7 @@
           messages: { enabled: false }
         };
         
-        // Cache the permissions
-        userAccessCache.set(cacheKey, {
-          permissions: permissions,
-          timestamp: now
-        });
-        
-        console.log('✅ Loaded access permissions:', permissions);
+        console.log('✅ Loaded access permissions:', permissions, 'for user:', user.email);
         return permissions;
       } else {
         throw new Error('Failed to fetch access permissions');
@@ -346,31 +318,18 @@
     } catch (error) {
       console.error('❌ Error fetching user access permissions:', error);
       // Return default restricted access on error
-      const defaultPermissions = {
+      return {
         market: { enabled: false },
         'post-load': { enabled: false },
         messages: { enabled: false }
       };
-      
-      // Cache the default permissions to avoid repeated failed requests
-      userAccessCache.set(cacheKey, {
-        permissions: defaultPermissions,
-        timestamp: now
-      });
-      
-      return defaultPermissions;
     }
   };
 
-  // Invalidate access cache for specific user or all users
-  const invalidateAccessCache = (userId = null) => {
-    if (userId) {
-      console.log('🗑️ Invalidating access cache for user:', userId);
-      userAccessCache.delete(userId);
-    } else {
-      console.log('🗑️ Invalidating all access cache');
-      userAccessCache.clear();
-    }
+  // Force refresh permissions for next check
+  const forceRefreshPermissionsNextTime = () => {
+    forceRefreshPermissions = true;
+    console.log('🚨 Force refresh permissions flag set');
   };
 
   // Check if user has access to specific feature
@@ -450,9 +409,6 @@
         sessionStorage.setItem('currentUser', JSON.stringify(userWithToken));
         sessionStorage.setItem('authToken', userData.token);
         
-        // Clear access cache on login
-        invalidateAccessCache();
-        
         showNotification('Login successful', 'success');
         setupSessionTimeout();
         return userWithToken;
@@ -467,9 +423,6 @@
     
     sessionStorage.removeItem('currentUser');
     sessionStorage.removeItem('authToken');
-    
-    // Clear access cache
-    invalidateAccessCache();
     
     showNotification('Logged out successfully', 'info');
     location.hash = '#login';
@@ -499,9 +452,6 @@
       
       sessionStorage.setItem('currentUser', JSON.stringify(userData));
       sessionStorage.setItem('authToken', userData.token);
-      
-      // Clear access cache
-      invalidateAccessCache();
       
       if (userData.email === SUPER_ADMIN_EMAIL) {
         showNotification(`Super Admin Registration successful! Welcome ${data.name}`, 'success');
@@ -661,103 +611,14 @@
     }
   };
 
-  // Get load status
-  const getLoadStatus = load => {
-    if (load.status === 'secured') return 'secured';
-    const expiryDate = new Date(load.expires_at);
-    if (expiryDate < new Date()) return 'expired';
-    return 'available';
-  };
-  
-  // Get status badge HTML
-  const getStatusBadge = status => {
-    const statusMap = {
-      'available': { class: 'status-available', text: 'Available' },
-      'secured': { class: 'status-secured', text: 'Secured' },
-      'expired': { class: 'status-expired', text: 'Expired' }
-    };
-    
-    const statusInfo = statusMap[status] || statusMap.available;
-    return `<span class="status-badge ${statusInfo.class}">${statusInfo.text}</span>`;
-  };
-
-  // Profile rendering functions
-  const renderShipperProfile = async () => {
-    const user = getCurrentUserSync();
-    if (!user || (user.role !== 'shipper' && !isAdmin(user))) return;
-    
-    try {
-      const response = await apiRequest('/users/me');
-      if (response.success) {
-        const userData = response.data.user;
-        
-        // Populate profile data
-        setText('shipperProfileName', userData.name || 'Shipper Name');
-        setText('shipperProfileEmail', userData.email || 'email@example.com');
-        setText('shipperProfileCompany', userData.company || 'Not specified');
-        setText('shipperProfilePhone', userData.phone || 'Not specified');
-        setText('shipperProfileAddress', userData.address || 'Not specified');
-        setText('shipperProfileRole', isSuperAdmin(userData) ? 'Super Admin' : (userData.role === 'admin' ? 'Admin' : 'Shipper'));
-        setText('shipperProfileMembership', userData.membership_number || 'MF000000');
-        setText('shipperProfileCreated', new Date(userData.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long' }));
-        
-        // Set form values
-        const nameInput = el('profileShipperName');
-        const phoneInput = el('profileShipperPhone');
-        const addressInput = el('profileShipperAddress');
-        
-        if (nameInput) nameInput.value = userData.name || '';
-        if (phoneInput) phoneInput.value = userData.phone || '';
-        if (addressInput) addressInput.value = userData.address || '';
-      }
-    } catch (error) {
-      console.error('Error loading shipper profile:', error);
-    }
-  };
-
-  const renderTransporterProfile = async () => {
-    const user = getCurrentUserSync();
-    if (!user || (user.role !== 'transporter' && !isAdmin(user))) return;
-    
-    try {
-      const response = await apiRequest('/users/me');
-      if (response.success) {
-        const userData = response.data.user;
-        
-        // Populate profile data
-        setText('transporterProfileName', userData.name || 'Transporter Name');
-        setText('transporterProfileEmail', userData.email || 'email@example.com');
-        setText('transporterProfileCompany', userData.company || 'Not specified');
-        setText('transporterProfileVehicle', userData.vehicle_info || 'Not specified');
-        setText('transporterProfilePhone', userData.phone || 'Not specified');
-        setText('transporterProfileAddress', userData.address || 'Not specified');
-        setText('transporterProfileRole', isSuperAdmin(userData) ? 'Super Admin' : (userData.role === 'admin' ? 'Admin' : 'Transporter'));
-        setText('transporterProfileMembership', userData.membership_number || 'MF000000');
-        setText('transporterProfileCreated', new Date(userData.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long' }));
-        
-        // Set form values
-        const nameInput = el('profileTransporterName');
-        const phoneInput = el('profileTransporterPhone');
-        const addressInput = el('profileTransporterAddress');
-        
-        if (nameInput) nameInput.value = userData.name || '';
-        if (phoneInput) phoneInput.value = userData.phone || '';
-        if (addressInput) addressInput.value = userData.address || '';
-      }
-    } catch (error) {
-      console.error('Error loading transporter profile:', error);
-    }
-  };
-
   // Update UI based on access permissions
   const updateUIBasedOnAccess = async () => {
     const user = getCurrentUserSync();
     if (!user || isAdmin(user)) return;
     
-    // Force refresh permissions to get latest changes
-    const permissions = await getUserAccessPermissions(true); // true = force refresh
+    const permissions = await getUserAccessPermissions();
     
-    console.log('🔄 Updating UI with permissions:', permissions);
+    console.log('🔄 Updating UI with permissions:', permissions, 'for user:', user.email);
     
     // Update dashboard content visibility
     const hasAnyAccess = permissions.market.enabled || permissions['post-load'].enabled || permissions.messages.enabled;
@@ -1178,9 +1039,7 @@
     setButtonLoading(el('btnSaveUserAccess'), false);
     
     if (success) {
-      // Invalidate the cache for the specific user whose access was modified
-      invalidateAccessCache(userId);
-      showNotification(`Access permissions updated and cache invalidated for user`, 'success');
+      showNotification(`Access permissions updated successfully! The user will see the changes immediately.`, 'success');
     }
   };
 
@@ -1280,7 +1139,6 @@
       if (response.success) {
         const select = el('selectUserForAccess');
         const selectedOption = select.options[select.selectedIndex];
-        showNotification(`Access permissions updated for: ${selectedOption.text}`, 'success');
         
         // Update user table to reflect changes
         await renderControl();
@@ -1393,7 +1251,7 @@
           { href: '#shipper-dashboard', text: 'Dashboard' }
         );
         
-        // Only show these links if user has access
+        // Only show these links if user has access - ALWAYS check fresh permissions
         const marketAccess = await hasAccessTo('market');
         const postLoadAccess = await hasAccessTo('post-load');
         const messagesAccess = await hasAccessTo('messages');
