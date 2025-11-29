@@ -568,6 +568,20 @@
       throw new Error(response.error || response.message);
     }
   };
+
+  // NEW: Admin function to delete any load
+  const adminDeleteLoad = async (loadId) => {
+    const response = await apiRequest(`/loads/${loadId}`, {
+      method: 'DELETE'
+    });
+    
+    if (response.success) {
+      showNotification('Load deleted successfully by admin', 'success');
+      return response.data;
+    } else {
+      throw new Error(response.error || response.message);
+    }
+  };
   
   // Message API functions
   const sendMessage = async (toMembership, body) => {
@@ -1002,12 +1016,12 @@
             }
         }
 
-        // Render loads table
+        // Render loads table with admin actions
         const loadsTbody = el('tableLoads')?.querySelector('tbody');
         if (loadsTbody) {
             loadsTbody.innerHTML = '';
             if (loads.length === 0) {
-                loadsTbody.innerHTML = '<tr><td colspan="8" class="muted">No loads found.</td></tr>';
+                loadsTbody.innerHTML = '<tr><td colspan="9" class="muted">No loads found.</td></tr>';
             } else {
                 loads.forEach(load => {
                     const statusClass = load.is_expired ? 'status-expired' : 'status-available';
@@ -1023,6 +1037,11 @@
                         <td>${load.weight} tons</td>
                         <td>${sanitize(load.shipper_name)} (${sanitize(load.shipper_membership)})</td>
                         <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                        <td>
+                            <div class="flex-gap-8">
+                                <button class="btn small danger" onclick="adminDeleteLoad('${load.id}')">Delete</button>
+                            </div>
+                        </td>
                     `;
                     loadsTbody.appendChild(row);
                 });
@@ -1267,6 +1286,16 @@
       await handleError(async () => {
         await deleteLoad(loadId);
         await render();
+      }, 'Failed to delete load');
+    }
+  };
+
+  // NEW: Admin function to delete any load
+  window.adminDeleteLoad = async (loadId) => {
+    if (confirm('Are you sure you want to delete this load as admin? This action cannot be undone.')) {
+      await handleError(async () => {
+        await adminDeleteLoad(loadId);
+        await renderControl(); // Refresh the control panel
       }, 'Failed to delete load');
     }
   };
