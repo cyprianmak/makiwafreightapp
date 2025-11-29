@@ -973,12 +973,16 @@
                 usersWithAccess.forEach(user => {
                     const row = document.createElement('tr');
                     const isCurrentSuperAdmin = user.email === SUPER_ADMIN_EMAIL;
+                    const isRegularAdmin = user.role === 'admin' && !isCurrentSuperAdmin;
                     
                     // Create access status badge with detailed tooltip
                     let accessBadge = '';
                     let accessDetails = '';
                     
-                    if (user.accessStatus === 'full') {
+                    if (isAdmin(user)) {
+                        accessBadge = '<span class="status-badge status-available">Admin User</span>';
+                        accessDetails = 'Admin users have full access to all features';
+                    } else if (user.accessStatus === 'full') {
                         accessBadge = '<span class="status-badge status-available">Full Access</span>';
                         accessDetails = 'Market: ✅ | Post Load: ✅ | Messages: ✅';
                     } else if (user.accessStatus === 'partial') {
@@ -996,19 +1000,23 @@
                         <td>${sanitize(user.name)} ${isCurrentSuperAdmin ? '👑' : ''}</td>
                         <td>${sanitize(user.email)}</td>
                         <td>${sanitize(user.membership_number)}</td>
-                        <td><span class="chip ${isCurrentSuperAdmin ? 'chip-warning' : ''}">${isCurrentSuperAdmin ? 'SUPER ADMIN' : sanitize(user.role)}</span></td>
+                        <td>
+                            <span class="chip ${isCurrentSuperAdmin ? 'chip-warning' : isRegularAdmin ? 'chip-info' : ''}">
+                                ${isCurrentSuperAdmin ? 'SUPER ADMIN' : isRegularAdmin ? 'ADMIN' : sanitize(user.role)}
+                            </span>
+                        </td>
                         <td>${new Date(user.created_at).toLocaleDateString()}</td>
                         <td>
                             ${accessBadge}
                             <div class="muted" style="font-size: 10px; margin-top: 2px;">${accessDetails}</div>
                         </td>
                         <td>
-                            ${!isCurrentSuperAdmin ? `
+                            ${!isAdmin(user) ? `
                                 <div class="flex-gap-8">
-                                    <button class="btn small" onclick="editUserAccess('${user.id}')">Edit Access</button>
+                                    <button class="btn small" onclick="editUserAccess('${user.id}')">Manage Access</button>
                                     <button class="btn small danger" onclick="deleteUser('${user.email}')">Delete</button>
                                 </div>
-                            ` : '<span class="muted">Protected</span>'}
+                            ` : '<span class="muted">Protected Account</span>'}
                         </td>
                     `;
                     usersTbody.appendChild(row);
@@ -1060,13 +1068,23 @@
                 }
                 
                 users.forEach(user => {
-                  if (user.email !== SUPER_ADMIN_EMAIL) { // Don't include super admin in dropdowns
+                  // Only show non-admin users in the dropdowns for access control
+                  if (!isAdmin(user)) {
                     const option = document.createElement('option');
                     option.value = user.id;
                     option.textContent = `${user.name} (${user.email}) - ${user.role}`;
                     select.appendChild(option);
                   }
                 });
+
+                // Show message if no non-admin users available
+                if (select.children.length === 1) {
+                  const option = document.createElement('option');
+                  option.value = '';
+                  option.textContent = 'No non-admin users available';
+                  option.disabled = true;
+                  select.appendChild(option);
+                }
             }
         });
 
@@ -1107,19 +1125,19 @@
         if (select.options[i].value === userId) {
           select.selectedIndex = i;
           await loadUserAccess(userId);
-          showNotification(`Loaded access for selected user`, 'info');
+          showNotification(`Loaded access settings for selected user`, 'info');
           return;
         }
       }
     }
-    showNotification('User not found in dropdown', 'error');
+    showNotification('User not found or is an admin (admin access cannot be modified)', 'error');
   };
 
   // Admin access control functions
   window.loadUserAccess = async () => {
     const userId = el('selectUserForAccess').value;
     if (!userId) {
-      showNotification('Please select a user first', 'error');
+      showNotification('Please select a non-admin user first', 'error');
       return;
     }
     
@@ -1132,7 +1150,7 @@
   window.saveUserAccess = async () => {
     const userId = el('selectUserForAccess').value;
     if (!userId) {
-      showNotification('Please select a user first', 'error');
+      showNotification('Please select a non-admin user first', 'error');
       return;
     }
     
@@ -1142,7 +1160,7 @@
     setButtonLoading(el('btnSaveUserAccess'), false);
     
     if (success) {
-      showNotification(`Access permissions updated successfully! The user will see the changes immediately.`, 'success');
+      showNotification(`Feature access updated successfully! The user will see the changes immediately.`, 'success');
       // Refresh the control panel to show updated status
       await renderControl();
     }
@@ -1150,24 +1168,24 @@
 
   window.enableAllAccess = () => {
     if (!el('selectUserForAccess').value) {
-      showNotification('Please select a user first', 'error');
+      showNotification('Please select a non-admin user first', 'error');
       return;
     }
     el('access-market').checked = true;
     el('access-post-load').checked = true;
     el('access-messages').checked = true;
-    showNotification('All access enabled - remember to save', 'info');
+    showNotification('All features enabled - remember to save', 'info');
   };
 
   window.disableAllAccess = () => {
     if (!el('selectUserForAccess').value) {
-      showNotification('Please select a user first', 'error');
+      showNotification('Please select a non-admin user first', 'error');
       return;
     }
     el('access-market').checked = false;
     el('access-post-load').checked = false;
     el('access-messages').checked = false;
-    showNotification('All access disabled - remember to save', 'info');
+    showNotification('All features disabled - remember to save', 'info');
   };
 
   // Toggle switch event handlers
@@ -1214,14 +1232,14 @@
         // Update the select dropdown to show which user is being edited
         const select = el('selectUserForAccess');
         const selectedOption = select.options[select.selectedIndex];
-        showNotification(`Loaded access permissions for: ${selectedOption.text}`, 'success');
+        showNotification(`Loaded feature access for: ${selectedOption.text}`, 'success');
         
         // Enable the save button
         el('btnSaveUserAccess').disabled = false;
       }
     } catch (error) {
       console.error('Error loading user access:', error);
-      showNotification('Failed to load user access permissions', 'error');
+      showNotification('Failed to load user feature access settings', 'error');
       // Reset toggles on error
       resetToggles();
     }
@@ -1252,7 +1270,7 @@
       return false;
     } catch (error) {
       console.error('Error saving user access:', error);
-      showNotification('Failed to update user access permissions', 'error');
+      showNotification('Failed to update user feature access', 'error');
       return false;
     }
   };
@@ -1757,6 +1775,54 @@
     // Admin access control handlers
     el('btnLoadUserAccess')?.addEventListener('click', window.loadUserAccess);
     el('btnSaveUserAccess')?.addEventListener('click', window.saveUserAccess);
+    
+    // Admin password reset handler
+    el('btnResetPass')?.addEventListener('click', async () => {
+      const userId = el('selectUserForPassword').value;
+      const newPassword = el('resetPass').value;
+      
+      if (!userId) {
+        showNotification('Please select a user first', 'error');
+        return;
+      }
+      
+      if (!newPassword || newPassword.length < 8) {
+        showNotification('Password must be at least 8 characters long', 'error');
+        return;
+      }
+      
+      setButtonLoading(el('btnResetPass'), true);
+      
+      await handleError(async () => {
+        // Find user email from the selected option
+        const select = el('selectUserForPassword');
+        const selectedOption = select.options[select.selectedIndex];
+        const emailMatch = selectedOption.text.match(/\(([^)]+)\)/);
+        
+        if (!emailMatch) {
+          throw new Error('Could not find user email');
+        }
+        
+        const email = emailMatch[1];
+        
+        const response = await apiRequest('/admin/reset-password', {
+          method: 'POST',
+          body: JSON.stringify({
+            email: email,
+            new_password: newPassword
+          })
+        });
+        
+        if (response.success) {
+          showNotification(`Password reset successfully for ${email}`, 'success');
+          el('resetPass').value = '';
+        } else {
+          throw new Error(response.error);
+        }
+      }, 'Failed to reset password');
+      
+      setButtonLoading(el('btnResetPass'), false);
+    });
     
     // Setup toggle switches
     setupToggleSwitches();
