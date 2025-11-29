@@ -1143,6 +1143,8 @@
       setButtonLoading(submitButton, false);
     });
     
+    // Find this section in your app.js and replace it:
+
     el('formSendMsg')?.addEventListener('submit', async (e) => {
       e.preventDefault();
       const to = el('msgTo')?.value;
@@ -1153,7 +1155,7 @@
         return;
       }
       
-      const submitButton = e.target.querySelector('button[type="submit']');
+      const submitButton = e.target.querySelector('button[type="submit"]');
       setButtonLoading(submitButton, true);
       
       await handleError(async () => {
