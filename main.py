@@ -1009,6 +1009,60 @@ def handle_messages():
 def get_all_loads_admin():
     try:
         user = check_auth(request)
+        if not user:
+            return jsonify({
+                "success": False,
+                "message": "Authentication required",
+                "error": "Please login to continue"
+            }), 401
+        
+        if user.role != 'admin':
+            return jsonify({
+                "success": False,
+                "message": "Access denied",
+                "error": "Admin access required"
+            }), 403
+        
+        # Get all loads (including expired) with shipper information
+        loads = Load.query.join(User).add_entity(User).all()
+        
+        result = []
+        for load, shipper in loads:
+            result.append({
+                "id": load.id,
+                "ref": load.ref,
+                "origin": load.origin,
+                "destination": load.destination,
+                "date": load.date,
+                "cargo_type": load.cargo_type,
+                "weight": load.weight,
+                "notes": load.notes,
+                "shipper_name": shipper.name,
+                "shipper_email": shipper.email,
+                "shipper_membership": shipper.membership_number,
+                "shipper_company": shipper.company,
+                "expires_at": load.expires_at.isoformat(),
+                "created_at": load.created_at.isoformat(),
+                "is_expired": load.expires_at < datetime.now(timezone.utc)
+            })
+        
+        return jsonify({
+            "success": True,
+            "message": "All loads retrieved",
+            "data": {"loads": result}
+        })
+    except Exception as e:
+        logger.error(f"Admin loads error: {e}")
+        return jsonify({
+            "success": False,
+            "message": "Failed to retrieve loads",
+            "error": str(e)
+        }), 500
+
+@app.route('/api/admin/loads', methods=['GET'])
+def get_all_loads_admin():
+    try:
+        user = check_auth(request)
         if not user or user.role != 'admin':
             return jsonify({
                 "success": False,
