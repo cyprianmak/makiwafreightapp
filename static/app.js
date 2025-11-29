@@ -305,9 +305,9 @@
       
       if (response.success) {
         const permissions = response.data.pages || {
-          market: { enabled: false },
-          'post-load': { enabled: false },
-          messages: { enabled: false }
+          market: { enabled: true }, // DEFAULT TO TRUE
+          'post-load': { enabled: true }, // DEFAULT TO TRUE
+          messages: { enabled: true } // DEFAULT TO TRUE
         };
         
         console.log('✅ Loaded access permissions:', permissions, 'for user:', user.email);
@@ -317,11 +317,11 @@
       }
     } catch (error) {
       console.error('❌ Error fetching user access permissions:', error);
-      // Return default restricted access on error
+      // Return DEFAULT ACCESS on error instead of restricted
       return {
-        market: { enabled: false },
-        'post-load': { enabled: false },
-        messages: { enabled: false }
+        market: { enabled: true },
+        'post-load': { enabled: true },
+        messages: { enabled: true }
       };
     }
   };
@@ -332,7 +332,7 @@
     console.log('🚨 Force refresh permissions flag set');
   };
 
-  // Check if user has access to specific feature
+  // Check if user has access to specific feature - SIMPLIFIED
   const hasAccessTo = async (feature) => {
     const user = getCurrentUserSync();
     if (!user) return false;
@@ -341,14 +341,14 @@
     if (isAdmin(user)) return true;
     
     const permissions = await getUserAccessPermissions();
-    if (!permissions) return false;
+    if (!permissions) return true; // Default to true if no permissions
     
-    const hasAccess = permissions[feature]?.enabled === true;
+    const hasAccess = permissions[feature]?.enabled !== false; // Only false if explicitly disabled
     console.log(`🔐 Access check for ${feature}:`, hasAccess, 'User:', user.email);
     return hasAccess;
   };
 
-  // Check page access with both role-based and permission-based checks
+  // Check page access with both role-based and permission-based checks - SIMPLIFIED
   const canAccessPage = async (user, pageId) => {
     if (!user) return false;
     
@@ -507,9 +507,9 @@
     }
   };
   
-  // Load API functions
+  // Load API functions - SIMPLIFIED ACCESS CHECKS
   const postLoad = async (payload) => {
-    // Check access before posting
+    // SIMPLIFIED: Only check access if explicitly disabled
     const hasAccess = await hasAccessTo('post-load');
     if (!hasAccess) {
       showNotification('You do not have permission to post loads. Please contact administrator.', 'error');
@@ -530,7 +530,7 @@
   };
   
   const getLoads = async (filters = {}) => {
-    // Check access before fetching loads
+    // SIMPLIFIED: Only check access if explicitly disabled
     const hasAccess = await hasAccessTo('market');
     if (!hasAccess) {
       showNotification('You do not have permission to access the market.', 'error');
@@ -583,9 +583,9 @@
     }
   };
   
-  // Message API functions
+  // Message API functions - SIMPLIFIED ACCESS CHECKS
   const sendMessage = async (toMembership, body) => {
-    // Check access before sending message
+    // SIMPLIFIED: Only check access if explicitly disabled
     const hasAccess = await hasAccessTo('messages');
     if (!hasAccess) {
       showNotification('You do not have permission to send messages. Please contact administrator.', 'error');
@@ -609,7 +609,7 @@
   };
 
   const getMessages = async () => {
-    // Check access before fetching messages
+    // SIMPLIFIED: Only check access if explicitly disabled
     const hasAccess = await hasAccessTo('messages');
     if (!hasAccess) {
       showNotification('You do not have permission to access messages.', 'error');
@@ -625,7 +625,7 @@
     }
   };
 
-  // Update UI based on access permissions
+  // Update UI based on access permissions - SIMPLIFIED
   const updateUIBasedOnAccess = async () => {
     const user = getCurrentUserSync();
     if (!user || isAdmin(user)) return;
@@ -635,53 +635,56 @@
     console.log('🔄 Updating UI with permissions:', permissions, 'for user:', user.email);
     
     // Update dashboard content visibility
-    const hasAnyAccess = permissions.market.enabled || permissions['post-load'].enabled || permissions.messages.enabled;
+    const hasAnyAccess = permissions.market.enabled !== false || permissions['post-load'].enabled !== false || permissions.messages.enabled !== false;
     
     if (user.role === 'shipper') {
       setHidden('shipperDashboardContent', !hasAnyAccess);
       setHidden('shipperAccessRestricted', hasAnyAccess);
       
-      // Update access warning banner
+      // Update access warning banner - only show if ALL features are disabled
       const accessWarning = el('accessWarningShipper');
       if (accessWarning) {
-        if (hasAnyAccess) {
-          accessWarning.classList.add('hidden');
-        } else {
+        const allDisabled = !permissions.market.enabled && !permissions['post-load'].enabled && !permissions.messages.enabled;
+        if (allDisabled) {
           accessWarning.classList.remove('hidden');
           accessWarning.textContent = 'Your account has restricted access. Please contact administrator for full platform features.';
+        } else {
+          accessWarning.classList.add('hidden');
         }
       }
     } else if (user.role === 'transporter') {
       setHidden('transporterDashboardContent', !hasAnyAccess);
       setHidden('transporterAccessRestricted', hasAnyAccess);
       
-      // Update access warning banner
+      // Update access warning banner - only show if ALL features are disabled
       const accessWarning = el('accessWarningTransporter');
       if (accessWarning) {
-        if (hasAnyAccess) {
-          accessWarning.classList.add('hidden');
-        } else {
+        const allDisabled = !permissions.market.enabled && !permissions['post-load'].enabled && !permissions.messages.enabled;
+        if (allDisabled) {
           accessWarning.classList.remove('hidden');
           accessWarning.textContent = 'Your account has restricted access. Please contact administrator for full platform features.';
+        } else {
+          accessWarning.classList.add('hidden');
         }
       }
     }
     
     // Update form visibility based on specific permissions
-    setHidden('formPostLoad', !permissions['post-load'].enabled);
-    setHidden('postLoadAccessRestricted', permissions['post-load'].enabled);
+    // Show forms by default, only hide if explicitly disabled
+    setHidden('formPostLoad', permissions['post-load'].enabled === false);
+    setHidden('postLoadAccessRestricted', permissions['post-load'].enabled !== false);
     
-    setHidden('marketContent', !permissions.market.enabled);
-    setHidden('marketAccessRestricted', permissions.market.enabled);
+    setHidden('marketContent', permissions.market.enabled === false);
+    setHidden('marketAccessRestricted', permissions.market.enabled !== false);
     
-    setHidden('messagesContent', !permissions.messages.enabled);
-    setHidden('messagesAccessRestricted', permissions.messages.enabled);
+    setHidden('messagesContent', permissions.messages.enabled === false);
+    setHidden('messagesAccessRestricted', permissions.messages.enabled !== false);
     
     // Update navigation based on permissions
     await updateNavigation();
   };
 
-  // Update navigation based on permissions
+  // Update navigation based on permissions - SIMPLIFIED
   const updateNavigation = async () => {
     const user = getCurrentUserSync();
     if (!user) return;
@@ -931,23 +934,23 @@
                         try {
                             const accessResponse = await apiRequest(`/admin/users/${user.id}/access`);
                             const permissions = accessResponse.success ? accessResponse.data.pages : {
-                                market: { enabled: false },
-                                'post-load': { enabled: false },
-                                messages: { enabled: false }
+                                market: { enabled: true },
+                                'post-load': { enabled: true },
+                                messages: { enabled: true }
                             };
                             
                             // Determine access status based on actual permissions
-                            const hasMarketAccess = permissions.market?.enabled;
-                            const hasPostLoadAccess = permissions['post-load']?.enabled;
-                            const hasMessagesAccess = permissions.messages?.enabled;
+                            const hasMarketAccess = permissions.market?.enabled !== false;
+                            const hasPostLoadAccess = permissions['post-load']?.enabled !== false;
+                            const hasMessagesAccess = permissions.messages?.enabled !== false;
                             
-                            let accessStatus = 'restricted';
-                            let accessClass = 'status-expired';
+                            let accessStatus = 'full';
+                            let accessClass = 'status-available';
                             
-                            if (hasMarketAccess && hasPostLoadAccess && hasMessagesAccess) {
-                                accessStatus = 'full';
-                                accessClass = 'status-available';
-                            } else if (hasMarketAccess || hasPostLoadAccess || hasMessagesAccess) {
+                            if (!hasMarketAccess && !hasPostLoadAccess && !hasMessagesAccess) {
+                                accessStatus = 'restricted';
+                                accessClass = 'status-expired';
+                            } else if (!hasMarketAccess || !hasPostLoadAccess || !hasMessagesAccess) {
                                 accessStatus = 'partial';
                                 accessClass = 'status-partial';
                             }
@@ -962,9 +965,9 @@
                             console.error(`Error fetching access for user ${user.email}:`, error);
                             return { 
                                 ...user, 
-                                accessStatus: 'restricted', 
-                                accessClass: 'status-expired',
-                                permissions: { market: false, 'post-load': false, messages: false }
+                                accessStatus: 'full', 
+                                accessClass: 'status-available',
+                                permissions: { market: true, 'post-load': true, messages: true }
                             };
                         }
                     })
@@ -987,9 +990,9 @@
                         accessDetails = 'Market: ✅ | Post Load: ✅ | Messages: ✅';
                     } else if (user.accessStatus === 'partial') {
                         accessBadge = '<span class="status-badge status-partial">Partial Access</span>';
-                        const market = user.permissions.market?.enabled ? '✅' : '❌';
-                        const postLoad = user.permissions['post-load']?.enabled ? '✅' : '❌';
-                        const messages = user.permissions.messages?.enabled ? '✅' : '❌';
+                        const market = user.permissions.market?.enabled !== false ? '✅' : '❌';
+                        const postLoad = user.permissions['post-load']?.enabled !== false ? '✅' : '❌';
+                        const messages = user.permissions.messages?.enabled !== false ? '✅' : '❌';
                         accessDetails = `Market: ${market} | Post Load: ${postLoad} | Messages: ${messages}`;
                     } else {
                         accessBadge = '<span class="status-badge status-expired">Restricted</span>';
@@ -1219,15 +1222,15 @@
       const response = await apiRequest(`/admin/users/${userId}/access`);
       if (response.success) {
         const accessData = response.data.pages || {
-          market: { enabled: false },
-          'post-load': { enabled: false },
-          messages: { enabled: false }
+          market: { enabled: true },
+          'post-load': { enabled: true },
+          messages: { enabled: true }
         };
         
         // Update toggle switches
-        el('access-market').checked = accessData.market?.enabled || false;
-        el('access-post-load').checked = accessData['post-load']?.enabled || false;
-        el('access-messages').checked = accessData.messages?.enabled || false;
+        el('access-market').checked = accessData.market?.enabled !== false;
+        el('access-post-load').checked = accessData['post-load']?.enabled !== false;
+        el('access-messages').checked = accessData.messages?.enabled !== false;
         
         // Update the select dropdown to show which user is being edited
         const select = el('selectUserForAccess');
@@ -1278,9 +1281,9 @@
   // Reset all toggles to default state
   const resetToggles = () => {
     const toggles = {
-      'access-market': false,
-      'access-post-load': false,
-      'access-messages': false
+      'access-market': true,
+      'access-post-load': true,
+      'access-messages': true
     };
     
     Object.keys(toggles).forEach(toggleId => {
