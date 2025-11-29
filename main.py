@@ -1,4 +1,4 @@
-# main.py - PRODUCTION-READY VERSION
+# main.py - PRODUCTION-READY VERSION WITH MIGRATION SUPPORT
 from flask import Flask, render_template, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 import uuid
 import json
 import os
-from sqlalchemy import text
+from sqlalchemy import text, inspect
 import psycopg2
 import logging
 from functools import wraps
@@ -136,25 +136,71 @@ class UserAccessControl(db.Model):
     user = db.relationship('User', backref=db.backref('access_controls', lazy=True))
 
 # Helper Functions
+def check_table_exists(table_name):
+    """Check if a table exists in the database"""
+    try:
+        inspector = inspect(db.engine)
+        return table_name in inspector.get_table_names()
+    except Exception as e:
+        logger.error(f"Error checking table {table_name}: {e}")
+        return False
+
+def check_column_exists(table_name, column_name):
+    """Check if a column exists in a table"""
+    try:
+        inspector = inspect(db.engine)
+        columns = inspector.get_columns(table_name)
+        return any(col['name'] == column_name for col in columns)
+    except Exception as e:
+        logger.error(f"Error checking column {column_name} in {table_name}: {e}")
+        return False
+
+def migrate_database():
+    """Handle database migrations safely"""
+    try:
+        # Check if users table exists
+        if not check_table_exists('users'):
+            logger.info("Creating all tables from scratch...")
+            db.create_all()
+            return True
+        
+        # Check for missing columns and add them
+        migrations_applied = False
+        
+        # Check for updated_at column in users table
+        if not check_column_exists('users', 'updated_at'):
+            logger.info("Adding updated_at column to users table...")
+            db.session.execute(text('ALTER TABLE users ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP'))
+            migrations_applied = True
+        
+        # Check for other missing columns and add as needed
+        # Add more migration checks here as your schema evolves
+        
+        if migrations_applied:
+            db.session.commit()
+            logger.info("✅ Database migrations applied successfully")
+        
+        return True
+        
+    except Exception as e:
+        logger.error(f"Database migration error: {e}")
+        db.session.rollback()
+        return False
+
 def generate_membership_number():
     """Generates a unique membership number in the format MF000001."""
     try:
         # Use database sequence for thread-safe membership number generation
-        result = db.session.execute(text("SELECT nextval('membership_number_seq')"))
-        next_id = result.scalar()
-        return f"MF{str(next_id).zfill(6)}"
-    except Exception as e:
-        logger.warning(f"Sequence not found, creating sequence: {e}")
         try:
-            db.session.execute(text("CREATE SEQUENCE IF NOT EXISTS membership_number_seq START 100001"))
-            db.session.commit()
             result = db.session.execute(text("SELECT nextval('membership_number_seq')"))
             next_id = result.scalar()
             return f"MF{str(next_id).zfill(6)}"
-        except Exception as seq_error:
-            logger.error(f"Error creating sequence: {seq_error}")
+        except:
             # Fallback: use timestamp-based approach
-            return f"MF{str(int(datetime.now(timezone.utc).timestamp())).zfill(6)}"
+            return f"MF{str(int(datetime.now(timezone.utc).timestamp()))[-6:]}"
+    except Exception as e:
+        logger.error(f"Error generating membership number: {e}")
+        return f"MF{str(int(datetime.now(timezone.utc).timestamp()))[-6:]}"
 
 def check_auth(request):
     """Check authentication token with error handling"""
@@ -274,9 +320,15 @@ def initialize_data():
         try:
             logger.info("Initializing database...")
             
-            # Create all tables
-            db.create_all()
-            logger.info("✅ Database tables created")
+            # First run database migrations
+            if not migrate_database():
+                logger.warning("Database migration failed, trying to create all tables...")
+                db.create_all()
+            
+            # Test database connection
+            db.session.execute(text("SELECT 1"))
+            db_type = "PostgreSQL" if 'postgresql' in app.config['SQLALCHEMY_DATABASE_URI'] else "SQLite"
+            logger.info(f"✅ Connected to {db_type} database")
             
             # Create sequence for membership numbers
             try:
@@ -284,11 +336,6 @@ def initialize_data():
                 db.session.commit()
             except Exception as e:
                 logger.warning(f"Sequence creation warning: {e}")
-            
-            # Test database connection
-            db.session.execute(text("SELECT 1"))
-            db_type = "PostgreSQL" if 'postgresql' in app.config['SQLALCHEMY_DATABASE_URI'] else "SQLite"
-            logger.info(f"✅ Connected to {db_type} database")
             
             # Create admin user
             admin_email = os.environ.get('ADMIN_EMAIL', 'cyprianmak@gmail.com')
@@ -310,7 +357,13 @@ def initialize_data():
                 db.session.commit()
                 logger.info("✅ Admin user created")
             else:
-                logger.info("✅ Admin user already exists")
+                # Ensure existing admin has correct role
+                if admin.role != 'admin':
+                    admin.role = 'admin'
+                    db.session.commit()
+                    logger.info("✅ Updated existing user to admin role")
+                else:
+                    logger.info("✅ Admin user already exists")
                     
             logger.info("✅ Database initialization complete")
             
