@@ -619,91 +619,143 @@
   };
 
   const renderControl = async () => {
-    // Admin control panel rendering
-    const user = getCurrentUserSync();
-    if (!user || !isAdmin(user)) return;
-    
-    try {
-      // Add basic admin content
-      showNotification('Admin panel loaded', 'info');
-    } catch (error) {
-      console.error('Error rendering control panel:', error);
-    }
-  };
+  const user = getCurrentUserSync();
+  if (!user || !isAdmin(user)) return;
+  
+  try {
+    // Fetch users and loads for admin
+    const [usersResponse, loadsResponse] = await Promise.all([
+      apiRequest('/users'),
+      apiRequest('/admin/loads')
+    ]);
 
-  const renderHeader = async () => {
-    const user = getCurrentUserSync();
-    const navLinks = el('navLinks');
-    const authUser = el('authUser');
-    const btnLoginNav = el('btnLoginNav');
-    const btnLogout = el('btnLogout');
-    const roleChip = el('roleChip');
-    
-    if (user) {
-      // Clear existing nav links
-      if (navLinks) {
-        navLinks.innerHTML = '';
+    const users = usersResponse.data.users;
+    const loads = loadsResponse.data.loads;
+
+    // Render users table
+    const usersTbody = el('tableUsers')?.querySelector('tbody');
+    if (usersTbody) {
+      usersTbody.innerHTML = '';
+      if (users.length === 0) {
+        usersTbody.innerHTML = '<tr><td colspan="6" class="muted">No users found.</td></tr>';
+      } else {
+        users.forEach(user => {
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td>${sanitize(user.name)}</td>
+            <td>${sanitize(user.email)}</td>
+            <td>${sanitize(user.membership_number)}</td>
+            <td>${sanitize(user.role)}</td>
+            <td>${new Date(user.created_at).toLocaleDateString()}</td>
+            <td>
+              <button class="btn small danger" onclick="deleteUser('${user.email}')">Delete</button>
+            </td>
+          `;
+          usersTbody.appendChild(row);
+        });
       }
-      
-      if (authUser) authUser.textContent = user.name;
-      if (btnLoginNav) btnLoginNav.classList.add('hidden');
-      if (btnLogout) btnLogout.classList.remove('hidden');
-      if (roleChip) {
-        roleChip.textContent = user.role;
-        roleChip.classList.remove('hidden');
-      }
-      
-      // Create navigation links based on role
-      const links = [];
-      
-      if (user.role === 'shipper') {
-        links.push(
-          { href: '#shipper-dashboard', text: 'Dashboard' },
-          { href: '#shipper-post', text: 'Post Load' },
-          { href: '#market', text: 'Market' },
-          { href: '#messages', text: 'Messages' },
-          { href: '#shipper-profile', text: 'Profile' }
-        );
-      } else if (user.role === 'transporter') {
-        links.push(
-          { href: '#transporter-dashboard', text: 'Dashboard' },
-          { href: '#shipper-post', text: 'Post Load' },
-          { href: '#market', text: 'Market' },
-          { href: '#messages', text: 'Messages' },
-          { href: '#transporter-profile', text: 'Profile' }
-        );
-      } else if (user.role === 'admin') {
-        links.push(
-          { href: '#control', text: 'Admin' },
-          { href: '#shipper-dashboard', text: 'Shipper Dashboard' },
-          { href: '#transporter-dashboard', text: 'Transporter Dashboard' },
-          { href: '#market', text: 'Market' },
-          { href: '#messages', text: 'Messages' }
-        );
-      }
-      
-      // Add links to navigation
-      links.forEach(link => {
-        const a = document.createElement('a');
-        a.className = 'btn ghost';
-        a.href = link.href;
-        a.textContent = link.text;
-        if (navLinks) {
-          navLinks.appendChild(a);
-        }
-      });
-    } else {
-      // User not logged in
-      if (navLinks) {
-        navLinks.innerHTML = '';
-      }
-      
-      if (authUser) authUser.textContent = '';
-      if (btnLoginNav) btnLoginNav.classList.remove('hidden');
-      if (btnLogout) btnLogout.classList.add('hidden');
-      if (roleChip) roleChip.classList.add('hidden');
     }
-  };
+
+    // Populate user dropdowns for access control and password reset
+    const selectUserForAccess = el('selectUserForAccess');
+        const selectUserForPassword = el('selectUserForPassword');
+        
+        [selectUserForAccess, selectUserForPassword].forEach(select => {
+          if (select) {
+            // Clear existing options except the first one
+            while (select.children.length > 1) {
+              select.removeChild(select.lastChild);
+            }
+            
+            users.forEach(user => {
+              const option = document.createElement('option');
+              option.value = user.id;
+              option.textContent = `${user.name} (${user.email}) - ${user.role}`;
+              select.appendChild(option);
+            });
+          }
+        });
+    
+        showNotification('Admin panel loaded successfully', 'success');
+      } catch (error) {
+        console.error('Error rendering control panel:', error);
+        showNotification('Failed to load admin data', 'error');
+      }
+    };
+    
+      const renderHeader = async () => {
+        const user = getCurrentUserSync();
+        const navLinks = el('navLinks');
+        const authUser = el('authUser');
+        const btnLoginNav = el('btnLoginNav');
+        const btnLogout = el('btnLogout');
+        const roleChip = el('roleChip');
+        
+        if (user) {
+          // Clear existing nav links
+          if (navLinks) {
+            navLinks.innerHTML = '';
+          }
+          
+          if (authUser) authUser.textContent = user.name;
+          if (btnLoginNav) btnLoginNav.classList.add('hidden');
+          if (btnLogout) btnLogout.classList.remove('hidden');
+          if (roleChip) {
+            roleChip.textContent = user.role;
+            roleChip.classList.remove('hidden');
+          }
+          
+          // Create navigation links based on role
+          const links = [];
+          
+          if (user.role === 'shipper') {
+            links.push(
+              { href: '#shipper-dashboard', text: 'Dashboard' },
+              { href: '#shipper-post', text: 'Post Load' },
+              { href: '#market', text: 'Market' },
+              { href: '#messages', text: 'Messages' },
+              { href: '#shipper-profile', text: 'Profile' }
+            );
+          } else if (user.role === 'transporter') {
+            links.push(
+              { href: '#transporter-dashboard', text: 'Dashboard' },
+              { href: '#shipper-post', text: 'Post Load' },
+              { href: '#market', text: 'Market' },
+              { href: '#messages', text: 'Messages' },
+              { href: '#transporter-profile', text: 'Profile' }
+            );
+          } else if (user.role === 'admin') {
+            links.push(
+              { href: '#control', text: 'Admin' },
+              { href: '#shipper-dashboard', text: 'Shipper Dashboard' },
+              { href: '#transporter-dashboard', text: 'Transporter Dashboard' },
+              { href: '#market', text: 'Market' },
+              { href: '#messages', text: 'Messages' }
+            );
+          }
+          
+          // Add links to navigation
+          links.forEach(link => {
+            const a = document.createElement('a');
+            a.className = 'btn ghost';
+            a.href = link.href;
+            a.textContent = link.text;
+            if (navLinks) {
+              navLinks.appendChild(a);
+            }
+          });
+        } else {
+          // User not logged in
+          if (navLinks) {
+            navLinks.innerHTML = '';
+          }
+          
+          if (authUser) authUser.textContent = '';
+          if (btnLoginNav) btnLoginNav.classList.remove('hidden');
+          if (btnLogout) btnLogout.classList.add('hidden');
+          if (roleChip) roleChip.classList.add('hidden');
+        }
+      };
 
   // Main render function
   const render = async () => {
