@@ -178,15 +178,6 @@
       'Content-Type': 'application/json',
       ...options.headers
     };
-    const requestHeaders = { 'Content-Type': 'application/json', ...options.headers };
-    const user = getCurrentUserSync();
-    console.log('Current user:', user);
-    if (user && user.token) {
-      console.log('Token:', user.token);
-      requestHeaders['Authorization'] = `Bearer ${user.token}`;
-    }
-
-
     
     const user = getCurrentUserSync();
     if (user && user.token) {
