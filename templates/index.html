@@ -117,12 +117,13 @@
       width: auto;
     }
     
-    /* Toggle switch styles */
+    /* Enhanced Toggle Switch Styles */
     .toggle-switch {
       position: relative;
       display: inline-block;
       width: 60px;
       height: 30px;
+      flex-shrink: 0;
     }
     
     .toggle-switch input {
@@ -161,6 +162,26 @@
     
     input:checked + .toggle-slider:before {
       transform: translateX(30px);
+    }
+    
+    input:disabled + .toggle-slider {
+      background-color: #666;
+      cursor: not-allowed;
+    }
+    
+    /* Loading state for toggles */
+    .toggle-switch.loading {
+      opacity: 0.6;
+    }
+    
+    .toggle-switch.loading .toggle-slider {
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+    
+    @keyframes pulse {
+      0% { opacity: 1; }
+      50% { opacity: 0.5; }
+      100% { opacity: 1; }
     }
     
     .control-panel {
@@ -1094,6 +1115,11 @@
           <button id="btnLoadUserAccess" class="btn">Load Access</button>
         </div>
         
+        <div class="toolbar margin-top-10">
+          <button class="btn small" onclick="enableAllAccess()">Enable All</button>
+          <button class="btn small" onclick="disableAllAccess()">Disable All</button>
+        </div>
+        
         <div id="userAccessContainer" class="page-access-container">
           <div class="page-access-item">
             <div class="page-access-header">
@@ -1102,6 +1128,9 @@
                 <input type="checkbox" id="access-market">
                 <span class="toggle-slider"></span>
               </div>
+            </div>
+            <div class="muted" style="font-size: 12px; margin-top: 5px;">
+              Allows user to browse and view available loads in the market
             </div>
           </div>
           
@@ -1113,6 +1142,9 @@
                 <span class="toggle-slider"></span>
               </div>
             </div>
+            <div class="muted" style="font-size: 12px; margin-top: 5px;">
+              Allows user to post new loads and manage their own loads
+            </div>
           </div>
           
           <div class="page-access-item">
@@ -1123,11 +1155,17 @@
                 <span class="toggle-slider"></span>
               </div>
             </div>
+            <div class="muted" style="font-size: 12px; margin-top: 5px;">
+              Allows user to send and receive messages with other users
+            </div>
           </div>
         </div>
         
         <div class="toolbar toolbar-margin-top">
           <button id="btnSaveUserAccess" class="btn primary">Save User Access</button>
+          <span class="muted" style="font-size: 12px; margin-left: 10px;">
+            Changes take effect immediately after saving
+          </span>
         </div>
       </div>
     </div>
