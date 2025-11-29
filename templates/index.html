@@ -1115,7 +1115,7 @@
     <!-- User Access Control Section -->
     <div class="card">
       <div class="access-control-header">
-        <h3>User Access Control</h3>
+        <h3>User Feature Access Control</h3>
         <button class="btn" onclick="renderControl()">Refresh</button>
       </div>
       
@@ -1128,14 +1128,14 @@
         </div>
         
         <div class="toolbar margin-top-10">
-          <button class="btn small" onclick="enableAllAccess()">Enable All</button>
-          <button class="btn small" onclick="disableAllAccess()">Disable All</button>
+          <button class="btn small" onclick="enableAllAccess()">Enable All Features</button>
+          <button class="btn small" onclick="disableAllAccess()">Disable All Features</button>
         </div>
         
         <div id="userAccessContainer" class="page-access-container">
           <div class="page-access-item">
             <div class="page-access-header">
-              <div class="page-access-title">Market Page</div>
+              <div class="page-access-title">Market Access</div>
               <div class="toggle-switch">
                 <input type="checkbox" id="access-market">
                 <span class="toggle-slider"></span>
@@ -1148,7 +1148,7 @@
           
           <div class="page-access-item">
             <div class="page-access-header">
-              <div class="page-access-title">Post Load Page</div>
+              <div class="page-access-title">Post Load Access</div>
               <div class="toggle-switch">
                 <input type="checkbox" id="access-post-load">
                 <span class="toggle-slider"></span>
@@ -1161,7 +1161,7 @@
           
           <div class="page-access-item">
             <div class="page-access-header">
-              <div class="page-access-title">Messages Page</div>
+              <div class="page-access-title">Messages Access</div>
               <div class="toggle-switch">
                 <input type="checkbox" id="access-messages">
                 <span class="toggle-slider"></span>
@@ -1174,10 +1174,14 @@
         </div>
         
         <div class="toolbar toolbar-margin-top">
-          <button id="btnSaveUserAccess" class="btn primary">Save User Access</button>
+          <button id="btnSaveUserAccess" class="btn primary">Save Feature Access</button>
           <span class="muted" style="font-size: 12px; margin-left: 10px;">
-            Changes take effect immediately after saving
+            Note: This only controls feature access, not admin privileges
           </span>
+        </div>
+        
+        <div class="form-notice" style="margin-top: 15px;">
+          <strong>Note:</strong> This control panel only manages user access to platform features. Admin privileges cannot be granted through this interface and are managed separately by system administrators.
         </div>
       </div>
     </div>
@@ -1194,6 +1198,9 @@
       <div class="margin-top-10">
         <label for="resetPass">New Password</label>
         <input id="resetPass" placeholder="Enter new password" type="password" minlength="8" />
+      </div>
+      <div class="form-notice" style="margin-top: 15px;">
+        <strong>Security Note:</strong> Admin privileges are protected and cannot be modified through this interface. Only feature access can be controlled.
       </div>
     </div>
   </div>
