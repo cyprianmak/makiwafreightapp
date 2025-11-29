@@ -618,94 +618,114 @@
     }
   };
 
-  const renderControl = async () => {
-  const user = getCurrentUserSync();
-  if (!user || !isAdmin(user)) return;
-  
-  try {
-    // Fetch users and loads for admin
-    const [usersResponse, loadsResponse] = await Promise.all([
-      apiRequest('/users'),
-      apiRequest('/admin/loads')
-    ]);
-
-    const users = usersResponse.data.users;
-    const loads = loadsResponse.data.loads;
-
-    // Render users table
-    const usersTbody = el('tableUsers')?.querySelector('tbody');
-    if (usersTbody) {
-      usersTbody.innerHTML = '';
-      if (users.length === 0) {
-        usersTbody.innerHTML = '<tr><td colspan="6" class="muted">No users found.</td></tr>';
-      } else {
-        users.forEach(user => {
-          const row = document.createElement('tr');
-          row.innerHTML = `
-            <td>${sanitize(user.name)}</td>
-            <td>${sanitize(user.email)}</td>
-            <td>${sanitize(user.membership_number)}</td>
-            <td>${sanitize(user.role)}</td>
-            <td>${new Date(user.created_at).toLocaleDateString()}</td>
-            <td>
-              <button class="btn small danger" onclick="deleteUser('${user.email}')">Delete</button>
-            </td>
-          `;
-          usersTbody.appendChild(row);
-        });
-      }
+const renderControl = async () => {
+    const user = getCurrentUserSync();
+    if (!user || !isAdmin(user)) {
+        showNotification('Admin access required', 'error');
+        return;
     }
+    
+    try {
+        // Fetch users and loads for admin
+        const [usersResponse, loadsResponse] = await Promise.all([
+            apiRequest('/users'),
+            apiRequest('/admin/loads')
+        ]);
 
-    // Add this to the renderControl function after the users table code
-    const loadsTbody = el('tableLoads')?.querySelector('tbody');
-    if (loadsTbody) {
-      loadsTbody.innerHTML = '';
-      if (loads.length === 0) {
-        loadsTbody.innerHTML = '<tr><td colspan="8" class="muted">No loads found.</td></tr>';
-      } else {
-        loads.forEach(load => {
-          const row = document.createElement('tr');
-          row.innerHTML = `
-            <td>${sanitize(load.ref)}</td>
-            <td>${sanitize(load.origin)}</td>
-            <td>${sanitize(load.destination)}</td>
-            <td>${sanitize(load.date)}</td>
-            <td>${sanitize(load.cargo_type)}</td>
-            <td>${load.weight} tons</td>
-            <td>${sanitize(load.shipper_name)} (${sanitize(load.shipper_membership)})</td>
-            <td>${load.is_expired ? 'Expired' : 'Active'}</td>
-          `;
-          loadsTbody.appendChild(row);
-        });
-      }
-    }
+        if (!usersResponse.success || !loadsResponse.success) {
+            throw new Error('Failed to fetch admin data');
+        }
 
-    // Populate user dropdowns for access control and password reset
-    const selectUserForAccess = el('selectUserForAccess');
+        const users = usersResponse.data.users;
+        const loads = loadsResponse.data.loads;
+
+        // Render users table
+        const usersTbody = el('tableUsers')?.querySelector('tbody');
+        if (usersTbody) {
+            usersTbody.innerHTML = '';
+            if (users.length === 0) {
+                usersTbody.innerHTML = '<tr><td colspan="6" class="muted">No users found.</td></tr>';
+            } else {
+                users.forEach(user => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${sanitize(user.name)}</td>
+                        <td>${sanitize(user.email)}</td>
+                        <td>${sanitize(user.membership_number)}</td>
+                        <td><span class="chip">${sanitize(user.role)}</span></td>
+                        <td>${new Date(user.created_at).toLocaleDateString()}</td>
+                        <td>
+                            <button class="btn small danger" onclick="deleteUser('${user.email}')">Delete</button>
+                        </td>
+                    `;
+                    usersTbody.appendChild(row);
+                });
+            }
+        }
+
+        // Render loads table
+        const loadsTbody = el('tableLoads')?.querySelector('tbody');
+        if (loadsTbody) {
+            loadsTbody.innerHTML = '';
+            if (loads.length === 0) {
+                loadsTbody.innerHTML = '<tr><td colspan="8" class="muted">No loads found.</td></tr>';
+            } else {
+                loads.forEach(load => {
+                    const statusClass = load.is_expired ? 'status-expired' : 'status-available';
+                    const statusText = load.is_expired ? 'Expired' : 'Active';
+                    
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${sanitize(load.ref)}</td>
+                        <td>${sanitize(load.origin)}</td>
+                        <td>${sanitize(load.destination)}</td>
+                        <td>${sanitize(load.date)}</td>
+                        <td>${sanitize(load.cargo_type)}</td>
+                        <td>${load.weight} tons</td>
+                        <td>${sanitize(load.shipper_name)} (${sanitize(load.shipper_membership)})</td>
+                        <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                    `;
+                    loadsTbody.appendChild(row);
+                });
+            }
+        }
+
+        // Populate user dropdowns for access control and password reset
+        const selectUserForAccess = el('selectUserForAccess');
         const selectUserForPassword = el('selectUserForPassword');
         
         [selectUserForAccess, selectUserForPassword].forEach(select => {
-          if (select) {
-            // Clear existing options except the first one
-            while (select.children.length > 1) {
-              select.removeChild(select.lastChild);
+            if (select) {
+                // Clear existing options except the first one
+                while (select.children.length > 1) {
+                    select.removeChild(select.lastChild);
+                }
+                
+                users.forEach(user => {
+                    const option = document.createElement('option');
+                    option.value = user.id;
+                    option.textContent = `${user.name} (${user.email}) - ${user.role}`;
+                    select.appendChild(option);
+                });
             }
-            
-            users.forEach(user => {
-              const option = document.createElement('option');
-              option.value = user.id;
-              option.textContent = `${user.name} (${user.email}) - ${user.role}`;
-              select.appendChild(option);
-            });
-          }
         });
-    
+
         showNotification('Admin panel loaded successfully', 'success');
-      } catch (error) {
+    } catch (error) {
         console.error('Error rendering control panel:', error);
-        showNotification('Failed to load admin data', 'error');
-      }
-    };
+        
+        if (error.message.includes('403') || error.message.includes('Access denied')) {
+            showNotification('Admin access denied. Please check your permissions.', 'error');
+        } else if (error.message.includes('401') || error.message.includes('Authentication')) {
+            showNotification('Please log in again', 'error');
+            setTimeout(() => {
+                location.hash = '#login';
+            }, 2000);
+        } else {
+            showNotification('Failed to load admin data', 'error');
+        }
+    }
+};
     
       const renderHeader = async () => {
         const user = getCurrentUserSync();
@@ -865,23 +885,23 @@
   };
 
 window.deleteUser = async (email) => {
-  if (confirm(`Are you sure you want to delete user ${email}? This will also delete all their loads and messages.`)) {
-    try {
-      const response = await apiRequest(`/admin/users/${encodeURIComponent(email)}`, {
-        method: 'DELETE'
-      });
-      
-      if (response.success) {
-        showNotification('User deleted successfully', 'success');
-        await renderControl(); // Refresh the admin panel
-      } else {
-        throw new Error(response.error);
-      }
-    } catch (error) {
-      console.error('Error deleting user:', error);
-      showNotification('Failed to delete user: ' + error.message, 'error');
+    if (confirm(`Are you sure you want to delete user ${email}? This will also delete all their loads and messages.`)) {
+        try {
+            const response = await apiRequest(`/admin/users/${encodeURIComponent(email)}`, {
+                method: 'DELETE'
+            });
+            
+            if (response.success) {
+                showNotification('User deleted successfully', 'success');
+                await renderControl(); // Refresh the admin panel
+            } else {
+                throw new Error(response.error);
+            }
+        } catch (error) {
+            console.error('Error deleting user:', error);
+            showNotification('Failed to delete user: ' + error.message, 'error');
+        }
     }
-  }
 };
   
   window.contactShipper = (shipperId) => {
