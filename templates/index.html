@@ -938,96 +938,129 @@
       </div>
     </section>
     <!-- Admin Control Page -->
-    <section id="page-control" class="hidden" aria-label="Admin control panel">
-      <div class="toolbar">
-        <h2>Admin Control</h2>
-        <div>
-          <a class="btn" href="#messages">Messages</a>
-          <a class="btn" href="#market">Market</a>
-          <a class="btn" href="#shipper-dashboard">Shipper Dashboard</a>
-          <a class="btn" href="#transporter-dashboard">Transporter Dashboard</a>
-        </div>
+<section id="page-control" class="hidden" aria-label="Admin control panel">
+  <div class="toolbar">
+    <h2>Admin Control</h2>
+    <div>
+      <a class="btn" href="#messages">Messages</a>
+      <a class="btn" href="#market">Market</a>
+      <a class="btn" href="#shipper-dashboard">Shipper Dashboard</a>
+      <a class="btn" href="#transporter-dashboard">Transporter Dashboard</a>
+    </div>
+  </div>
+  
+  <!-- User Management Section -->
+  <div class="card">
+    <div class="toolbar">
+      <h3>User Management</h3>
+      <button id="btnRefreshUsers" class="btn" onclick="renderControl()">Refresh</button>
+    </div>
+    <div class="table-container">
+      <table id="tableUsers" aria-label="User management">
+        <thead>
+          <tr>
+            <th scope="col">Name</th>
+            <th scope="col">Email</th>
+            <th scope="col">Membership #</th>
+            <th scope="col">Role</th>
+            <th scope="col">Join Date</th>
+            <th scope="col">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Users will be populated here -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="grid two">
+    <!-- User Access Control Section -->
+    <div class="card">
+      <div class="access-control-header">
+        <h3>User Access Control</h3>
+        <button id="btnRefreshAccessControl" class="btn" onclick="renderControl()">Refresh</button>
       </div>
       
-      <!-- User Page Access Control Section -->
-      <div class="card">
-        <div class="access-control-header">
-          <h3>User Page Access Control</h3>
-          <button id="btnRefreshAccessControl" class="btn">Refresh</button>
+      <div class="access-control-section">
+        <div class="select-with-actions">
+          <select id="selectUserForAccess">
+            <option value="">-- Select User --</option>
+          </select>
+          <button id="btnLoadUserAccess" class="btn">Load Access</button>
         </div>
         
-        <div class="access-control-section">
-          <div class="select-with-actions">
-            <select id="selectUserForAccess">
-              <option value="">-- Select User --</option>
-            </select>
-            <button id="btnLoadUserAccess" class="btn">Load Access</button>
-          </div>
-          
-          <div id="userAccessContainer" class="page-access-container">
-            <div class="page-access-item">
-              <div class="page-access-header">
-                <div class="page-access-title">Market Page</div>
-                <div class="toggle-switch">
-                  <input type="checkbox" id="access-market">
-                  <span class="toggle-slider"></span>
-                </div>
-              </div>
-            </div>
-            
-            <div class="page-access-item">
-              <div class="page-access-header">
-                <div class="page-access-title">Post Load Page</div>
-                <div class="toggle-switch">
-                  <input type="checkbox" id="access-post-load">
-                  <span class="toggle-slider"></span>
-                </div>
+        <div id="userAccessContainer" class="page-access-container">
+          <div class="page-access-item">
+            <div class="page-access-header">
+              <div class="page-access-title">Market Page</div>
+              <div class="toggle-switch">
+                <input type="checkbox" id="access-market">
+                <span class="toggle-slider"></span>
               </div>
             </div>
           </div>
           
-          <div class="toolbar toolbar-margin-top">
-            <button id="btnSaveUserAccess" class="btn primary">Save User Access</button>
+          <div class="page-access-item">
+            <div class="page-access-header">
+              <div class="page-access-title">Post Load Page</div>
+              <div class="toggle-switch">
+                <input type="checkbox" id="access-post-load">
+                <span class="toggle-slider"></span>
+              </div>
+            </div>
           </div>
+        </div>
+        
+        <div class="toolbar toolbar-margin-top">
+          <button id="btnSaveUserAccess" class="btn primary">Save User Access</button>
         </div>
       </div>
-      
-      <div class="grid two">
-        <div class="card">
-          <h3>Users</h3>
-          <div class="table-container">
-            <table id="tableUsers" aria-label="User management"><thead><tr>
-              <th scope="col">Name</th><th scope="col">Email</th><th scope="col">Membership #</th><th scope="col">Role</th><th scope="col">Join Date</th><th scope="col">Actions</th>
-            </tr></thead><tbody></tbody></table>
-          </div>
-        </div>
-        <div class="card">
-          <h3>Load Management</h3>
-          <div class="select-with-actions">
-            <select id="selectLoad">
-              <option value="">-- Select Load --</option>
-            </select>
-            <button id="btnLoadLoadDetails" class="btn">Load Details</button>
-            <button id="btnDeleteLoad" class="btn danger">Delete</button>
-          </div>
-          <div id="loadDetails" class="load-details hidden"></div>
-          <div id="loadEditForm" class="load-edit-form hidden"></div>
-        </div>
-        <div class="card">
-          <h3>Reset Password</h3>
-          <div class="select-with-actions">
-            <select id="selectUserForPassword">
-              <option value="">-- Select User --</option>
-            </select>
-            <button id="btnResetPass" class="btn">Reset</button>
-          </div>
-          <div class="margin-top-10">
-            <label for="resetPass">New Password</label>
-            <input id="resetPass" placeholder="new password" type="password" minlength="8" />
-          </div>
-        </div>
+    </div>
+
+    <!-- Load Management Section -->
+    <div class="card">
+      <h3>Load Management</h3>
+      <div class="toolbar">
+        <button id="btnRefreshLoads" class="btn" onclick="renderControl()">Refresh Loads</button>
       </div>
-    </section>
+      <div class="table-container">
+        <table id="tableLoads" aria-label="Load management">
+          <thead>
+            <tr>
+              <th scope="col">Ref</th>
+              <th scope="col">Origin</th>
+              <th scope="col">Destination</th>
+              <th scope="col">Date</th>
+              <th scope="col">Cargo</th>
+              <th scope="col">Weight</th>
+              <th scope="col">Shipper</th>
+              <th scope="col">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- Loads will be populated here -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Reset Password Section -->
+    <div class="card">
+      <h3>Reset Password</h3>
+      <div class="select-with-actions">
+        <select id="selectUserForPassword">
+          <option value="">-- Select User --</option>
+        </select>
+        <button id="btnResetPass" class="btn">Reset</button>
+      </div>
+      <div class="margin-top-10">
+        <label for="resetPass">New Password</label>
+        <input id="resetPass" placeholder="new password" type="password" minlength="8" />
+      </div>
+    </div>
+  </div>
+</section>
     <div class="footer">Demo build – data stored in PostgreSQL database.</div>
   </main>
   
