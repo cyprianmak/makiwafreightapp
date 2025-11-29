@@ -1050,9 +1050,12 @@
             }
         });
 
+        // Reset toggles when control panel loads
+        resetToggles();
+
         // Show super admin badge
         if (isSuperAdmin(user)) {
-          const adminTitle = el('adminPanelTitle');
+          const adminTitle = document.querySelector('#page-control h2');
           if (adminTitle) {
             adminTitle.innerHTML = 'Super Admin Control Panel 👑';
           }
@@ -1075,7 +1078,81 @@
     }
   };
 
-  // Load user access for admin control
+  // Admin access control functions
+  window.loadUserAccess = async () => {
+    const userId = el('selectUserForAccess').value;
+    if (!userId) {
+      showNotification('Please select a user first', 'error');
+      return;
+    }
+    
+    // Show loading state
+    setButtonLoading(el('btnLoadUserAccess'), true);
+    await loadUserAccess(userId);
+    setButtonLoading(el('btnLoadUserAccess'), false);
+  };
+
+  window.saveUserAccess = async () => {
+    const userId = el('selectUserForAccess').value;
+    if (!userId) {
+      showNotification('Please select a user first', 'error');
+      return;
+    }
+    
+    // Show loading state
+    setButtonLoading(el('btnSaveUserAccess'), true);
+    await saveUserAccess(userId);
+    setButtonLoading(el('btnSaveUserAccess'), false);
+  };
+
+  window.enableAllAccess = () => {
+    if (!el('selectUserForAccess').value) {
+      showNotification('Please select a user first', 'error');
+      return;
+    }
+    el('access-market').checked = true;
+    el('access-post-load').checked = true;
+    el('access-messages').checked = true;
+    showNotification('All access enabled - remember to save', 'info');
+  };
+
+  window.disableAllAccess = () => {
+    if (!el('selectUserForAccess').value) {
+      showNotification('Please select a user first', 'error');
+      return;
+    }
+    el('access-market').checked = false;
+    el('access-post-load').checked = false;
+    el('access-messages').checked = false;
+    showNotification('All access disabled - remember to save', 'info');
+  };
+
+  // Toggle switch event handlers
+  const setupToggleSwitches = () => {
+    const toggleSwitches = document.querySelectorAll('.toggle-switch input[type="checkbox"]');
+    toggleSwitches.forEach(switchElement => {
+      switchElement.addEventListener('change', function() {
+        const userId = el('selectUserForAccess').value;
+        if (!userId) {
+          // If no user selected, revert the toggle and show error
+          this.checked = !this.checked;
+          showNotification('Please select a user and click "Load Access" first', 'error');
+          return;
+        }
+        
+        // Visual feedback for change
+        const toggleParent = this.closest('.toggle-switch');
+        toggleParent.classList.add('loading');
+        setTimeout(() => {
+          toggleParent.classList.remove('loading');
+        }, 300);
+        
+        console.log(`Toggle ${this.id} changed to: ${this.checked} for user: ${userId}`);
+      });
+    });
+  };
+
+  // Enhanced load user access function
   const loadUserAccess = async (userId) => {
     try {
       const response = await apiRequest(`/admin/users/${userId}/access`);
@@ -1091,15 +1168,23 @@
         el('access-post-load').checked = accessData['post-load']?.enabled || false;
         el('access-messages').checked = accessData.messages?.enabled || false;
         
-        showNotification('User access loaded successfully', 'success');
+        // Update the select dropdown to show which user is being edited
+        const select = el('selectUserForAccess');
+        const selectedOption = select.options[select.selectedIndex];
+        showNotification(`Loaded access permissions for: ${selectedOption.text}`, 'success');
+        
+        // Enable the save button
+        el('btnSaveUserAccess').disabled = false;
       }
     } catch (error) {
       console.error('Error loading user access:', error);
-      showNotification('Failed to load user access', 'error');
+      showNotification('Failed to load user access permissions', 'error');
+      // Reset toggles on error
+      resetToggles();
     }
   };
 
-  // Save user access from admin control
+  // Enhanced save user access function
   const saveUserAccess = async (userId) => {
     try {
       const accessData = {
@@ -1114,16 +1199,87 @@
       });
       
       if (response.success) {
-        showNotification('User access updated successfully', 'success');
+        const select = el('selectUserForAccess');
+        const selectedOption = select.options[select.selectedIndex];
+        showNotification(`Access permissions updated for: ${selectedOption.text}`, 'success');
         
         // Invalidate cache for this user
         userAccessCache = null;
         userAccessLastFetched = null;
+        
+        // Update user table to reflect changes
+        await renderControl();
       }
     } catch (error) {
       console.error('Error saving user access:', error);
-      showNotification('Failed to update user access', 'error');
+      showNotification('Failed to update user access permissions', 'error');
     }
+  };
+
+  // Reset all toggles to default state
+  const resetToggles = () => {
+    const toggles = {
+      'access-market': false,
+      'access-post-load': false,
+      'access-messages': false
+    };
+    
+    Object.keys(toggles).forEach(toggleId => {
+      const toggle = el(toggleId);
+      if (toggle) {
+        toggle.checked = toggles[toggleId];
+      }
+    });
+    
+    // Disable save button until user is selected
+    el('btnSaveUserAccess').disabled = true;
+  };
+
+  // Global functions for onclick handlers
+  window.editUserLoad = async (loadId) => {
+    showNotification('Edit functionality coming soon', 'info');
+  };
+  
+  window.deleteUserLoad = async (loadId) => {
+    if (confirm('Are you sure you want to delete this load?')) {
+      await handleError(async () => {
+        await deleteLoad(loadId);
+        await render();
+      }, 'Failed to delete load');
+    }
+  };
+
+  window.deleteUser = async (email) => {
+    if (email === SUPER_ADMIN_EMAIL) {
+      showNotification('Cannot delete Super Admin account', 'error');
+      return;
+    }
+    
+    if (confirm(`Are you sure you want to delete user ${email}? This will also delete all their loads and messages.`)) {
+      await handleError(async () => {
+        const response = await apiRequest(`/admin/users/${encodeURIComponent(email)}`, {
+          method: 'DELETE'
+        });
+        
+        if (response.success) {
+          showNotification('User deleted successfully', 'success');
+          await renderControl();
+        } else {
+          throw new Error(response.error);
+        }
+      }, 'Failed to delete user');
+    }
+  };
+  
+  window.contactShipper = (membershipNumber) => {
+    location.hash = '#messages';
+    setTimeout(() => {
+      const msgTo = el('msgTo');
+      if (msgTo) {
+        msgTo.value = membershipNumber;
+        msgTo.focus();
+      }
+    }, 100);
   };
     
   const renderHeader = async () => {
@@ -1323,72 +1479,6 @@
     }, 'Failed to render page');
   };
 
-  // Global functions for onclick handlers
-  window.editUserLoad = async (loadId) => {
-    showNotification('Edit functionality coming soon', 'info');
-  };
-  
-  window.deleteUserLoad = async (loadId) => {
-    if (confirm('Are you sure you want to delete this load?')) {
-      await handleError(async () => {
-        await deleteLoad(loadId);
-        await render();
-      }, 'Failed to delete load');
-    }
-  };
-
-  window.deleteUser = async (email) => {
-    if (email === SUPER_ADMIN_EMAIL) {
-      showNotification('Cannot delete Super Admin account', 'error');
-      return;
-    }
-    
-    if (confirm(`Are you sure you want to delete user ${email}? This will also delete all their loads and messages.`)) {
-      await handleError(async () => {
-        const response = await apiRequest(`/admin/users/${encodeURIComponent(email)}`, {
-          method: 'DELETE'
-        });
-        
-        if (response.success) {
-          showNotification('User deleted successfully', 'success');
-          await renderControl();
-        } else {
-          throw new Error(response.error);
-        }
-      }, 'Failed to delete user');
-    }
-  };
-  
-  window.contactShipper = (membershipNumber) => {
-    location.hash = '#messages';
-    setTimeout(() => {
-      const msgTo = el('msgTo');
-      if (msgTo) {
-        msgTo.value = membershipNumber;
-        msgTo.focus();
-      }
-    }, 100);
-  };
-
-  // Admin access control functions
-  window.loadUserAccess = async () => {
-    const userId = el('selectUserForAccess').value;
-    if (!userId) {
-      showNotification('Please select a user first', 'error');
-      return;
-    }
-    await loadUserAccess(userId);
-  };
-
-  window.saveUserAccess = async () => {
-    const userId = el('selectUserForAccess').value;
-    if (!userId) {
-      showNotification('Please select a user first', 'error');
-      return;
-    }
-    await saveUserAccess(userId);
-  };
-
   // Event handlers
   const init = () => {
     console.log('MakiwaFreight app initializing...');
@@ -1558,6 +1648,9 @@
     // Admin access control handlers
     el('btnLoadUserAccess')?.addEventListener('click', window.loadUserAccess);
     el('btnSaveUserAccess')?.addEventListener('click', window.saveUserAccess);
+    
+    // Setup toggle switches
+    setupToggleSwitches();
     
     // Initialize the app
     render();
