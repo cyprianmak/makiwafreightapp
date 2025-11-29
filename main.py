@@ -850,6 +850,14 @@ def get_my_loads():
         loads = Load.query.filter_by(shipper_id=user.id).order_by(Load.created_at.desc()).all()
         result = []
         for load in loads:
+            # FIX: Ensure proper timezone-aware datetime comparison
+            expires_at_utc = load.expires_at
+            if expires_at_utc.tzinfo is None:
+                expires_at_utc = expires_at_utc.replace(tzinfo=timezone.utc)
+            
+            current_time = datetime.now(timezone.utc)
+            is_expired = expires_at_utc < current_time
+            
             result.append({
                 "id": load.id,
                 "ref": load.ref,
@@ -861,7 +869,7 @@ def get_my_loads():
                 "notes": load.notes,
                 "expires_at": load.expires_at.isoformat(),
                 "created_at": load.created_at.isoformat(),
-                "is_expired": load.expires_at < datetime.now(timezone.utc)
+                "is_expired": is_expired  # FIXED: Proper timezone-aware comparison
             })
         
         return jsonify({
@@ -1020,6 +1028,14 @@ def get_all_loads_admin():
         
         result = []
         for load, shipper in loads:
+            # FIX: Ensure proper timezone-aware datetime comparison
+            expires_at_utc = load.expires_at
+            if expires_at_utc.tzinfo is None:
+                expires_at_utc = expires_at_utc.replace(tzinfo=timezone.utc)
+            
+            current_time = datetime.now(timezone.utc)
+            is_expired = expires_at_utc < current_time
+            
             result.append({
                 "id": load.id,
                 "ref": load.ref,
@@ -1035,7 +1051,7 @@ def get_all_loads_admin():
                 "shipper_company": shipper.company,
                 "expires_at": load.expires_at.isoformat(),
                 "created_at": load.created_at.isoformat(),
-                "is_expired": load.expires_at < datetime.now(timezone.utc)
+                "is_expired": is_expired  # FIXED: Proper timezone-aware comparison
             })
         
         return jsonify({
