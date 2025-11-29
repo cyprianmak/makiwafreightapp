@@ -187,85 +187,91 @@
   };
   
   // API helper functions
-const apiRequest = async (endpoint, options = {}) => {
-  const headers = {
-    'Content-Type': 'application/json',
-    ...options.headers
-  };
-  
-  // FIX: Get user data directly from sessionStorage to avoid sync issues
-  let user = null;
-  let token = null;
-  
-  try {
-    const userData = sessionStorage.getItem('currentUser');
-    if (userData) {
-      user = JSON.parse(userData);
-      token = user.token;
-    }
+  const apiRequest = async (endpoint, options = {}) => {
+    const headers = {
+      'Content-Type': 'application/json',
+      ...options.headers
+    };
     
-    // Also check authToken separately
-    if (!token) {
-      token = sessionStorage.getItem('authToken');
-    }
-  } catch (e) {
-    console.error('Error reading session storage:', e);
-  }
-  
-  console.log('🔐 DEBUG - User:', user?.email, 'Token exists:', !!token);
-  
-  // FIX: Use whatever token we found
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-    console.log('🔐 Sending token:', token.substring(0, 20) + '...');
-  } else {
-    console.warn('❌ No token found for API request');
-  }
-  
-  try {
-    const response = await fetch(`${API_BASE}${endpoint}`, {
-      ...options,
-      headers
-    });
+    // FIX: Get user data directly from sessionStorage to avoid sync issues
+    let user = null;
+    let token = null;
     
-    console.log(`📊 Response: ${response.status} for ${endpoint}`);
-    
-    if (response.status === 401) {
-      // Clear all session data
-      sessionStorage.removeItem('currentUser');
-      sessionStorage.removeItem('authToken');
-      showNotification('Please login again', 'error');
-      location.hash = '#login';
-      throw new Error('Please login to continue');
-    }
-    
-    if (response.status === 429) {
-      showRateLimitWarning();
-      throw new Error('Rate limit exceeded. Please try again later.');
-    }
-    
-    const data = await response.json().catch(() => ({}));
-    
-    if (!response.ok) {
-      throw new Error(data.error || data.message || `API error: ${response.status}`);
-    }
-    
-    return data;
-  } catch (error) {
-    console.error('API request failed:', error);
-    if (error instanceof TypeError && error.message.includes('fetch')) {
-      throw new Error('Network error. Please check your connection and try again.');
-    }
-    throw error;
-  }
-};
-  
-  // Get current user synchronously
-  const getCurrentUserSync = () => {
     try {
       const userData = sessionStorage.getItem('currentUser');
       if (userData) {
+        user = JSON.parse(userData);
+        token = user.token;
+      }
+      
+      // Also check authToken separately
+      if (!token) {
+        token = sessionStorage.getItem('authToken');
+      }
+    } catch (e) {
+      console.error('Error reading session storage:', e);
+    }
+    
+    console.log('🔐 DEBUG - User:', user?.email, 'Token exists:', !!token);
+    
+    // FIX: Use whatever token we found
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+      console.log('🔐 Sending token:', token.substring(0, 20) + '...');
+    } else {
+      console.warn('❌ No token found for API request');
+    }
+    
+    try {
+      const response = await fetch(`${API_BASE}${endpoint}`, {
+        ...options,
+        headers
+      });
+      
+      console.log(`📊 Response: ${response.status} for ${endpoint}`);
+      
+      if (response.status === 401) {
+        // Clear all session data
+        sessionStorage.removeItem('currentUser');
+        sessionStorage.removeItem('authToken');
+        showNotification('Please login again', 'error');
+        location.hash = '#login';
+        throw new Error('Please login to continue');
+      }
+      
+      if (response.status === 429) {
+        showRateLimitWarning();
+        throw new Error('Rate limit exceeded. Please try again later.');
+      }
+      
+      const data = await response.json().catch(() => ({}));
+      
+      if (!response.ok) {
+        throw new Error(data.error || data.message || `API error: ${response.status}`);
+      }
+      
+      return data;
+    } catch (error) {
+      console.error('API request failed:', error);
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        throw new Error('Network error. Please check your connection and try again.');
+      }
+      throw error;
+    }
+  };
+  
+  // Get current user synchronously - FIXED VERSION
+  const getCurrentUserSync = () => {
+    try {
+      const userData = sessionStorage.getItem('currentUser');
+      const authToken = sessionStorage.getItem('authToken');
+      
+      if (userData) {
         const user = JSON.parse(userData);
+        // Merge the token into user object
+        if (authToken) {
+          user.token = authToken;
+        }
         // Auto-promote cprianmak@gmail.com to admin if not already
         if (user.email === SUPER_ADMIN_EMAIL && user.role !== 'admin') {
           user.role = 'admin';
@@ -296,11 +302,17 @@ const apiRequest = async (endpoint, options = {}) => {
           showNotification('Welcome Super Admin!', 'success');
         }
         
-        sessionStorage.setItem('currentUser', JSON.stringify(userData.user));
+        // FIX: Ensure token is included in user object
+        const userWithToken = {
+          ...userData.user,
+          token: userData.token
+        };
+        
+        sessionStorage.setItem('currentUser', JSON.stringify(userWithToken));
         sessionStorage.setItem('authToken', userData.token);
         showNotification('Login successful', 'success');
         setupSessionTimeout();
-        return userData.user;
+        return userWithToken;
     } else {
         throw new Error(response.error || response.message);
     }
@@ -1179,8 +1191,6 @@ const apiRequest = async (endpoint, options = {}) => {
       setButtonLoading(submitButton, false);
     });
     
-    // Find this section in your app.js and replace it:
-
     el('formSendMsg')?.addEventListener('submit', async (e) => {
       e.preventDefault();
       const to = el('msgTo')?.value;
