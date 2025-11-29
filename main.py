@@ -231,13 +231,26 @@ def admin_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         user = check_auth(request)
-        if not user or not is_admin_user(user):
-            logger.warning(f"Admin access denied for user: {user.email if user else 'None'}")
+        
+        # DEBUG LOGGING - Remove this in production after fixing
+        logger.info(f"🔐 Admin access check - User: {user.email if user else 'None'}, Role: {user.role if user else 'None'}")
+        
+        if not user:
+            return jsonify({
+                "success": False,
+                "message": "Authentication required",
+                "error": "Please login to continue"
+            }), 401
+            
+        if not is_admin_user(user):
+            logger.warning(f"❌ Admin access denied for user: {user.email}")
             return jsonify({
                 "success": False,
                 "message": "Access denied",
                 "error": "Admin access required"
             }), 403
+        
+        logger.info(f"✅ Admin access granted for: {user.email}")
         return f(*args, **kwargs)
     return decorated_function
 
