@@ -907,16 +907,75 @@
             if (users.length === 0) {
                 usersTbody.innerHTML = '<tr><td colspan="7" class="muted">No users found.</td></tr>';
             } else {
-                users.forEach(user => {
+                // Fetch access permissions for each user to determine their actual status
+                const usersWithAccess = await Promise.all(
+                    users.map(async (user) => {
+                        if (isAdmin(user)) {
+                            return { ...user, accessStatus: 'full', permissions: { market: true, 'post-load': true, messages: true } };
+                        }
+                        
+                        try {
+                            const accessResponse = await apiRequest(`/admin/users/${user.id}/access`);
+                            const permissions = accessResponse.success ? accessResponse.data.pages : {
+                                market: { enabled: false },
+                                'post-load': { enabled: false },
+                                messages: { enabled: false }
+                            };
+                            
+                            // Determine access status based on actual permissions
+                            const hasMarketAccess = permissions.market?.enabled;
+                            const hasPostLoadAccess = permissions['post-load']?.enabled;
+                            const hasMessagesAccess = permissions.messages?.enabled;
+                            
+                            let accessStatus = 'restricted';
+                            let accessClass = 'status-expired';
+                            
+                            if (hasMarketAccess && hasPostLoadAccess && hasMessagesAccess) {
+                                accessStatus = 'full';
+                                accessClass = 'status-available';
+                            } else if (hasMarketAccess || hasPostLoadAccess || hasMessagesAccess) {
+                                accessStatus = 'partial';
+                                accessClass = 'status-partial';
+                            }
+                            
+                            return { 
+                                ...user, 
+                                accessStatus, 
+                                accessClass,
+                                permissions 
+                            };
+                        } catch (error) {
+                            console.error(`Error fetching access for user ${user.email}:`, error);
+                            return { 
+                                ...user, 
+                                accessStatus: 'restricted', 
+                                accessClass: 'status-expired',
+                                permissions: { market: false, 'post-load': false, messages: false }
+                            };
+                        }
+                    })
+                );
+                
+                usersWithAccess.forEach(user => {
                     const row = document.createElement('tr');
                     const isCurrentSuperAdmin = user.email === SUPER_ADMIN_EMAIL;
                     
-                    // Determine access status
-                    let accessStatus = 'Full Access';
-                    let accessClass = 'status-available';
-                    if (!isCurrentSuperAdmin && user.role !== 'admin') {
-                        accessStatus = 'Restricted';
-                        accessClass = 'status-expired';
+                    // Create access status badge with detailed tooltip
+                    let accessBadge = '';
+                    let accessDetails = '';
+                    
+                    if (user.accessStatus === 'full') {
+                        accessBadge = '<span class="status-badge status-available">Full Access</span>';
+                        accessDetails = 'Market: ✅ | Post Load: ✅ | Messages: ✅';
+                    } else if (user.accessStatus === 'partial') {
+                        accessBadge = '<span class="status-badge status-partial">Partial Access</span>';
+                        const market = user.permissions.market?.enabled ? '✅' : '❌';
+                        const postLoad = user.permissions['post-load']?.enabled ? '✅' : '❌';
+                        const messages = user.permissions.messages?.enabled ? '✅' : '❌';
+                        accessDetails = `Market: ${market} | Post Load: ${postLoad} | Messages: ${messages}`;
+                    } else {
+                        accessBadge = '<span class="status-badge status-expired">Restricted</span>';
+                        accessDetails = 'Market: ❌ | Post Load: ❌ | Messages: ❌';
                     }
                     
                     row.innerHTML = `
@@ -925,9 +984,17 @@
                         <td>${sanitize(user.membership_number)}</td>
                         <td><span class="chip ${isCurrentSuperAdmin ? 'chip-warning' : ''}">${isCurrentSuperAdmin ? 'SUPER ADMIN' : sanitize(user.role)}</span></td>
                         <td>${new Date(user.created_at).toLocaleDateString()}</td>
-                        <td><span class="status-badge ${accessClass}">${accessStatus}</span></td>
                         <td>
-                            ${!isCurrentSuperAdmin ? `<button class="btn small danger" onclick="deleteUser('${user.email}')">Delete</button>` : '<span class="muted">Protected</span>'}
+                            ${accessBadge}
+                            <div class="muted" style="font-size: 10px; margin-top: 2px;">${accessDetails}</div>
+                        </td>
+                        <td>
+                            ${!isCurrentSuperAdmin ? `
+                                <div class="flex-gap-8">
+                                    <button class="btn small" onclick="editUserAccess('${user.id}')">Edit Access</button>
+                                    <button class="btn small danger" onclick="deleteUser('${user.email}')">Delete</button>
+                                </div>
+                            ` : '<span class="muted">Protected</span>'}
                         </td>
                     `;
                     usersTbody.appendChild(row);
@@ -1012,6 +1079,23 @@
     }
   };
 
+  // Add this function to quickly edit a user's access
+  window.editUserAccess = async (userId) => {
+    // Find the user in the dropdown and select them
+    const select = el('selectUserForAccess');
+    if (select) {
+      for (let i = 0; i < select.options.length; i++) {
+        if (select.options[i].value === userId) {
+          select.selectedIndex = i;
+          await loadUserAccess(userId);
+          showNotification(`Loaded access for selected user`, 'info');
+          return;
+        }
+      }
+    }
+    showNotification('User not found in dropdown', 'error');
+  };
+
   // Admin access control functions
   window.loadUserAccess = async () => {
     const userId = el('selectUserForAccess').value;
@@ -1040,6 +1124,8 @@
     
     if (success) {
       showNotification(`Access permissions updated successfully! The user will see the changes immediately.`, 'success');
+      // Refresh the control panel to show updated status
+      await renderControl();
     }
   };
 
@@ -1216,6 +1302,60 @@
         msgTo.focus();
       }
     }, 100);
+  };
+
+  // Profile rendering functions
+  const renderShipperProfile = async () => {
+    const user = getCurrentUserSync();
+    if (!user || (user.role !== 'shipper' && !isAdmin(user))) return;
+    
+    setText('shipperProfileName', user.name);
+    setText('shipperProfileEmail', user.email);
+    setText('shipperProfileMembership', user.membership_number);
+    setText('shipperProfileCompany', user.company || 'Not provided');
+    setText('shipperProfilePhone', user.phone || 'Not provided');
+    setText('shipperProfileAddress', user.address || 'Not provided');
+    setText('shipperProfileRole', isSuperAdmin(user) ? 'Super Admin' : user.role);
+    setText('shipperProfileCreated', new Date(user.created_at).toLocaleDateString());
+    setText('shipperProfileSince', new Date(user.created_at).toLocaleDateString());
+    
+    // Set avatar initial
+    const avatar = el('shipperProfileAvatar');
+    if (avatar) {
+      avatar.textContent = user.name.charAt(0).toUpperCase();
+    }
+    
+    // Pre-fill form fields
+    el('profileShipperName').value = user.name;
+    el('profileShipperPhone').value = user.phone || '';
+    el('profileShipperAddress').value = user.address || '';
+  };
+
+  const renderTransporterProfile = async () => {
+    const user = getCurrentUserSync();
+    if (!user || (user.role !== 'transporter' && !isAdmin(user))) return;
+    
+    setText('transporterProfileName', user.name);
+    setText('transporterProfileEmail', user.email);
+    setText('transporterProfileMembership', user.membership_number);
+    setText('transporterProfileCompany', user.company || 'Not provided');
+    setText('transporterProfileVehicle', user.vehicle_info || 'Not provided');
+    setText('transporterProfilePhone', user.phone || 'Not provided');
+    setText('transporterProfileAddress', user.address || 'Not provided');
+    setText('transporterProfileRole', isSuperAdmin(user) ? 'Super Admin' : user.role);
+    setText('transporterProfileCreated', new Date(user.created_at).toLocaleDateString());
+    setText('transporterProfileSince', new Date(user.created_at).toLocaleDateString());
+    
+    // Set avatar initial
+    const avatar = el('transporterProfileAvatar');
+    if (avatar) {
+      avatar.textContent = user.name.charAt(0).toUpperCase();
+    }
+    
+    // Pre-fill form fields
+    el('profileTransporterName').value = user.name;
+    el('profileTransporterPhone').value = user.phone || '';
+    el('profileTransporterAddress').value = user.address || '';
   };
     
   const renderHeader = async () => {
