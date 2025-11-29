@@ -531,6 +531,32 @@
       max-height: 90vh;
       overflow-y: auto;
     }
+    
+    /* Access restricted styles */
+    .access-restricted {
+      text-align: center;
+      padding: 40px 20px;
+      border: 2px dashed var(--border);
+      border-radius: 12px;
+      background: var(--panel-2);
+      margin: 20px 0;
+    }
+    
+    .access-restricted-icon {
+      font-size: 48px;
+      margin-bottom: 20px;
+      color: var(--warn);
+    }
+    
+    .access-restricted h3 {
+      color: var(--warn);
+      margin-bottom: 10px;
+    }
+    
+    .access-restricted p {
+      color: var(--muted);
+      margin-bottom: 20px;
+    }
   </style>
 </head>
 <body>
@@ -676,7 +702,16 @@
       <div id="dashBannerShipper" class="banner hidden" role="alert"></div>
       <div id="accessWarningShipper" class="banner hidden" role="alert"></div>
       <div id="rateLimitWarningShipper" class="rate-limit-warning hidden" role="alert"></div>
-      <div class="card">
+      
+      <!-- Access Restricted Message -->
+      <div id="shipperAccessRestricted" class="access-restricted hidden">
+        <div class="access-restricted-icon">🔒</div>
+        <h3>Access Restricted</h3>
+        <p>Your account currently has restricted access. You can view your dashboard but cannot access other features like posting loads, browsing the market, or sending messages.</p>
+        <p>Please contact the administrator to request full access to the platform features.</p>
+      </div>
+      
+      <div id="shipperDashboardContent" class="card">
         <div class="toolbar">
           <h3>Your Posted Loads</h3>
         </div>
@@ -690,6 +725,14 @@
     <!-- Shipper Post Load -->
     <section id="page-shipper-post" class="card hidden" aria-label="Post a load form">
       <h2>Post a Load</h2>
+      <div id="postLoadAccessRestricted" class="access-restricted hidden">
+        <div class="access-restricted-icon">🔒</div>
+        <h3>Access Restricted</h3>
+        <p>You do not have permission to post loads. Please contact the administrator to request access to this feature.</p>
+        <div class="toolbar toolbar-margin-top justify-center">
+          <a class="btn" href="#shipper-dashboard">Back to Dashboard</a>
+        </div>
+      </div>
       <form id="formPostLoad" novalidate>
         <div class="grid two">
           <div><label for="loadOrigin">Origin</label><input required id="loadOrigin" name="origin" /></div>
@@ -797,7 +840,16 @@
       <div id="dashBannerTransporter" class="banner hidden" role="alert"></div>
       <div id="accessWarningTransporter" class="banner hidden" role="alert"></div>
       <div id="rateLimitWarningTransporter" class="rate-limit-warning hidden" role="alert"></div>
-      <div class="card">
+      
+      <!-- Access Restricted Message -->
+      <div id="transporterAccessRestricted" class="access-restricted hidden">
+        <div class="access-restricted-icon">🔒</div>
+        <h3>Access Restricted</h3>
+        <p>Your account currently has restricted access. You can view your dashboard but cannot access other features like posting loads, browsing the market, or sending messages.</p>
+        <p>Please contact the administrator to request full access to the platform features.</p>
+      </div>
+      
+      <div id="transporterDashboardContent" class="card">
         <div class="toolbar">
           <h3>Your Posted Loads</h3>
         </div>
@@ -898,7 +950,19 @@
       </div>
       <div id="marketBanner" class="banner hidden" role="alert"></div>
       <div id="rateLimitWarningMarket" class="rate-limit-warning hidden" role="alert"></div>
-      <div class="card">
+      
+      <!-- Access Restricted Message -->
+      <div id="marketAccessRestricted" class="access-restricted hidden">
+        <div class="access-restricted-icon">🔒</div>
+        <h3>Access Restricted</h3>
+        <p>You do not have permission to access the market. Please contact the administrator to request access to this feature.</p>
+        <div class="toolbar toolbar-margin-top justify-center">
+          <a class="btn" href="#shipper-dashboard">Back to Dashboard</a>
+          <a class="btn" href="#transporter-dashboard">Back to Dashboard</a>
+        </div>
+      </div>
+      
+      <div id="marketContent" class="card">
         <div class="toolbar">
           <h3>Available Loads</h3>
           <div class="flex-gap-8">
@@ -919,7 +983,19 @@
     <!-- Messages (Common) -->
     <section id="page-messages" class="card hidden" aria-label="Messages">
       <h2>Messages</h2>
-      <div class="grid two">
+      
+      <!-- Access Restricted Message -->
+      <div id="messagesAccessRestricted" class="access-restricted hidden">
+        <div class="access-restricted-icon">🔒</div>
+        <h3>Access Restricted</h3>
+        <p>You do not have permission to send or receive messages. Please contact the administrator to request access to this feature.</p>
+        <div class="toolbar toolbar-margin-top justify-center">
+          <a class="btn" href="#shipper-dashboard">Back to Dashboard</a>
+          <a class="btn" href="#transporter-dashboard">Back to Dashboard</a>
+        </div>
+      </div>
+      
+      <div id="messagesContent" class="grid two">
         <form id="formSendMsg" class="card" novalidate>
           <h3>Send a Message</h3>
           <div class="grid two">
@@ -964,6 +1040,7 @@
             <th scope="col">Membership #</th>
             <th scope="col">Role</th>
             <th scope="col">Join Date</th>
+            <th scope="col">Access Status</th>
             <th scope="col">Actions</th>
           </tr>
         </thead>
@@ -1033,6 +1110,16 @@
               <div class="page-access-title">Post Load Page</div>
               <div class="toggle-switch">
                 <input type="checkbox" id="access-post-load">
+                <span class="toggle-slider"></span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="page-access-item">
+            <div class="page-access-header">
+              <div class="page-access-title">Messages Page</div>
+              <div class="toggle-switch">
+                <input type="checkbox" id="access-messages">
                 <span class="toggle-slider"></span>
               </div>
             </div>
