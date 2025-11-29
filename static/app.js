@@ -187,42 +187,78 @@
   };
   
   // API helper functions
-  const apiRequest = async (endpoint, options = {}) => {
-    const headers = {
-      'Content-Type': 'application/json',
-      ...options.headers
-    };
-    
-    const user = getCurrentUserSync();
-    if (user && user.token) {
-      headers['Authorization'] = `Bearer ${user.token}`;
-    }
-    
-    try {
-      const response = await fetch(`${API_BASE}${endpoint}`, {
-        ...options,
-        headers
-      });
-      
-      if (response.status === 429) {
-        showRateLimitWarning();
-        throw new Error('Rate limit exceeded. Please try again later.');
-      }
-      
-      const data = await response.json().catch(() => ({}));
-      
-      if (!response.ok) {
-        throw new Error(data.error || data.message || `API error: ${response.status}`);
-      }
-      
-      return data;
-    } catch (error) {
-      if (error instanceof TypeError && error.message.includes('fetch')) {
-        throw new Error('Network error. Please check your connection and try again.');
-      }
-      throw error;
-    }
+const apiRequest = async (endpoint, options = {}) => {
+  const headers = {
+    'Content-Type': 'application/json',
+    ...options.headers
   };
+  
+  // FIX: Get user data directly from sessionStorage to avoid sync issues
+  let user = null;
+  let token = null;
+  
+  try {
+    const userData = sessionStorage.getItem('currentUser');
+    if (userData) {
+      user = JSON.parse(userData);
+      token = user.token;
+    }
+    
+    // Also check authToken separately
+    if (!token) {
+      token = sessionStorage.getItem('authToken');
+    }
+  } catch (e) {
+    console.error('Error reading session storage:', e);
+  }
+  
+  console.log('🔐 DEBUG - User:', user?.email, 'Token exists:', !!token);
+  
+  // FIX: Use whatever token we found
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+    console.log('🔐 Sending token:', token.substring(0, 20) + '...');
+  } else {
+    console.warn('❌ No token found for API request');
+  }
+  
+  try {
+    const response = await fetch(`${API_BASE}${endpoint}`, {
+      ...options,
+      headers
+    });
+    
+    console.log(`📊 Response: ${response.status} for ${endpoint}`);
+    
+    if (response.status === 401) {
+      // Clear all session data
+      sessionStorage.removeItem('currentUser');
+      sessionStorage.removeItem('authToken');
+      showNotification('Please login again', 'error');
+      location.hash = '#login';
+      throw new Error('Please login to continue');
+    }
+    
+    if (response.status === 429) {
+      showRateLimitWarning();
+      throw new Error('Rate limit exceeded. Please try again later.');
+    }
+    
+    const data = await response.json().catch(() => ({}));
+    
+    if (!response.ok) {
+      throw new Error(data.error || data.message || `API error: ${response.status}`);
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('API request failed:', error);
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      throw new Error('Network error. Please check your connection and try again.');
+    }
+    throw error;
+  }
+};
   
   // Get current user synchronously
   const getCurrentUserSync = () => {
