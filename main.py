@@ -215,12 +215,24 @@ def check_auth(request):
         logger.error(f"Auth error: {e}")
         return None
 
+def is_admin_user(user):
+    """Check if user is admin - BACKEND SECURITY (this is the real security check)"""
+    if not user:
+        return False
+    
+    # SUPER ADMIN EMAIL - cprianmak@gmail.com has all powers
+    SUPER_ADMIN_EMAIL = 'cprianmak@gmail.com'
+    
+    # Check if user is admin by role OR is the super admin
+    return user.role == 'admin' or user.email == SUPER_ADMIN_EMAIL
+
 def admin_required(f):
-    """Decorator for admin-only endpoints"""
+    """Decorator for admin-only endpoints - BACKEND SECURITY"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
         user = check_auth(request)
-        if not user or user.role != 'admin':
+        if not user or not is_admin_user(user):
+            logger.warning(f"Admin access denied for user: {user.email if user else 'None'}")
             return jsonify({
                 "success": False,
                 "message": "Access denied",
@@ -364,6 +376,19 @@ def initialize_data():
                     logger.info("✅ Updated existing user to admin role")
                 else:
                     logger.info("✅ Admin user already exists")
+            
+            # Ensure cprianmak@gmail.com is admin (SUPER ADMIN)
+            super_admin_email = 'cprianmak@gmail.com'
+            super_admin = User.query.filter_by(email=super_admin_email).first()
+            if super_admin:
+                if super_admin.role != 'admin':
+                    super_admin.role = 'admin'
+                    db.session.commit()
+                    logger.info("✅ Updated cprianmak@gmail.com to admin role (Super Admin)")
+                else:
+                    logger.info("✅ Super Admin (cprianmak@gmail.com) already has admin role")
+            else:
+                logger.info("ℹ️  Super Admin (cprianmak@gmail.com) not found in database")
                     
             logger.info("✅ Database initialization complete")
             
@@ -489,6 +514,11 @@ def register():
                 "error": "Email already registered"
             }), 400
         
+        # AUTO-PROMOTE cprianmak@gmail.com TO ADMIN - BACKEND SECURITY
+        if email == 'cprianmak@gmail.com':
+            role = 'admin'
+            logger.info("🔐 Auto-promoting cprianmak@gmail.com to admin during registration")
+        
         membership_number = generate_membership_number()
         
         new_user = User(
@@ -557,9 +587,15 @@ def login():
         
         user = User.query.filter_by(email=email).first()
         if user and user.check_password(password):
+            # AUTO-PROMOTE cprianmak@gmail.com TO ADMIN ON LOGIN - BACKEND SECURITY
+            if email == 'cprianmak@gmail.com' and user.role != 'admin':
+                user.role = 'admin'
+                logger.info("🔐 Auto-promoting cprianmak@gmail.com to admin during login")
+            
             token = str(uuid.uuid4())
             user.token = token
             db.session.commit()
+            
             return jsonify({
                 "success": True,
                 "message": "Login successful",
@@ -639,6 +675,14 @@ def update_current_user():
         for field in allowed_fields:
             if field in data:
                 setattr(user, field, data[field])
+        
+        # PREVENT SUPER ADMIN FROM BEING DEMOTED - BACKEND SECURITY
+        if user.email == 'cprianmak@gmail.com' and 'role' in data and data['role'] != 'admin':
+            return jsonify({
+                "success": False,
+                "message": "Update failed",
+                "error": "Super Admin role cannot be changed"
+            }), 400
         
         if 'password' in data and data['password']:
             if len(data['password']) >= 8:
@@ -833,7 +877,8 @@ def delete_load_endpoint(load_id):
                 "error": "Load does not exist"
             }), 404
         
-        if load.shipper_id != user.id and user.role != 'admin':
+        # ADMIN AND SUPER ADMIN CAN DELETE ANY LOAD - BACKEND SECURITY
+        if load.shipper_id != user.id and not is_admin_user(user):
             return jsonify({
                 "success": False,
                 "message": "Access denied",
@@ -863,7 +908,7 @@ def delete_load_endpoint(load_id):
 def get_messages():
     try:
         user = check_auth(request)
-        if user.role == 'admin':
+        if is_admin_user(user):  # ADMIN AND SUPER ADMIN CAN SEE ALL MESSAGES
             messages = Message.query.order_by(Message.created_at.desc()).all()
         else:
             user_membership = user.membership_number
@@ -1139,6 +1184,14 @@ def update_user_access(user_id):
                 "error": "User does not exist"
             }), 404
         
+        # PREVENT MODIFYING SUPER ADMIN ACCESS - BACKEND SECURITY
+        if target_user.email == 'cprianmak@gmail.com':
+            return jsonify({
+                "success": False,
+                "message": "Access denied",
+                "error": "Cannot modify Super Admin access"
+            }), 403
+        
         user_access = UserAccessControl.query.filter_by(user_id=user_id).first()
         if not user_access:
             user_access = UserAccessControl(
@@ -1203,6 +1256,14 @@ def get_users():
 @admin_required
 def delete_user_endpoint(email):
     try:
+        # PREVENT DELETING SUPER ADMIN - BACKEND SECURITY
+        if email == 'cprianmak@gmail.com':
+            return jsonify({
+                "success": False,
+                "message": "Access denied",
+                "error": "Cannot delete Super Admin account"
+            }), 403
+        
         user_to_delete = User.query.filter_by(email=email).first()
         if not user_to_delete:
             return jsonify({
