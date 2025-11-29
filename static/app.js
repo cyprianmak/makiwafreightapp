@@ -25,10 +25,9 @@
   let sessionWarningTimeout;
   let lastActivityTime = Date.now();
   
-  // User access cache
-  let userAccessCache = null;
-  let userAccessLastFetched = null;
-  const USER_ACCESS_CACHE_TTL = 60000; // 1 minute
+  // User access cache - store per user to handle multiple users
+  let userAccessCache = new Map();
+  const USER_ACCESS_CACHE_TTL = 30000; // 30 seconds
   
   // Utility functions
   const now = () => new Date().toISOString();
@@ -291,49 +290,86 @@
     }
   };
 
-  // Get user access permissions
+  // Get user access permissions with proper caching
   const getUserAccessPermissions = async (forceRefresh = false) => {
     const user = getCurrentUserSync();
     if (!user) return null;
     
-    // Check cache first
+    // Admins and super admins have full access - no need to check
+    if (isAdmin(user)) {
+      return {
+        market: { enabled: true },
+        'post-load': { enabled: true },
+        messages: { enabled: true }
+      };
+    }
+    
+    const userId = user.id;
+    const cacheKey = userId;
     const now = Date.now();
-    if (!forceRefresh && userAccessCache && userAccessLastFetched && 
-        (now - userAccessLastFetched) < USER_ACCESS_CACHE_TTL) {
-      return userAccessCache;
+    
+    // Check cache first
+    if (!forceRefresh && userAccessCache.has(cacheKey)) {
+      const cached = userAccessCache.get(cacheKey);
+      if (now - cached.timestamp < USER_ACCESS_CACHE_TTL) {
+        console.log('📦 Using cached access permissions for user:', user.email);
+        return cached.permissions;
+      } else {
+        // Cache expired
+        userAccessCache.delete(cacheKey);
+      }
     }
     
     try {
-      // Admins and super admins have full access
-      if (isAdmin(user)) {
-        userAccessCache = {
-          market: { enabled: true },
-          'post-load': { enabled: true },
-          messages: { enabled: true }
-        };
-        userAccessLastFetched = now;
-        return userAccessCache;
-      }
-      
       // For regular users, fetch their access permissions
-      const response = await apiRequest(`/admin/users/${user.id}/access`);
+      console.log('🔄 Fetching fresh access permissions for user:', user.email);
+      const response = await apiRequest(`/admin/users/${userId}/access`);
+      
       if (response.success) {
-        userAccessCache = response.data.pages || {
+        const permissions = response.data.pages || {
           market: { enabled: false },
           'post-load': { enabled: false },
           messages: { enabled: false }
         };
-        userAccessLastFetched = now;
-        return userAccessCache;
+        
+        // Cache the permissions
+        userAccessCache.set(cacheKey, {
+          permissions: permissions,
+          timestamp: now
+        });
+        
+        console.log('✅ Loaded access permissions:', permissions);
+        return permissions;
+      } else {
+        throw new Error('Failed to fetch access permissions');
       }
     } catch (error) {
-      console.error('Error fetching user access permissions:', error);
+      console.error('❌ Error fetching user access permissions:', error);
       // Return default restricted access on error
-      return {
+      const defaultPermissions = {
         market: { enabled: false },
         'post-load': { enabled: false },
         messages: { enabled: false }
       };
+      
+      // Cache the default permissions to avoid repeated failed requests
+      userAccessCache.set(cacheKey, {
+        permissions: defaultPermissions,
+        timestamp: now
+      });
+      
+      return defaultPermissions;
+    }
+  };
+
+  // Invalidate access cache for specific user or all users
+  const invalidateAccessCache = (userId = null) => {
+    if (userId) {
+      console.log('🗑️ Invalidating access cache for user:', userId);
+      userAccessCache.delete(userId);
+    } else {
+      console.log('🗑️ Invalidating all access cache');
+      userAccessCache.clear();
     }
   };
 
@@ -348,7 +384,9 @@
     const permissions = await getUserAccessPermissions();
     if (!permissions) return false;
     
-    return permissions[feature]?.enabled === true;
+    const hasAccess = permissions[feature]?.enabled === true;
+    console.log(`🔐 Access check for ${feature}:`, hasAccess, 'User:', user.email);
+    return hasAccess;
   };
 
   // Check page access with both role-based and permission-based checks
@@ -361,6 +399,7 @@
     // Check role-based access first
     const page = PAGES[pageId];
     if (!page || !page.roles.includes(user.role)) {
+      console.log(`❌ Role-based access denied for ${pageId} - user role: ${user.role}`);
       return false;
     }
     
@@ -412,8 +451,7 @@
         sessionStorage.setItem('authToken', userData.token);
         
         // Clear access cache on login
-        userAccessCache = null;
-        userAccessLastFetched = null;
+        invalidateAccessCache();
         
         showNotification('Login successful', 'success');
         setupSessionTimeout();
@@ -431,8 +469,7 @@
     sessionStorage.removeItem('authToken');
     
     // Clear access cache
-    userAccessCache = null;
-    userAccessLastFetched = null;
+    invalidateAccessCache();
     
     showNotification('Logged out successfully', 'info');
     location.hash = '#login';
@@ -464,8 +501,7 @@
       sessionStorage.setItem('authToken', userData.token);
       
       // Clear access cache
-      userAccessCache = null;
-      userAccessLastFetched = null;
+      invalidateAccessCache();
       
       if (userData.email === SUPER_ADMIN_EMAIL) {
         showNotification(`Super Admin Registration successful! Welcome ${data.name}`, 'success');
@@ -718,7 +754,10 @@
     const user = getCurrentUserSync();
     if (!user || isAdmin(user)) return;
     
-    const permissions = await getUserAccessPermissions();
+    // Force refresh permissions to get latest changes
+    const permissions = await getUserAccessPermissions(true); // true = force refresh
+    
+    console.log('🔄 Updating UI with permissions:', permissions);
     
     // Update dashboard content visibility
     const hasAnyAccess = permissions.market.enabled || permissions['post-load'].enabled || permissions.messages.enabled;
@@ -726,9 +765,31 @@
     if (user.role === 'shipper') {
       setHidden('shipperDashboardContent', !hasAnyAccess);
       setHidden('shipperAccessRestricted', hasAnyAccess);
+      
+      // Update access warning banner
+      const accessWarning = el('accessWarningShipper');
+      if (accessWarning) {
+        if (hasAnyAccess) {
+          accessWarning.classList.add('hidden');
+        } else {
+          accessWarning.classList.remove('hidden');
+          accessWarning.textContent = 'Your account has restricted access. Please contact administrator for full platform features.';
+        }
+      }
     } else if (user.role === 'transporter') {
       setHidden('transporterDashboardContent', !hasAnyAccess);
       setHidden('transporterAccessRestricted', hasAnyAccess);
+      
+      // Update access warning banner
+      const accessWarning = el('accessWarningTransporter');
+      if (accessWarning) {
+        if (hasAnyAccess) {
+          accessWarning.classList.add('hidden');
+        } else {
+          accessWarning.classList.remove('hidden');
+          accessWarning.textContent = 'Your account has restricted access. Please contact administrator for full platform features.';
+        }
+      }
     }
     
     // Update form visibility based on specific permissions
@@ -740,6 +801,18 @@
     
     setHidden('messagesContent', !permissions.messages.enabled);
     setHidden('messagesAccessRestricted', permissions.messages.enabled);
+    
+    // Update navigation based on permissions
+    await updateNavigation();
+  };
+
+  // Update navigation based on permissions
+  const updateNavigation = async () => {
+    const user = getCurrentUserSync();
+    if (!user) return;
+    
+    // Force re-render header to update navigation links
+    await renderHeader();
   };
 
   // Render functions
@@ -1101,8 +1174,14 @@
     
     // Show loading state
     setButtonLoading(el('btnSaveUserAccess'), true);
-    await saveUserAccess(userId);
+    const success = await saveUserAccess(userId);
     setButtonLoading(el('btnSaveUserAccess'), false);
+    
+    if (success) {
+      // Invalidate the cache for the specific user whose access was modified
+      invalidateAccessCache(userId);
+      showNotification(`Access permissions updated and cache invalidated for user`, 'success');
+    }
   };
 
   window.enableAllAccess = () => {
@@ -1203,16 +1282,15 @@
         const selectedOption = select.options[select.selectedIndex];
         showNotification(`Access permissions updated for: ${selectedOption.text}`, 'success');
         
-        // Invalidate cache for this user
-        userAccessCache = null;
-        userAccessLastFetched = null;
-        
         // Update user table to reflect changes
         await renderControl();
+        return true;
       }
+      return false;
     } catch (error) {
       console.error('Error saving user access:', error);
       showNotification('Failed to update user access permissions', 'error');
+      return false;
     }
   };
 
@@ -1316,35 +1394,37 @@
         );
         
         // Only show these links if user has access
-        (async () => {
-          if (await hasAccessTo('post-load')) {
-            links.push({ href: '#shipper-post', text: 'Post Load' });
+        const marketAccess = await hasAccessTo('market');
+        const postLoadAccess = await hasAccessTo('post-load');
+        const messagesAccess = await hasAccessTo('messages');
+        
+        if (postLoadAccess) {
+          links.push({ href: '#shipper-post', text: 'Post Load' });
+        }
+        if (marketAccess) {
+          links.push({ href: '#market', text: 'Market' });
+        }
+        if (messagesAccess) {
+          links.push({ href: '#messages', text: 'Messages' });
+        }
+        
+        links.push({ href: '#shipper-profile', text: 'Profile' });
+        
+        // Remove duplicates and add to navigation
+        const uniqueLinks = links.filter((link, index, self) => 
+          index === self.findIndex(l => l.href === link.href)
+        );
+        
+        // Add links to navigation
+        uniqueLinks.forEach(link => {
+          const a = document.createElement('a');
+          a.className = 'btn ghost';
+          a.href = link.href;
+          a.textContent = link.text;
+          if (navLinks) {
+            navLinks.appendChild(a);
           }
-          if (await hasAccessTo('market')) {
-            links.push({ href: '#market', text: 'Market' });
-          }
-          if (await hasAccessTo('messages')) {
-            links.push({ href: '#messages', text: 'Messages' });
-          }
-          
-          links.push({ href: '#shipper-profile', text: 'Profile' });
-          
-          // Remove duplicates and add to navigation
-          const uniqueLinks = links.filter((link, index, self) => 
-            index === self.findIndex(l => l.href === link.href)
-          );
-          
-          // Add links to navigation
-          uniqueLinks.forEach(link => {
-            const a = document.createElement('a');
-            a.className = 'btn ghost';
-            a.href = link.href;
-            a.textContent = link.text;
-            if (navLinks) {
-              navLinks.appendChild(a);
-            }
-          });
-        })();
+        });
       }
       
       if (user.role === 'transporter' || isAdmin(user)) {
@@ -1352,37 +1432,39 @@
           { href: '#transporter-dashboard', text: 'Transporter Dashboard' }
         );
         
-        (async () => {
-          if (await hasAccessTo('post-load')) {
-            links.push({ href: '#shipper-post', text: 'Post Load' });
+        const marketAccess = await hasAccessTo('market');
+        const postLoadAccess = await hasAccessTo('post-load');
+        const messagesAccess = await hasAccessTo('messages');
+        
+        if (postLoadAccess) {
+          links.push({ href: '#shipper-post', text: 'Post Load' });
+        }
+        if (marketAccess) {
+          links.push({ href: '#market', text: 'Market' });
+        }
+        if (messagesAccess) {
+          links.push({ href: '#messages', text: 'Messages' });
+        }
+        
+        if (!links.find(link => link.href === '#shipper-profile')) {
+          links.push({ href: '#transporter-profile', text: 'Profile' });
+        }
+        
+        // Remove duplicates and add to navigation
+        const uniqueLinks = links.filter((link, index, self) => 
+          index === self.findIndex(l => l.href === link.href)
+        );
+        
+        // Add links to navigation
+        uniqueLinks.forEach(link => {
+          const a = document.createElement('a');
+          a.className = 'btn ghost';
+          a.href = link.href;
+          a.textContent = link.text;
+          if (navLinks) {
+            navLinks.appendChild(a);
           }
-          if (await hasAccessTo('market')) {
-            links.push({ href: '#market', text: 'Market' });
-          }
-          if (await hasAccessTo('messages')) {
-            links.push({ href: '#messages', text: 'Messages' });
-          }
-          
-          if (!links.find(link => link.href === '#shipper-profile')) {
-            links.push({ href: '#transporter-profile', text: 'Profile' });
-          }
-          
-          // Remove duplicates and add to navigation
-          const uniqueLinks = links.filter((link, index, self) => 
-            index === self.findIndex(l => l.href === link.href)
-          );
-          
-          // Add links to navigation
-          uniqueLinks.forEach(link => {
-            const a = document.createElement('a');
-            a.className = 'btn ghost';
-            a.href = link.href;
-            a.textContent = link.text;
-            if (navLinks) {
-              navLinks.appendChild(a);
-            }
-          });
-        })();
+        });
       }
       
       if (isAdmin(user)) {
