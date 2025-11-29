@@ -10,13 +10,13 @@
   
   // Page definitions for access control
   const PAGES = {
-    'shipper-dashboard': { name: 'Shipper Dashboard', roles: ['shipper'] },
+    'shipper-dashboard': { name: 'Shipper Dashboard', roles: ['shipper', 'admin'] },
     'shipper-post': { name: 'Post Load', roles: ['admin', 'shipper', 'transporter'] },
-    'shipper-profile': { name: 'Shipper Profile', roles: ['shipper'] },
-    'transporter-dashboard': { name: 'Transporter Dashboard', roles: ['transporter'] },
-    'transporter-profile': { name: 'Transporter Profile', roles: ['transporter'] },
-    'market': { name: 'Market', roles: ['shipper', 'transporter'] },
-    'messages': { name: 'Messages', roles: ['shipper', 'transporter'] },
+    'shipper-profile': { name: 'Shipper Profile', roles: ['shipper', 'admin'] },
+    'transporter-dashboard': { name: 'Transporter Dashboard', roles: ['transporter', 'admin'] },
+    'transporter-profile': { name: 'Transporter Profile', roles: ['transporter', 'admin'] },
+    'market': { name: 'Market', roles: ['shipper', 'transporter', 'admin'] },
+    'messages': { name: 'Messages', roles: ['shipper', 'transporter', 'admin'] },
     'control': { name: 'Admin Control', roles: ['admin'] }
   };
   
@@ -43,6 +43,20 @@
   const isValidEmail = email => {
     const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return re.test(email);
+  };
+
+  // SUPER ADMIN EMAIL - cprianmak@gmail.com has all powers
+  const SUPER_ADMIN_EMAIL = 'cprianmak@gmail.com';
+
+  // Check if user is admin or super admin
+  const isAdmin = user => {
+    if (!user) return false;
+    return user.role === 'admin' || user.email === SUPER_ADMIN_EMAIL;
+  };
+
+  // Check if user is super admin
+  const isSuperAdmin = user => {
+    return user && user.email === SUPER_ADMIN_EMAIL;
   };
 
   // Error handling wrapper
@@ -215,7 +229,13 @@
     try {
       const userData = sessionStorage.getItem('currentUser');
       if (userData) {
-        return JSON.parse(userData);
+        const user = JSON.parse(userData);
+        // Auto-promote cprianmak@gmail.com to admin if not already
+        if (user.email === SUPER_ADMIN_EMAIL && user.role !== 'admin') {
+          user.role = 'admin';
+          sessionStorage.setItem('currentUser', JSON.stringify(user));
+        }
+        return user;
       }
       return null;
     } catch (error) {
@@ -223,9 +243,6 @@
       return null;
     }
   };
-
-  // Check if user is admin
-  const isAdmin = user => user && user.role === 'admin';
   
   // Authentication API functions
   const login = async (email, password) => {
@@ -235,7 +252,14 @@
     });
     
     if (response.success) {
-        const userData = response.data;
+        let userData = response.data;
+        
+        // Auto-promote cprianmak@gmail.com to admin
+        if (userData.user.email === SUPER_ADMIN_EMAIL) {
+          userData.user.role = 'admin';
+          showNotification('Welcome Super Admin!', 'success');
+        }
+        
         sessionStorage.setItem('currentUser', JSON.stringify(userData.user));
         sessionStorage.setItem('authToken', userData.token);
         showNotification('Login successful', 'success');
@@ -259,21 +283,38 @@
   
   // User API functions
   const registerUser = async (data) => {
+    // Auto-assign admin role for super admin email
+    if (data.email === SUPER_ADMIN_EMAIL) {
+      data.role = 'admin';
+    }
+    
     const response = await apiRequest('/auth/register', {
       method: 'POST',
       body: JSON.stringify(data)
     });
     
     if (response.success) {
-      const userData = response.data.user;
+      let userData = response.data.user;
       userData.token = response.data.token;
+      
+      // Ensure super admin has admin role
+      if (userData.email === SUPER_ADMIN_EMAIL) {
+        userData.role = 'admin';
+      }
+      
       sessionStorage.setItem('currentUser', JSON.stringify(userData));
       sessionStorage.setItem('authToken', userData.token);
-      showNotification(`Registration successful! Welcome ${data.name}`, 'success');
+      
+      if (userData.email === SUPER_ADMIN_EMAIL) {
+        showNotification(`Super Admin Registration successful! Welcome ${data.name}`, 'success');
+      } else {
+        showNotification(`Registration successful! Welcome ${data.name}`, 'success');
+      }
+      
       setupSessionTimeout();
       
       // Show membership number
-      if (data.role === 'shipper') {
+      if (data.role === 'shipper' || (data.email === SUPER_ADMIN_EMAIL && data.role === 'admin')) {
         const shipperMembershipEl = el('shipperMembershipNumber');
         if (shipperMembershipEl) {
           shipperMembershipEl.textContent = `Your Membership Number: ${userData.membership_number}`;
@@ -303,6 +344,12 @@
       const updatedUser = response.data.user;
       const currentUser = getCurrentUserSync();
       const mergedUser = { ...currentUser, ...updatedUser };
+      
+      // Ensure super admin retains admin role
+      if (mergedUser.email === SUPER_ADMIN_EMAIL) {
+        mergedUser.role = 'admin';
+      }
+      
       sessionStorage.setItem('currentUser', JSON.stringify(mergedUser));
       
       showNotification('Profile updated successfully', 'success');
@@ -388,10 +435,10 @@
     }
   };
 
-  // Check if user can access page
+  // Check if user can access page - Super Admin can access everything
   const canAccessPage = (user, pageId) => {
     if (!user) return false;
-    if (isAdmin(user)) return true;
+    if (isAdmin(user)) return true;  // Both admin and super admin can access all pages
     
     const page = PAGES[pageId];
     if (page && page.roles.includes(user.role)) {
@@ -423,7 +470,7 @@
   // Profile rendering functions
   const renderShipperProfile = async () => {
     const user = getCurrentUserSync();
-    if (!user || user.role !== 'shipper') return;
+    if (!user || (user.role !== 'shipper' && !isAdmin(user))) return;
     
     try {
       const response = await apiRequest('/users/me');
@@ -436,7 +483,7 @@
         setText('shipperProfileCompany', userData.company || 'Not specified');
         setText('shipperProfilePhone', userData.phone || 'Not specified');
         setText('shipperProfileAddress', userData.address || 'Not specified');
-        setText('shipperProfileRole', 'Shipper');
+        setText('shipperProfileRole', isSuperAdmin(userData) ? 'Super Admin' : (userData.role === 'admin' ? 'Admin' : 'Shipper'));
         setText('shipperProfileMembership', userData.membership_number || 'MF000000');
         setText('shipperProfileCreated', new Date(userData.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long' }));
         
@@ -456,7 +503,7 @@
 
   const renderTransporterProfile = async () => {
     const user = getCurrentUserSync();
-    if (!user || user.role !== 'transporter') return;
+    if (!user || (user.role !== 'transporter' && !isAdmin(user))) return;
     
     try {
       const response = await apiRequest('/users/me');
@@ -470,7 +517,7 @@
         setText('transporterProfileVehicle', userData.vehicle_info || 'Not specified');
         setText('transporterProfilePhone', userData.phone || 'Not specified');
         setText('transporterProfileAddress', userData.address || 'Not specified');
-        setText('transporterProfileRole', 'Transporter');
+        setText('transporterProfileRole', isSuperAdmin(userData) ? 'Super Admin' : (userData.role === 'admin' ? 'Admin' : 'Transporter'));
         setText('transporterProfileMembership', userData.membership_number || 'MF000000');
         setText('transporterProfileCreated', new Date(userData.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long' }));
         
@@ -491,7 +538,7 @@
   // Render functions
   const renderShipperDashboard = async () => {
     const user = getCurrentUserSync();
-    if (!user || user.role !== 'shipper') return;
+    if (!user || (user.role !== 'shipper' && !isAdmin(user))) return;
     
     try {
         const tbody = el('tableMyLoadsShipper')?.querySelector('tbody');
@@ -542,7 +589,7 @@
 
   const renderTransporterDashboard = async () => {
     const user = getCurrentUserSync();
-    if (!user || user.role !== 'transporter') return;
+    if (!user || (user.role !== 'transporter' && !isAdmin(user))) return;
     
     try {
       const tbody = el('tableMyLoadsTransporter')?.querySelector('tbody');
@@ -711,14 +758,15 @@
             } else {
                 users.forEach(user => {
                     const row = document.createElement('tr');
+                    const isCurrentSuperAdmin = user.email === SUPER_ADMIN_EMAIL;
                     row.innerHTML = `
-                        <td>${sanitize(user.name)}</td>
+                        <td>${sanitize(user.name)} ${isCurrentSuperAdmin ? '👑' : ''}</td>
                         <td>${sanitize(user.email)}</td>
                         <td>${sanitize(user.membership_number)}</td>
-                        <td><span class="chip">${sanitize(user.role)}</span></td>
+                        <td><span class="chip ${isCurrentSuperAdmin ? 'chip-warning' : ''}">${isCurrentSuperAdmin ? 'SUPER ADMIN' : sanitize(user.role)}</span></td>
                         <td>${new Date(user.created_at).toLocaleDateString()}</td>
                         <td>
-                            <button class="btn small danger" onclick="deleteUser('${user.email}')">Delete</button>
+                            ${!isCurrentSuperAdmin ? `<button class="btn small danger" onclick="deleteUser('${user.email}')">Delete</button>` : '<span class="muted">Protected</span>'}
                         </td>
                     `;
                     usersTbody.appendChild(row);
@@ -765,13 +813,23 @@
                 }
                 
                 users.forEach(user => {
+                  if (user.email !== SUPER_ADMIN_EMAIL) { // Don't include super admin in dropdowns
                     const option = document.createElement('option');
                     option.value = user.id;
                     option.textContent = `${user.name} (${user.email}) - ${user.role}`;
                     select.appendChild(option);
+                  }
                 });
             }
         });
+
+        // Show super admin badge
+        if (isSuperAdmin(user)) {
+          const adminTitle = el('adminPanelTitle');
+          if (adminTitle) {
+            adminTitle.innerHTML = 'Super Admin Control Panel 👑';
+          }
+        }
 
         showNotification('Admin panel loaded successfully', 'success');
     } catch (error) {
@@ -804,18 +862,21 @@
         navLinks.innerHTML = '';
       }
       
-      if (authUser) authUser.textContent = user.name;
+      if (authUser) authUser.textContent = isSuperAdmin(user) ? `${user.name} 👑` : user.name;
       if (btnLoginNav) btnLoginNav.classList.add('hidden');
       if (btnLogout) btnLogout.classList.remove('hidden');
       if (roleChip) {
-        roleChip.textContent = user.role;
+        roleChip.textContent = isSuperAdmin(user) ? 'SUPER ADMIN' : user.role;
         roleChip.classList.remove('hidden');
+        if (isSuperAdmin(user)) {
+          roleChip.classList.add('chip-warning');
+        }
       }
       
       // Create navigation links based on role
       const links = [];
       
-      if (user.role === 'shipper') {
+      if (user.role === 'shipper' || isAdmin(user)) {
         links.push(
           { href: '#shipper-dashboard', text: 'Dashboard' },
           { href: '#shipper-post', text: 'Post Load' },
@@ -823,26 +884,29 @@
           { href: '#messages', text: 'Messages' },
           { href: '#shipper-profile', text: 'Profile' }
         );
-      } else if (user.role === 'transporter') {
-        links.push(
-          { href: '#transporter-dashboard', text: 'Dashboard' },
-          { href: '#shipper-post', text: 'Post Load' },
-          { href: '#market', text: 'Market' },
-          { href: '#messages', text: 'Messages' },
-          { href: '#transporter-profile', text: 'Profile' }
-        );
-      } else if (user.role === 'admin') {
-        links.push(
-          { href: '#control', text: 'Admin' },
-          { href: '#shipper-dashboard', text: 'Shipper Dashboard' },
-          { href: '#transporter-dashboard', text: 'Transporter Dashboard' },
-          { href: '#market', text: 'Market' },
-          { href: '#messages', text: 'Messages' }
-        );
       }
       
+      if (user.role === 'transporter' || isAdmin(user)) {
+        links.push(
+          { href: '#transporter-dashboard', text: 'Transporter Dashboard' }
+        );
+        
+        if (!links.find(link => link.href === '#shipper-profile')) {
+          links.push({ href: '#transporter-profile', text: 'Profile' });
+        }
+      }
+      
+      if (isAdmin(user)) {
+        links.unshift({ href: '#control', text: 'Admin Control' });
+      }
+      
+      // Remove duplicates
+      const uniqueLinks = links.filter((link, index, self) => 
+        index === self.findIndex(l => l.href === link.href)
+      );
+      
       // Add links to navigation
-      links.forEach(link => {
+      uniqueLinks.forEach(link => {
         const a = document.createElement('a');
         a.className = 'btn ghost';
         a.href = link.href;
@@ -890,7 +954,7 @@
       
       if (!canAccess) {
         if (user) {
-          location.hash = user.role === 'admin' ? '#control' : 
+          location.hash = isAdmin(user) ? '#control' : 
                          user.role === 'shipper' ? '#shipper-dashboard' : '#transporter-dashboard';
         } else {
           location.hash = '#login';
@@ -946,6 +1010,11 @@
   };
 
   window.deleteUser = async (email) => {
+    if (email === SUPER_ADMIN_EMAIL) {
+      showNotification('Cannot delete Super Admin account', 'error');
+      return;
+    }
+    
     if (confirm(`Are you sure you want to delete user ${email}? This will also delete all their loads and messages.`)) {
       await handleError(async () => {
         const response = await apiRequest(`/admin/users/${encodeURIComponent(email)}`, {
@@ -995,7 +1064,7 @@
         const user = await login(email, password);
         if (user) {
           // Redirect based on role
-          if (user.role === 'admin') {
+          if (isAdmin(user)) {
             location.hash = '#control';
           } else if (user.role === 'shipper') {
             location.hash = '#shipper-dashboard';
@@ -1019,7 +1088,12 @@
       
       await handleError(async () => {
         await registerUser(data);
-        location.hash = '#shipper-dashboard';
+        const user = getCurrentUserSync();
+        if (isAdmin(user)) {
+          location.hash = '#control';
+        } else {
+          location.hash = '#shipper-dashboard';
+        }
       }, 'Registration failed');
       
       setButtonLoading(submitButton, false);
@@ -1036,7 +1110,12 @@
       
       await handleError(async () => {
         await registerUser(data);
-        location.hash = '#transporter-dashboard';
+        const user = getCurrentUserSync();
+        if (isAdmin(user)) {
+          location.hash = '#control';
+        } else {
+          location.hash = '#transporter-dashboard';
+        }
       }, 'Registration failed');
       
       setButtonLoading(submitButton, false);
@@ -1054,7 +1133,11 @@
         await postLoad(data);
         e.target.reset();
         const user = getCurrentUserSync();
-        location.hash = user?.role === 'shipper' ? '#shipper-dashboard' : '#transporter-dashboard';
+        if (isAdmin(user)) {
+          location.hash = '#control';
+        } else {
+          location.hash = user?.role === 'shipper' ? '#shipper-dashboard' : '#transporter-dashboard';
+        }
       }, 'Failed to post load');
       
       setButtonLoading(submitButton, false);
@@ -1070,7 +1153,7 @@
         return;
       }
       
-      const submitButton = e.target.querySelector('button[type="submit"]');
+      const submitButton = e.target.querySelector('button[type="submit']');
       setButtonLoading(submitButton, true);
       
       await handleError(async () => {
