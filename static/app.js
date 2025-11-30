@@ -305,7 +305,7 @@
     try {
       // For regular users, ALWAYS fetch fresh access permissions
       console.log('🔄 Fetching fresh access permissions for user:', user.email, 'ID:', user.id);
-      const response = await apiRequest(`/admin/users/${user.id}/access`);
+      const response = await apiRequest('/users/me/access');
       
       if (response.success) {
         const permissions = response.data.pages || {
