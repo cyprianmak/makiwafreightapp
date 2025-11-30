@@ -1450,6 +1450,7 @@ def debug_db():
             "error": str(e),
             "timestamp": datetime.now(timezone.utc).isoformat()
         }), 500
+
 # Add this debug endpoint to main.py
 @app.route('/api/debug/user-access/<user_id>', methods=['GET'])
 @admin_required
@@ -1503,6 +1504,7 @@ def debug_user_access(user_id):
             "message": "Debug failed",
             "error": str(e)
         }), 500
+
 # Initialize the application
 with app.app_context():
     initialize_data()
