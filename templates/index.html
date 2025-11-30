@@ -590,32 +590,49 @@
       color: var(--muted);
       margin-bottom: 20px;
     }
-      .recommendations-grid {
-        display: flex;
-        flex-direction: row;
-        justify-content: space-between;
+
+    /* Recommendations styles */
+    .recommendations-grid {
+      display: flex;
+      flex-direction: row;
+      justify-content: space-between;
+      gap: 16px;
     }
     
     .recommendation-card {
-      background-color: #f7f7f7;
+      background: linear-gradient(180deg, var(--panel), var(--panel-2));
+      border: 1px solid var(--border);
+      border-radius: 12px;
       padding: 20px;
-      margin: 10px;
-      border: 1px solid #ddd;
-      border-radius: 10px;
-      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-      width: 30%;
+      flex: 1;
+      min-height: 120px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
     }
     
     .recommendation-card h3 {
-      font-size: 18px;
-      margin-top: 0;
+      font-size: 16px;
+      margin: 0 0 12px 0;
+      color: var(--text);
     }
     
     .recommendation-card p {
       font-size: 14px;
-      color: #666;
+      color: var(--muted);
+      margin: 0;
+      line-height: 1.4;
     }
     
+    @media (max-width: 900px) {
+      .recommendations-grid {
+        flex-direction: column;
+      }
+      
+      .recommendation-card {
+        width: 100%;
+      }
+    }
   </style>
 </head>
 <body>
@@ -750,25 +767,25 @@
         <p>Your account currently has restricted access. You can view your dashboard but cannot access other features like posting loads, browsing the market, or sending messages.</p>
         <p>Please contact the administrator to request full access to the platform features.</p>
       </div>
-      
+
       <!-- Recommendations Section -->
-      <section id="recommendations" class="card">
+      <div class="card">
         <h2>Our Recommendations</h2>
-        <div class="recommendations-grid">
-          <div class="recommendation-card">
+        <div class="grid three">
+          <div class="card">
             <h3>Find Transporters for your Load</h3>
-            <p>Reliable transporters available to suite your needs</p>
+            <p class="muted">Reliable transporters available to suite your needs</p>
           </div>
-          <div class="recommendation-card">
+          <div class="card">
             <h3>Get the Best Loads per Kilometer</h3>
-            <p>Shippers available on the APP to liaise for the best Price per Kilometer</p>
+            <p class="muted">Shippers available on the APP to liaise for the best Price per Kilometer</p>
           </div>
-          <div class="recommendation-card">
+          <div class="card">
             <h3>Safe and convenient</h3>
-            <p>This is a Logistics best friend all in one</p>
+            <p class="muted">This is a Logistics best friend all in one</p>
           </div>
         </div>
-      </section>
+      </div>
             
       <div id="shipperDashboardContent" class="card">
         <div class="toolbar">
@@ -908,23 +925,24 @@
         <p>Please contact the administrator to request full access to the platform features.</p>
       </div>
 
-      <section id="recommendations" class="card">
+      <!-- Recommendations Section -->
+      <div class="card">
         <h2>Our Recommendations</h2>
-        <div class="recommendations-grid">
-          <div class="recommendation-card">
+        <div class="grid three">
+          <div class="card">
             <h3>Find Transporters for your Load</h3>
-            <p>Reliable transporters available to suite your needs</p>
+            <p class="muted">Reliable transporters available to suite your needs</p>
           </div>
-          <div class="recommendation-card">
+          <div class="card">
             <h3>Get the Best Loads per Kilometer</h3>
-            <p>Shippers available on the APP to liaise for the best Price per Kilometer</p>
+            <p class="muted">Shippers available on the APP to liaise for the best Price per Kilometer</p>
           </div>
-          <div class="recommendation-card">
+          <div class="card">
             <h3>Safe and convenient</h3>
-            <p>This is a Logistics best friend all in one</p>
+            <p class="muted">This is a Logistics best friend all in one</p>
           </div>
         </div>
-      </section>
+      </div>
             
       <div id="transporterDashboardContent" class="card">
         <div class="toolbar">
