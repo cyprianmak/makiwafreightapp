@@ -1242,23 +1242,35 @@ def update_user_access(user_id):
             }), 403
         
         user_access = UserAccessControl.query.filter_by(user_id=user_id).first()
+        
+        # Validate and normalize the pages data
+        pages_data = data['pages']
+        normalized_pages = {
+            'market': {'enabled': bool(pages_data.get('market', {}).get('enabled', False))},
+            'post-load': {'enabled': bool(pages_data.get('post-load', {}).get('enabled', False))},
+            'messages': {'enabled': bool(pages_data.get('messages', {}).get('enabled', False))}
+        }
+        
         if not user_access:
             user_access = UserAccessControl(
                 user_id=user_id,
-                pages=json.dumps(data['pages'])
+                pages=json.dumps(normalized_pages)
             )
             db.session.add(user_access)
         else:
-            user_access.pages = json.dumps(data['pages'])
+            user_access.pages = json.dumps(normalized_pages)
         
         db.session.commit()
+        
+        # Log the change for audit purposes
+        logger.info(f"✅ User access updated for {target_user.email}: {normalized_pages}")
         
         return jsonify({
             "success": True,
             "message": "User access updated successfully",
             "data": {
                 "user_id": user_id,
-                "pages": data['pages']
+                "pages": normalized_pages
             }
         })
     except Exception as e:
