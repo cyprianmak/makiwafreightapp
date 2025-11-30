@@ -1172,7 +1172,7 @@
     </div>
   </div>
 
-  <div class="grid two">
+<div class="grid two">
     <!-- User Access Control Section -->
     <div class="card">
       <div class="access-control-header">
@@ -1191,6 +1191,7 @@
         <div class="toolbar margin-top-10">
           <button class="btn small" onclick="enableAllAccess()">Enable All Features</button>
           <button class="btn small" onclick="disableAllAccess()">Disable All Features</button>
+          <button class="btn small warn" onclick="debugUserPermissions(el('selectUserForAccess').value)">Debug Permissions</button>
         </div>
         
         <div id="userAccessContainer" class="page-access-container">
