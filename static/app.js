@@ -652,7 +652,26 @@
         const allDisabled = !permissions.market.enabled && !permissions['post-load'].enabled && !permissions.messages.enabled;
         if (allDisabled) {
           accessWarning.classList.remove('hidden');
-          accessWarning.textContent = 'Your account has restricted access. Please contact administrator for full platform features.';
+          accessWarning.innerHTML = `
+            <div style="background: linear-gradient(135deg, #fff3cd, #ffeaa7); border: 1px solid #ffc107; border-radius: 8px; padding: 20px; margin: 20px 0; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+              <h3 style="color: #856404; margin: 0 0 10px 0; font-size: 1.2em;">Account Access Restricted</h3>
+              <p style="color: #856404; margin: 0 0 15px 0;">Your account currently has restricted access to platform features.</p>
+              <div style="background: rgba(255,255,255,0.7); padding: 15px; border-radius: 6px; border-left: 4px solid #ffc107;">
+                <p style="margin: 0 0 15px 0;"><strong>If you do not have access to Load's Market or you can't post loads, please register here:</strong></p>
+                <div style="display: flex; gap: 15px; margin: 15px 0; flex-wrap: wrap;">
+                  <a href="https://forms.gle/YMUMF6PMn5M9Sv7P7" target="_blank" style="background: #007bff; color: white; text-decoration: none; padding: 10px 20px; border-radius: 6px; font-weight: 500; border: 1px solid #007bff; transition: all 0.3s ease;">
+                    Shippers Registration Form
+                  </a>
+                  <a href="https://forms.gle/NsyataEzs5XQEXMF9" target="_blank" style="background: #6c757d; color: white; text-decoration: none; padding: 10px 20px; border-radius: 6px; font-weight: 500; border: 1px solid #6c757d; transition: all 0.3s ease;">
+                    Transporters Registration Form
+                  </a>
+                </div>
+                <p style="margin: 10px 0 0 0; font-size: 12px; color: #6c757d;">
+                  After completing registration, your account will be reviewed and granted appropriate access.
+                </p>
+              </div>
+            </div>
+          `;
         } else {
           accessWarning.classList.add('hidden');
         }
@@ -667,7 +686,26 @@
         const allDisabled = !permissions.market.enabled && !permissions['post-load'].enabled && !permissions.messages.enabled;
         if (allDisabled) {
           accessWarning.classList.remove('hidden');
-          accessWarning.textContent = 'Your account has restricted access. Please contact administrator for full platform features.';
+          accessWarning.innerHTML = `
+            <div style="background: linear-gradient(135deg, #fff3cd, #ffeaa7); border: 1px solid #ffc107; border-radius: 8px; padding: 20px; margin: 20px 0; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+              <h3 style="color: #856404; margin: 0 0 10px 0; font-size: 1.2em;">Account Access Restricted</h3>
+              <p style="color: #856404; margin: 0 0 15px 0;">Your account currently has restricted access to platform features.</p>
+              <div style="background: rgba(255,255,255,0.7); padding: 15px; border-radius: 6px; border-left: 4px solid #ffc107;">
+                <p style="margin: 0 0 15px 0;"><strong>If you do not have access to Load's Market or you can't post loads, please register here:</strong></p>
+                <div style="display: flex; gap: 15px; margin: 15px 0; flex-wrap: wrap;">
+                  <a href="https://forms.gle/YMUMF6PMn5M9Sv7P7" target="_blank" style="background: #007bff; color: white; text-decoration: none; padding: 10px 20px; border-radius: 6px; font-weight: 500; border: 1px solid #007bff; transition: all 0.3s ease;">
+                    Shippers Registration Form
+                  </a>
+                  <a href="https://forms.gle/NsyataEzs5XQEXMF9" target="_blank" style="background: #6c757d; color: white; text-decoration: none; padding: 10px 20px; border-radius: 6px; font-weight: 500; border: 1px solid #6c757d; transition: all 0.3s ease;">
+                    Transporters Registration Form
+                  </a>
+                </div>
+                <p style="margin: 10px 0 0 0; font-size: 12px; color: #6c757d;">
+                  After completing registration, your account will be reviewed and granted appropriate access.
+                </p>
+              </div>
+            </div>
+          `;
         } else {
           accessWarning.classList.add('hidden');
         }
