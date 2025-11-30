@@ -2227,6 +2227,51 @@
       throw error;
     }
   };
-
+// Get user access permissions - FIXED VERSION
+const getUserAccessPermissions = async () => {
+  const user = getCurrentUserSync();
+  if (!user) {
+    console.log('❌ No user found in session');
+    return null;
+  }
+  
+  // Admins and super admins have full access - no need to check
+  if (isAdmin(user)) {
+    console.log('✅ Admin user - full access granted automatically');
+    return {
+      market: { enabled: true },
+      'post-load': { enabled: true },
+      messages: { enabled: true }
+    };
+  }
+  
+  try {
+    console.log('🔄 Fetching permissions for regular user:', user.email);
+    
+    // REGULAR USERS USE THE NON-ADMIN ENDPOINT
+    const response = await apiRequest('/users/me/access');
+    
+    if (response.success) {
+      const permissions = response.data.pages || {
+        market: { enabled: false },
+        'post-load': { enabled: false },
+        messages: { enabled: false }
+      };
+      
+      console.log('✅ Loaded permissions for user:', user.email, permissions);
+      return permissions;
+    } else {
+      throw new Error('Failed to fetch access permissions');
+    }
+  } catch (error) {
+    console.error('❌ Error fetching user permissions:', error);
+    // Return default deny-first permissions on error
+    return {
+      market: { enabled: false },
+      'post-load': { enabled: false },
+      messages: { enabled: false }
+    };
+  }
+};
   // ... (rest of the code remains the same)
 })();
