@@ -1450,7 +1450,59 @@ def debug_db():
             "error": str(e),
             "timestamp": datetime.now(timezone.utc).isoformat()
         }), 500
-
+# Add this debug endpoint to main.py
+@app.route('/api/debug/user-access/<user_id>', methods=['GET'])
+@admin_required
+def debug_user_access(user_id):
+    """Debug endpoint to check user access permissions"""
+    try:
+        target_user = User.query.filter_by(id=user_id).first()
+        if not target_user:
+            return jsonify({
+                "success": False,
+                "message": "User not found",
+                "error": "User does not exist"
+            }), 404
+        
+        user_access = UserAccessControl.query.filter_by(user_id=user_id).first()
+        
+        # Get all UserAccessControl records for debugging
+        all_access_records = UserAccessControl.query.all()
+        access_records_debug = []
+        for record in all_access_records:
+            access_records_debug.append({
+                'user_id': record.user_id,
+                'user_email': User.query.get(record.user_id).email if User.query.get(record.user_id) else 'Unknown',
+                'pages': record.pages,
+                'created_at': record.created_at.isoformat()
+            })
+        
+        return jsonify({
+            "success": True,
+            "message": "Debug information retrieved",
+            "data": {
+                "target_user": {
+                    "id": target_user.id,
+                    "email": target_user.email,
+                    "role": target_user.role,
+                    "is_admin": is_admin_user(target_user)
+                },
+                "user_access_record": {
+                    "exists": user_access is not None,
+                    "pages": user_access.pages if user_access else "No record found",
+                    "created_at": user_access.created_at.isoformat() if user_access else None
+                },
+                "all_access_records": access_records_debug,
+                "total_access_records": len(access_records_debug)
+            }
+        })
+    except Exception as e:
+        logger.error(f"Debug user access error: {e}")
+        return jsonify({
+            "success": False,
+            "message": "Debug failed",
+            "error": str(e)
+        }), 500
 # Initialize the application
 with app.app_context():
     initialize_data()
