@@ -1507,6 +1507,62 @@ def debug_user_access(user_id):
 with app.app_context():
     initialize_data()
 
+# Add this endpoint to main.py - for users to check their OWN permissions
+@app.route('/api/users/me/access', methods=['GET'])
+@auth_required
+def get_my_access():
+    """Get the current user's own access permissions"""
+    try:
+        user = check_auth(request)
+        
+        user_access = UserAccessControl.query.filter_by(user_id=user.id).first()
+        
+        if not user_access:
+            # DEFAULT TO FALSE FOR ALL FEATURES - DENY-FIRST POLICY
+            return jsonify({
+                "success": True,
+                "message": "User access retrieved",
+                "data": {
+                    "user_id": user.id,
+                    "pages": {
+                        'market': {'enabled': False},
+                        'post-load': {'enabled': False},
+                        'messages': {'enabled': False}
+                    }
+                }
+            })
+        
+        # Parse existing permissions but ensure missing ones default to False
+        existing_pages = json.loads(user_access.pages) if user_access.pages else {}
+        
+        # Ensure all required features exist and default to False if missing
+        default_pages = {
+            'market': {'enabled': False},
+            'post-load': {'enabled': False},
+            'messages': {'enabled': False}
+        }
+        
+        # Merge with existing, preserving any enabled features
+        for feature in default_pages:
+            if feature in existing_pages:
+                default_pages[feature] = existing_pages[feature]
+        
+        return jsonify({
+            "success": True,
+            "message": "User access retrieved",
+            "data": {
+                "user_id": user.id,
+                "pages": default_pages
+            }
+        })
+    except Exception as e:
+        logger.error(f"Error getting user access: {e}")
+        return jsonify({
+            "success": False,
+            "message": "Failed to retrieve user access",
+            "error": str(e)
+        }), 500
+
 # Application entry point
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
