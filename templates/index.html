@@ -725,6 +725,7 @@
         <p>Please contact the administrator to request full access to the platform features.</p>
       </div>
       
+      <!-- Recommendations Section -->
       <section id="recommendations" class="card">
         <h2>Our Recommendations</h2>
         <div class="recommendations-grid">
@@ -742,6 +743,34 @@
           </div>
         </div>
       </section>
+      
+      
+      
+      .recommendations-grid {
+        display: flex;
+        flex-direction: row;
+        justify-content: space-between;
+      }
+      
+      .recommendation-card {
+        background-color: #f7f7f7;
+        padding: 20px;
+        margin: 10px;
+        border: 1px solid #ddd;
+        border-radius: 10px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        width: 30%;
+      }
+      
+      .recommendation-card h3 {
+        font-size: 18px;
+        margin-top: 0;
+      }
+      
+      .recommendation-card p {
+        font-size: 14px;
+        color: #666;
+      }
       
       <div id="shipperDashboardContent" class="card">
         <div class="toolbar">
@@ -898,7 +927,7 @@
           </div>
         </div>
       </section>
-      
+            
       <div id="transporterDashboardContent" class="card">
         <div class="toolbar">
           <h3>Your Posted Loads</h3>
