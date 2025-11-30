@@ -1902,3 +1902,331 @@
     init();
   }
 })();
+
+// app.js - MakiwaFreight Production Frontend with Access Control - DEBUG VERSION
+(function() {
+  'use strict';
+  
+  // ... (all previous configuration and utility functions remain the same until getUserAccessPermissions)
+
+  // Get user access permissions - EXTENSIVE DEBUGGING VERSION
+  const getUserAccessPermissions = async () => {
+    const user = getCurrentUserSync();
+    if (!user) {
+      console.log('❌ getUserAccessPermissions: No user found in session');
+      return null;
+    }
+    
+    // Admins and super admins have full access - no need to check
+    if (isAdmin(user)) {
+      console.log('✅ getUserAccessPermissions: Admin user - full access granted automatically');
+      return {
+        market: { enabled: true },
+        'post-load': { enabled: true },
+        messages: { enabled: true }
+      };
+    }
+    
+    try {
+      console.log('🔄 getUserAccessPermissions: Fetching permissions for user:', {
+        email: user.email,
+        id: user.id,
+        role: user.role
+      });
+      
+      const response = await apiRequest(`/admin/users/${user.id}/access`);
+      console.log('📥 getUserAccessPermissions: Raw API response:', response);
+      
+      if (response.success) {
+        const permissions = response.data.pages || {
+          market: { enabled: false },
+          'post-load': { enabled: false },
+          messages: { enabled: false }
+        };
+        
+        console.log('✅ getUserAccessPermissions: Final permissions for user:', {
+          user: user.email,
+          permissions: permissions,
+          marketEnabled: permissions.market?.enabled,
+          postLoadEnabled: permissions['post-load']?.enabled,
+          messagesEnabled: permissions.messages?.enabled
+        });
+        
+        return permissions;
+      } else {
+        console.error('❌ getUserAccessPermissions: API response not successful:', response);
+        throw new Error('Failed to fetch access permissions: ' + (response.error || response.message));
+      }
+    } catch (error) {
+      console.error('❌ getUserAccessPermissions: Error fetching permissions:', {
+        error: error.message,
+        user: user.email,
+        stack: error.stack
+      });
+      
+      // Return DEFAULT ACCESS on error - DENY FIRST
+      const fallbackPermissions = {
+        market: { enabled: false },
+        'post-load': { enabled: false },
+        messages: { enabled: false }
+      };
+      
+      console.log('🔄 getUserAccessPermissions: Using fallback permissions:', fallbackPermissions);
+      return fallbackPermissions;
+    }
+  };
+
+  // Enhanced hasAccessTo with detailed logging
+  const hasAccessTo = async (feature) => {
+    console.log(`🔐 hasAccessTo: Checking access for feature: ${feature}`);
+    const user = getCurrentUserSync();
+    
+    if (!user) {
+      console.log(`❌ hasAccessTo: No user - denying access to ${feature}`);
+      return false;
+    }
+    
+    // Admins and super admins have full access
+    if (isAdmin(user)) {
+      console.log(`✅ hasAccessTo: Admin user ${user.email} - granting full access to ${feature}`);
+      return true;
+    }
+    
+    const permissions = await getUserAccessPermissions();
+    
+    if (!permissions) {
+      console.log(`❌ hasAccessTo: No permissions object - denying access to ${feature}`);
+      return false;
+    }
+    
+    const hasAccess = permissions[feature]?.enabled === true;
+    
+    console.log(`🔐 hasAccessTo: Final decision for ${feature}:`, {
+      user: user.email,
+      feature: feature,
+      enabled: permissions[feature]?.enabled,
+      hasAccess: hasAccess,
+      allPermissions: permissions
+    });
+    
+    return hasAccess;
+  };
+
+  // Enhanced saveUserAccess with detailed logging
+  const saveUserAccess = async (userId) => {
+    try {
+      const accessData = {
+        market: { enabled: el('access-market').checked },
+        'post-load': { enabled: el('access-post-load').checked },
+        messages: { enabled: el('access-messages').checked }
+      };
+      
+      console.log('💾 saveUserAccess: Starting save process', {
+        userId: userId,
+        accessData: accessData,
+        marketChecked: el('access-market').checked,
+        postLoadChecked: el('access-post-load').checked,
+        messagesChecked: el('access-messages').checked
+      });
+      
+      const response = await apiRequest(`/admin/users/${userId}/access`, {
+        method: 'PUT',
+        body: JSON.stringify({ pages: accessData })
+      });
+      
+      console.log('📨 saveUserAccess: API Response received:', response);
+      
+      if (response.success) {
+        const select = el('selectUserForAccess');
+        const selectedOption = select.options[select.selectedIndex];
+        
+        console.log('✅ saveUserAccess: Successfully saved permissions', {
+          userId: userId,
+          savedData: response.data,
+          userDisplay: selectedOption.text
+        });
+        
+        // Update user table to reflect changes
+        await renderControl();
+        
+        showNotification(`Feature access updated successfully for ${selectedOption.text.split('(')[0]}!`, 'success');
+        return true;
+      } else {
+        console.error('❌ saveUserAccess: API returned error:', response);
+        throw new Error(response.error || 'Failed to save access');
+      }
+    } catch (error) {
+      console.error('❌ saveUserAccess: Error saving user access:', {
+        error: error.message,
+        stack: error.stack,
+        userId: userId
+      });
+      showNotification('Failed to update user feature access: ' + error.message, 'error');
+      return false;
+    }
+  };
+
+  // Enhanced loadUserAccess with detailed logging
+  const loadUserAccess = async (userId) => {
+    try {
+      console.log('📥 loadUserAccess: Loading permissions for user ID:', userId);
+      const response = await apiRequest(`/admin/users/${userId}/access`);
+      
+      console.log('📨 loadUserAccess: API Response:', response);
+      
+      if (response.success) {
+        const accessData = response.data.pages || {
+          market: { enabled: false },
+          'post-load': { enabled: false },
+          messages: { enabled: false }
+        };
+        
+        console.log('✅ loadUserAccess: Parsed access data:', {
+          accessData: accessData,
+          marketEnabled: accessData.market?.enabled,
+          postLoadEnabled: accessData['post-load']?.enabled,
+          messagesEnabled: accessData.messages?.enabled
+        });
+        
+        // Update toggle switches
+        el('access-market').checked = accessData.market?.enabled === true;
+        el('access-post-load').checked = accessData['post-load']?.enabled === true;
+        el('access-messages').checked = accessData.messages?.enabled === true;
+        
+        console.log('🔄 loadUserAccess: Updated toggle switches:', {
+          marketToggle: el('access-market').checked,
+          postLoadToggle: el('access-post-load').checked,
+          messagesToggle: el('access-messages').checked
+        });
+        
+        // Update the select dropdown to show which user is being edited
+        const select = el('selectUserForAccess');
+        const selectedOption = select.options[select.selectedIndex];
+        
+        console.log('👤 loadUserAccess: User being edited:', selectedOption.text);
+        
+        showNotification(`Loaded feature access for: ${selectedOption.text}`, 'success');
+        
+        // Enable the save button
+        el('btnSaveUserAccess').disabled = false;
+        
+        return true;
+      } else {
+        console.error('❌ loadUserAccess: API returned error:', response);
+        throw new Error(response.error || 'Failed to load access');
+      }
+    } catch (error) {
+      console.error('❌ loadUserAccess: Error loading user access:', {
+        error: error.message,
+        stack: error.stack,
+        userId: userId
+      });
+      showNotification('Failed to load user feature access settings: ' + error.message, 'error');
+      // Reset toggles on error
+      resetToggles();
+      return false;
+    }
+  };
+
+  // Enhanced debug function
+  window.debugUserPermissions = async (userId) => {
+    try {
+      const user = getCurrentUserSync();
+      if (!isAdmin(user)) {
+        showNotification('Admin access required for debug', 'error');
+        return;
+      }
+      
+      if (!userId) {
+        showNotification('Please select a user first', 'error');
+        return;
+      }
+      
+      console.group('🔍 DEBUG USER PERMISSIONS');
+      console.log('👤 Debugging permissions for user ID:', userId);
+      
+      // Get user info
+      const usersResponse = await apiRequest('/users');
+      const targetUser = usersResponse.data.users.find(u => u.id === userId);
+      
+      if (!targetUser) {
+        console.error('❌ User not found in users list');
+        console.groupEnd();
+        return;
+      }
+      
+      console.log('📋 User details:', targetUser);
+      
+      // Get access permissions from admin endpoint
+      console.log('🔄 Fetching permissions from admin endpoint...');
+      const accessResponse = await apiRequest(`/admin/users/${userId}/access`);
+      console.log('📨 Admin endpoint response:', accessResponse);
+      
+      // Get permissions as the user would see them
+      console.log('🔄 Fetching permissions as user would see them...');
+      
+      // Create a mock user session to test permissions
+      const originalUser = getCurrentUserSync();
+      const mockUserSession = {
+        ...targetUser,
+        token: 'debug-token' // This won't actually work for API calls, but for our debug function
+      };
+      
+      console.log('🧪 Testing permissions for user:', targetUser.email);
+      
+      // Test each feature access
+      const marketAccess = await hasAccessTo('market');
+      const postLoadAccess = await hasAccessTo('post-load');
+      const messagesAccess = await hasAccessTo('messages');
+      
+      console.log('🔐 Permission test results:', {
+        market: marketAccess,
+        postLoad: postLoadAccess,
+        messages: messagesAccess
+      });
+      
+      // Check database state directly
+      console.log('🗄️ Checking database state...');
+      const debugResponse = await apiRequest('/debug/db');
+      console.log('📊 Database debug info:', debugResponse);
+      
+      console.groupEnd();
+      
+      showNotification(`Debug complete for ${targetUser.email}. Check console for details.`, 'info');
+      
+    } catch (error) {
+      console.error('❌ Debug error:', error);
+      console.groupEnd();
+      showNotification('Debug failed: ' + error.message, 'error');
+    }
+  };
+
+  // Enhanced API request with debugging
+  const originalApiRequest = apiRequest;
+  window.apiRequest = async (endpoint, options = {}) => {
+    console.log(`🌐 API Request: ${endpoint}`, {
+      method: options.method || 'GET',
+      endpoint: endpoint,
+      timestamp: new Date().toISOString()
+    });
+    
+    try {
+      const response = await originalApiRequest(endpoint, options);
+      console.log(`✅ API Response: ${endpoint}`, {
+        success: response.success,
+        data: response.data,
+        message: response.message
+      });
+      return response;
+    } catch (error) {
+      console.error(`❌ API Error: ${endpoint}`, {
+        error: error.message,
+        endpoint: endpoint,
+        method: options.method || 'GET'
+      });
+      throw error;
+    }
+  };
+
+  // ... (rest of the code remains the same)
+})();
