@@ -284,13 +284,17 @@
     }
   };
 
-  // Get user access permissions - DENY-FIRST VERSION
+  // Get user access permissions - ENHANCED VERSION
   const getUserAccessPermissions = async () => {
     const user = getCurrentUserSync();
-    if (!user) return null;
+    if (!user) {
+      console.log('❌ No user found in session');
+      return null;
+    }
     
     // Admins and super admins have full access - no need to check
     if (isAdmin(user)) {
+      console.log('✅ Admin user - full access granted');
       return {
         market: { enabled: true },
         'post-load': { enabled: true },
@@ -300,20 +304,21 @@
     
     try {
       // For regular users, ALWAYS fetch fresh access permissions
-      console.log('🔄 Fetching fresh access permissions for user:', user.email);
+      console.log('🔄 Fetching fresh access permissions for user:', user.email, 'ID:', user.id);
       const response = await apiRequest(`/admin/users/${user.id}/access`);
       
       if (response.success) {
         const permissions = response.data.pages || {
-          market: { enabled: false }, // DEFAULT TO FALSE - DENY FIRST
-          'post-load': { enabled: false }, // DEFAULT TO FALSE - DENY FIRST
-          messages: { enabled: false } // DEFAULT TO FALSE - DENY FIRST
+          market: { enabled: false },
+          'post-load': { enabled: false },
+          messages: { enabled: false }
         };
         
         console.log('✅ Loaded access permissions:', permissions, 'for user:', user.email);
         return permissions;
       } else {
-        throw new Error('Failed to fetch access permissions');
+        console.error('❌ API response not successful:', response);
+        throw new Error('Failed to fetch access permissions: ' + (response.error || response.message));
       }
     } catch (error) {
       console.error('❌ Error fetching user access permissions:', error);
@@ -1136,6 +1141,43 @@
     showNotification('User not found or is an admin (admin access cannot be modified)', 'error');
   };
 
+  // Debug function to check user permissions
+  window.debugUserPermissions = async (userId) => {
+    try {
+      const user = getCurrentUserSync();
+      if (!isAdmin(user)) {
+        showNotification('Admin access required for debug', 'error');
+        return;
+      }
+      
+      console.log('🔍 Debugging user permissions for ID:', userId);
+      
+      // Get user info
+      const usersResponse = await apiRequest('/users');
+      const targetUser = usersResponse.data.users.find(u => u.id === userId);
+      
+      if (!targetUser) {
+        console.error('User not found');
+        return;
+      }
+      
+      console.log('👤 User details:', targetUser);
+      
+      // Get access permissions
+      const accessResponse = await apiRequest(`/admin/users/${userId}/access`);
+      console.log('🔐 Access permissions:', accessResponse.data);
+      
+      // Test if user can access features
+      const testPermissions = await getUserAccessPermissions();
+      console.log('🧪 Test permissions result:', testPermissions);
+      
+      showNotification(`Debug info logged to console for ${targetUser.email}`, 'info');
+    } catch (error) {
+      console.error('Debug error:', error);
+      showNotification('Debug failed: ' + error.message, 'error');
+    }
+  };
+
   // Admin access control functions
   window.loadUserAccess = async () => {
     const userId = el('selectUserForAccess').value;
@@ -1219,13 +1261,17 @@
   // Enhanced load user access function
   const loadUserAccess = async (userId) => {
     try {
+      console.log('🔄 Loading user access for user ID:', userId);
       const response = await apiRequest(`/admin/users/${userId}/access`);
+      
       if (response.success) {
         const accessData = response.data.pages || {
           market: { enabled: false },
           'post-load': { enabled: false },
           messages: { enabled: false }
         };
+        
+        console.log('✅ Loaded user access:', accessData);
         
         // Update toggle switches
         el('access-market').checked = accessData.market?.enabled === true;
@@ -1239,12 +1285,17 @@
         
         // Enable the save button
         el('btnSaveUserAccess').disabled = false;
+        
+        return true;
+      } else {
+        throw new Error(response.error || 'Failed to load access');
       }
     } catch (error) {
-      console.error('Error loading user access:', error);
-      showNotification('Failed to load user feature access settings', 'error');
+      console.error('❌ Error loading user access:', error);
+      showNotification('Failed to load user feature access settings: ' + error.message, 'error');
       // Reset toggles on error
       resetToggles();
+      return false;
     }
   };
 
@@ -1257,6 +1308,8 @@
         messages: { enabled: el('access-messages').checked }
       };
       
+      console.log('🔄 Saving user access:', accessData, 'for user ID:', userId);
+      
       const response = await apiRequest(`/admin/users/${userId}/access`, {
         method: 'PUT',
         body: JSON.stringify({ pages: accessData })
@@ -1266,14 +1319,19 @@
         const select = el('selectUserForAccess');
         const selectedOption = select.options[select.selectedIndex];
         
+        console.log('✅ User access saved successfully:', response.data);
+        
         // Update user table to reflect changes
         await renderControl();
+        
+        showNotification(`Feature access updated successfully for ${selectedOption.text.split('(')[0]}!`, 'success');
         return true;
+      } else {
+        throw new Error(response.error || 'Failed to save access');
       }
-      return false;
     } catch (error) {
-      console.error('Error saving user access:', error);
-      showNotification('Failed to update user feature access', 'error');
+      console.error('❌ Error saving user access:', error);
+      showNotification('Failed to update user feature access: ' + error.message, 'error');
       return false;
     }
   };
